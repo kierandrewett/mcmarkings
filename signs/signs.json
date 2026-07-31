@@ -4262,20 +4262,6 @@
       "bytes": 33889
     },
     {
-      "name": "from_1981_1981",
-      "file": "from_1981_1981.png",
-      "diagram": "569.2",
-      "class": "warning",
-      "description": "United Kingdom Traffic sign 569.2, from 1981. It warns that a new roundabout is ahead. The text could be varied to reflect a different road feature, like traffic signals, as needed",
-      "width": 1024,
-      "height": 732,
-      "has_transparency": true,
-      "licence": "OGL v1.0",
-      "source_file": "UK traffic sign 569.2 - 1981.svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_569.2_-_1981.svg",
-      "bytes": 43189
-    },
-    {
       "name": "front_of_emergency_telephone_box",
       "file": "front_of_emergency_telephone_box.png",
       "diagram": "913",
@@ -4386,20 +4372,6 @@
       "source_file": "UK traffic sign 615 (Gibraltar).svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_615_(Gibraltar).svg",
       "bytes": 50921
-    },
-    {
-      "name": "gibraltar_gibraltar",
-      "file": "gibraltar_gibraltar.png",
-      "diagram": "510",
-      "class": "warning",
-      "description": "UK traffic sign used in Gibraltar. The United Kingdom drives on the left, while Gibraltar drives on the right. For this reason, Gibraltar must reverse some signs in the TSRGD for use on the right side of the road.",
-      "width": 1024,
-      "height": 905,
-      "has_transparency": true,
-      "licence": "OGL v1.0",
-      "source_file": "UK traffic sign 510 (Gibraltar).svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_510_(Gibraltar).svg",
-      "bytes": 55567
     },
     {
       "name": "give_way",
@@ -5466,8 +5438,8 @@
       "bytes": 46038
     },
     {
-      "name": "junction_displaying_route_number_and_destination_reached_as_well_as",
-      "file": "junction_displaying_route_number_and_destination_reached_as_well_as.png",
+      "name": "junction_displaying_route_number_and_destination_reached",
+      "file": "junction_displaying_route_number_and_destination_reached.png",
       "diagram": "2906",
       "class": "directional",
       "description": "UK traffic sign: Motorway junction, displaying route number and destination reached as well as destination reached by remaining on the motorway (TSRGDNO 2906)",
@@ -5480,8 +5452,8 @@
       "bytes": 78404
     },
     {
-      "name": "junction_of_two_a_roads_showing_showing_route_number",
-      "file": "junction_of_two_a_roads_showing_showing_route_number.png",
+      "name": "junction_of_two_a_roads_showing_route_number_and_destination",
+      "file": "junction_of_two_a_roads_showing_route_number_and_destination.png",
       "diagram": "704",
       "class": "level_crossing",
       "description": "UK traffic sign: Junction of two A-roads showing showing route number and name of a primary destinations . (TSRGD Sign number: 704)",
@@ -5548,6 +5520,20 @@
       "source_file": "UK traffic sign 512.2 (right).svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_512.2_(right).svg",
       "bytes": 46400
+    },
+    {
+      "name": "keep_2_metres_apart",
+      "file": "keep_2_metres_apart.png",
+      "diagram": null,
+      "class": "other",
+      "description": "A UK traffic sign for pedestrians introduced in 2020 to instruct pedestrians to keep 2 metres (6.6 ft) away from each other.",
+      "width": 1024,
+      "height": 782,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign - stay 2m apart.svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_-_stay_2m_apart.svg",
+      "bytes": 58103
     },
     {
       "name": "keep_left",
@@ -6726,20 +6712,6 @@
       "bytes": 48502
     },
     {
-      "name": "merges_ahead_from_the_left_this_diagram_is_deprecated",
-      "file": "merges_ahead_from_the_left_this_diagram_is_deprecated.png",
-      "diagram": "509",
-      "class": "warning",
-      "description": "UK traffic sign: Traffic merges ahead from the left (TSRGDNO 509);This diagram is deprecated and does not represent current practice",
-      "width": 1024,
-      "height": 906,
-      "has_transparency": true,
-      "licence": "OGL 3",
-      "source_file": "UK traffic sign 509-L (1965–1994).svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_509-L_(1965–1994).svg",
-      "bytes": 50073
-    },
-    {
       "name": "merges_ahead_from_the_left_this_diagram_is_deprecated_1965_1994",
       "file": "merges_ahead_from_the_left_this_diagram_is_deprecated_1965_1994.png",
       "diagram": "508",
@@ -6978,20 +6950,6 @@
       "bytes": 112789
     },
     {
-      "name": "narrows_on_both_sides_ahead_also_known_as_figure_no",
-      "file": "narrows_on_both_sides_ahead_also_known_as_figure_no.png",
-      "diagram": "516",
-      "class": "warning",
-      "description": "UK traffic sign: Road narrows on both sides ahead (TSRGDNO 516). Also known as Figure No. 211 of Hong Kong traffic signs",
-      "width": 1024,
-      "height": 905,
-      "has_transparency": true,
-      "licence": "Public domain",
-      "source_file": "UK traffic sign 516.svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_516.svg",
-      "bytes": 43532
-    },
-    {
       "name": "narrows_on_left_ahead",
       "file": "narrows_on_left_ahead.png",
       "diagram": "517",
@@ -7172,6 +7130,20 @@
       "source_file": "UK traffic sign 790–V1–WLS–A.svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_790–V1–WLS–A.svg",
       "bytes": 77717
+    },
+    {
+      "name": "new_roundabout_ahead_1981",
+      "file": "new_roundabout_ahead_1981.png",
+      "diagram": "569.2",
+      "class": "warning",
+      "description": "United Kingdom Traffic sign 569.2, from 1981. It warns that a new roundabout is ahead. The text could be varied to reflect a different road feature, like traffic signals, as needed",
+      "width": 1024,
+      "height": 732,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign 569.2 - 1981.svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_569.2_-_1981.svg",
+      "bytes": 43189
     },
     {
       "name": "new_tramway_level_crossing_ahead_wales",
@@ -7832,8 +7804,8 @@
       "bytes": 66341
     },
     {
-      "name": "no_vehicles_except_for_access_1981_this_diagram_is_deprecated",
-      "file": "no_vehicles_except_for_access_1981_this_diagram_is_deprecated.png",
+      "name": "no_vehicles_except_for_access_1981_deprecated",
+      "file": "no_vehicles_except_for_access_1981_deprecated.png",
       "diagram": "618.1",
       "class": "regulatory",
       "description": "UK traffic sign: No vehicles Except for access (TSRGDNO 618.1)(1981); This diagram is deprecated and does not represent current practice",
@@ -9092,20 +9064,6 @@
       "bytes": 68623
     },
     {
-      "name": "pedestrians_to_instruct_pedestrians_to_keep_2_metres_6_6",
-      "file": "pedestrians_to_instruct_pedestrians_to_keep_2_metres_6_6.png",
-      "diagram": null,
-      "class": "other",
-      "description": "A UK traffic sign for pedestrians introduced in 2020 to instruct pedestrians to keep 2 metres (6.6 ft) away from each other.",
-      "width": 1024,
-      "height": 782,
-      "has_transparency": true,
-      "licence": "OGL v1.0",
-      "source_file": "UK traffic sign - stay 2m apart.svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_-_stay_2m_apart.svg",
-      "bytes": 58103
-    },
-    {
       "name": "pedestrians_to_instruct_pedestrians_to_keep_their_distance",
       "file": "pedestrians_to_instruct_pedestrians_to_keep_their_distance.png",
       "diagram": null,
@@ -9300,6 +9258,20 @@
       "source_file": "UK traffic sign 786 (Wales) (variant 4).svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_786_(Wales)_(variant_4).svg",
       "bytes": 74074
+    },
+    {
+      "name": "plate_for_use_with_diagram_516_and_517",
+      "file": "plate_for_use_with_diagram_516_and_517.png",
+      "diagram": "519.1",
+      "class": "warning",
+      "description": "Plate for use with signs in diagram 516 and 517 (TSRGDNO 519.1); This is a deprecated design or diagram, reconstructed from analysis of the 1981 Schedule, and the 2002 era working drawings.",
+      "width": 1024,
+      "height": 430,
+      "has_transparency": true,
+      "licence": "OGL 3",
+      "source_file": "UK traffic sign 519.1(1981).svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_519.1(1981).svg",
+      "bytes": 31329
     },
     {
       "name": "police_accident",
@@ -10170,6 +10142,20 @@
       "bytes": 56207
     },
     {
+      "name": "road_narrows_on_both_sides_ahead",
+      "file": "road_narrows_on_both_sides_ahead.png",
+      "diagram": "516",
+      "class": "warning",
+      "description": "UK traffic sign: Road narrows on both sides ahead (TSRGDNO 516). Also known as Figure No. 211 of Hong Kong traffic signs",
+      "width": 1024,
+      "height": 905,
+      "has_transparency": true,
+      "licence": "Public domain",
+      "source_file": "UK traffic sign 516.svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_516.svg",
+      "bytes": 43532
+    },
+    {
       "name": "roundabout_ahead",
       "file": "roundabout_ahead.png",
       "diagram": "510",
@@ -10182,6 +10168,20 @@
       "source_file": "UK traffic sign 510.svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_510.svg",
       "bytes": 55422
+    },
+    {
+      "name": "roundabout_ahead_gibraltar",
+      "file": "roundabout_ahead_gibraltar.png",
+      "diagram": "510",
+      "class": "warning",
+      "description": "UK traffic sign used in Gibraltar. The United Kingdom drives on the left, while Gibraltar drives on the right. For this reason, Gibraltar must reverse some signs in the TSRGD for use on the right side of the road.",
+      "width": 1024,
+      "height": 905,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign 510 (Gibraltar).svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_510_(Gibraltar).svg",
+      "bytes": 55567
     },
     {
       "name": "roundabout_ahead_leading_from_a_motorway_exit_slip_road",
@@ -12676,6 +12676,20 @@
       "bytes": 25164
     },
     {
+      "name": "symbol_keep_2_metres_apart",
+      "file": "symbol_keep_2_metres_apart.png",
+      "diagram": null,
+      "class": "other",
+      "description": "A UK traffic sign for pedestrians introduced in 2020 to instruct pedestrians to keep 2 metres (6.6 ft) away from each other, featuring a symbol showing two people walking with a double arrow separating them.",
+      "width": 1024,
+      "height": 976,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign - stay 2m apart - symbol.svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_-_stay_2m_apart_-_symbol.svg",
+      "bytes": 73120
+    },
+    {
       "name": "symbol_loading",
       "file": "symbol_loading.png",
       "diagram": "S6",
@@ -12842,20 +12856,6 @@
       "source_file": "UK traffic sign symbol S3.svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_symbol_S3.svg",
       "bytes": 30033
-    },
-    {
-      "name": "symbol_pedestrians_to_instruct_pedestrians_to_keep_2_metres_6_6",
-      "file": "symbol_pedestrians_to_instruct_pedestrians_to_keep_2_metres_6_6.png",
-      "diagram": null,
-      "class": "other",
-      "description": "A UK traffic sign for pedestrians introduced in 2020 to instruct pedestrians to keep 2 metres (6.6 ft) away from each other, featuring a symbol showing two people walking with a double arrow separating them.",
-      "width": 1024,
-      "height": 976,
-      "has_transparency": true,
-      "licence": "OGL v1.0",
-      "source_file": "UK traffic sign - stay 2m apart - symbol.svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_-_stay_2m_apart_-_symbol.svg",
-      "bytes": 73120
     },
     {
       "name": "symbol_pedestrians_to_instruct_pedestrians_to_keep_their_distance_featuring",
@@ -13432,6 +13432,20 @@
       "bytes": 65032
     },
     {
+      "name": "traffic_merges_ahead_from_the_left_deprecated",
+      "file": "traffic_merges_ahead_from_the_left_deprecated.png",
+      "diagram": "509",
+      "class": "warning",
+      "description": "UK traffic sign: Traffic merges ahead from the left (TSRGDNO 509);This diagram is deprecated and does not represent current practice",
+      "width": 1024,
+      "height": 906,
+      "has_transparency": true,
+      "licence": "OGL 3",
+      "source_file": "UK traffic sign 509-L (1965–1994).svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_509-L_(1965–1994).svg",
+      "bytes": 50073
+    },
+    {
       "name": "tramcars_crossing_ahead",
       "file": "tramcars_crossing_ahead.png",
       "diagram": "772",
@@ -13936,20 +13950,6 @@
       "bytes": 36894
     },
     {
-      "name": "use_with_signs_in_diagram_516_and_517_this_is",
-      "file": "use_with_signs_in_diagram_516_and_517_this_is.png",
-      "diagram": "519.1",
-      "class": "warning",
-      "description": "Plate for use with signs in diagram 516 and 517 (TSRGDNO 519.1); This is a deprecated design or diagram, reconstructed from analysis of the 1981 Schedule, and the 2002 era working drawings.",
-      "width": 1024,
-      "height": 430,
-      "has_transparency": true,
-      "licence": "OGL 3",
-      "source_file": "UK traffic sign 519.1(1981).svg",
-      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_519.1(1981).svg",
-      "bytes": 31329
-    },
-    {
       "name": "use_with_signs_in_diagrams_504_1_to_507_1",
       "file": "use_with_signs_in_diagrams_504_1_to_507_1.png",
       "diagram": "511",
@@ -14258,8 +14258,8 @@
       "bytes": 67728
     },
     {
-      "name": "vehicles_exceeding_9_9_metres_in_length_prohibited_this_sign",
-      "file": "vehicles_exceeding_9_9_metres_in_length_prohibited_this_sign.png",
+      "name": "vehicles_exceeding_9_9_metres_in_length_prohibited",
+      "file": "vehicles_exceeding_9_9_metres_in_length_prohibited.png",
       "diagram": "629.1",
       "class": "regulatory",
       "description": "UK traffic sign: Vehicles exceeding 9.9 metres in length prohibited (TSRGDNO 629.1 Metric). This sign using metric units has been authorised for the 2015 TSRGD.",
@@ -14272,8 +14272,8 @@
       "bytes": 68880
     },
     {
-      "name": "vehicles_exceeding_a_gross_weight_of_20t_prohibited_this_is",
-      "file": "vehicles_exceeding_a_gross_weight_of_20t_prohibited_this_is.png",
+      "name": "vehicles_exceeding_a_gross_weight_of_20t_prohibited",
+      "file": "vehicles_exceeding_a_gross_weight_of_20t_prohibited.png",
       "diagram": "626.1",
       "class": "regulatory",
       "description": "UK traffic sign: Vehicles exceeding a gross weight of 20T prohibited (TSRGDNO 626.1); This is a deprecated design or diagram, reconstructed from analysis of the 1981 Schedule, and the 2002 era working drawings. It may not be wholly accurate.",
@@ -14286,8 +14286,8 @@
       "bytes": 91238
     },
     {
-      "name": "vehicles_exceeding_a_gross_weight_of_25t_prohibited_this_is",
-      "file": "vehicles_exceeding_a_gross_weight_of_25t_prohibited_this_is.png",
+      "name": "vehicles_exceeding_a_gross_weight_of_25t_prohibited",
+      "file": "vehicles_exceeding_a_gross_weight_of_25t_prohibited.png",
       "diagram": "626",
       "class": "regulatory",
       "description": "UK traffic sign: Vehicles exceeding a gross weight of 25T prohibited (TSRGDNO 626.1); This is a deprecated design or diagram, reconstructed from analysis of the 1965 Schedule, and the 1975 era working drawings. It may not be wholly accurate.",
