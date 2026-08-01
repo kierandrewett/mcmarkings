@@ -1,0 +1,188 @@
+package dev.kierandrewett.mcmarkings.texture;
+
+import com.mojang.blaze3d.opengl.GlTexture;
+import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.textures.GpuTexture;
+import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
+import dev.kierandrewett.mcmarkings.core.RepoImage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
+
+import java.awt.image.BufferedImage;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Function;
+
+/**
+ * Decodes repository images off-thread and uploads them as GPU textures, keeping
+ * only a bounded number resident.
+ *
+ * <p>The repository holds well over a thousand PNGs. Uploading them all would
+ * exhaust VRAM, and decoding on the render thread would stall the game, so this
+ * decodes on a worker, hops to the render thread to upload, and evicts
+ * least-recently-used entries past a cap.
+ *
+ * <p>Scaling is not done here. The caller supplies a loader that returns an
+ * already-thumbnailed image, which keeps this class free of any policy about how
+ * images should be resampled.
+ */
+public class RuntimeTextureCache implements ThumbnailCache {
+
+    private final Function<RepoImage, BufferedImage> loader;
+    private final int maxResident;
+
+    private final ExecutorService decodePool = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
+            runnable -> {
+                Thread thread = new Thread(runnable, "mcmarkings-thumbnail");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    /** Access-ordered so the eldest entry is the least recently used. */
+    private final LinkedHashMap<String, Entry> resident;
+
+    private final Map<String, CompletableFuture<TextureHandle>> inFlight = new ConcurrentHashMap<>();
+
+    public RuntimeTextureCache(Function<RepoImage, BufferedImage> loader, int maxResident) {
+        this.loader = loader;
+        this.maxResident = maxResident;
+        this.resident = new LinkedHashMap<>(64, 0.75f, true);
+    }
+
+    @Override
+    public synchronized Optional<TextureHandle> peek(RepoImage image) {
+        Entry entry = resident.get(image.path());
+        return Optional.ofNullable(entry);
+    }
+
+    @Override
+    public CompletableFuture<TextureHandle> request(RepoImage image) {
+        String key = image.path();
+
+        synchronized (this) {
+            Entry existing = resident.get(key);
+            if (existing != null) {
+                return CompletableFuture.completedFuture(existing);
+            }
+        }
+
+        return inFlight.computeIfAbsent(key, ignored -> CompletableFuture
+                .supplyAsync(() -> loader.apply(image), decodePool)
+                .thenCompose(decoded -> uploadOnRenderThread(key, decoded))
+                .whenComplete((handle, error) -> {
+                    inFlight.remove(key);
+                    if (error != null) {
+                        McMarkingsCompanion.LOGGER.warn("[mcmarkings] thumbnail failed for {}", key, error);
+                    }
+                }));
+    }
+
+    @Override
+    public CompletableFuture<TextureHandle> upload(String key, BufferedImage image) {
+        evict(key);
+        return uploadOnRenderThread(key, image);
+    }
+
+    private CompletableFuture<TextureHandle> uploadOnRenderThread(String key, BufferedImage source) {
+        CompletableFuture<TextureHandle> future = new CompletableFuture<>();
+
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            try {
+                future.complete(register(key, source));
+            } catch (RuntimeException exception) {
+                future.completeExceptionally(exception);
+            }
+        });
+
+        return future;
+    }
+
+    private synchronized Entry register(String key, BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+
+        NativeImage image = new NativeImage(NativeImage.Format.RGBA, width, height, false);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // BufferedImage.getRGB and NativeImage.setPixel are both ARGB, so
+                // no channel swap. Getting this wrong silently swaps red and blue.
+                image.setPixel(x, y, source.getRGB(x, y));
+            }
+        }
+
+        Identifier identifier = McMarkingsCompanion.id("thumb/" + sanitise(key));
+        DynamicTexture texture = new DynamicTexture(() -> "mcmarkings " + key, image);
+        texture.upload();
+        Minecraft.getInstance().getTextureManager().register(identifier, texture);
+
+        Entry entry = new Entry(identifier, width, height, glIdOf(texture));
+        resident.put(key, entry);
+        trim();
+        return entry;
+    }
+
+    /** Evict from the eldest end until back within the cap. */
+    private void trim() {
+        while (resident.size() > maxResident) {
+            var eldest = resident.entrySet().iterator().next();
+            resident.remove(eldest.getKey());
+            releaseTexture(eldest.getValue());
+        }
+    }
+
+    @Override
+    public synchronized void evict(String key) {
+        Entry removed = resident.remove(key);
+        if (removed != null) {
+            releaseTexture(removed);
+        }
+    }
+
+    @Override
+    public synchronized void evictAll() {
+        resident.values().forEach(this::releaseTexture);
+        resident.clear();
+    }
+
+    private void releaseTexture(Entry entry) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> client.getTextureManager().release(entry.identifier()));
+    }
+
+    /**
+     * Raw GL name, needed only for ImGui interop. Backend-specific by nature:
+     * Minecraft is moving to Vulkan, so callers must cope with this being absent
+     * rather than assume OpenGL.
+     */
+    private static OptionalInt glIdOf(AbstractTexture texture) {
+        GpuTexture gpuTexture = texture.getTexture();
+        if (gpuTexture instanceof GlTexture glTexture) {
+            return OptionalInt.of(glTexture.glId());
+        }
+        return OptionalInt.empty();
+    }
+
+    private static String sanitise(String key) {
+        return key.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_./-]", "_");
+    }
+
+    private record Entry(Identifier identifier, int width, int height, OptionalInt glId) implements TextureHandle {
+
+        @Override
+        public void close() {
+            // Lifetime is owned by the cache; releasing here would let a screen
+            // free a texture another screen is still drawing.
+        }
+    }
+}
