@@ -52,7 +52,15 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 | `glowingFrames` | `true` | Ask for glowing invisible frames rather than plain |
 | `commandsPerSecond` | `2.0` | Command rate limit |
 
-Press **M** to open the browser. Rebind it in Minecraft's own controls screen.
+| Key | Opens |
+| --- | --- |
+| **M** | Sign browser: search the repository and place an image |
+| **G** | Sign generator: fill in a form, preview, publish |
+| **B** | Sign builder: drag and drop composition onto a frame grid |
+
+All three are rebindable in Minecraft's own controls screen. Services are built on the first
+keypress rather than at startup, so a wrong `repoPath` can be corrected and retried without
+restarting the game.
 
 ## How it works
 
@@ -130,6 +138,12 @@ which draws every transparent PNG in this repository on an opaque black square.
 mod finds it in your system fonts. Without it, generated lettering falls back to
 a generic sans and will not match real signage; the UI says so rather than
 pretending.
+
+**Never use `const` inside a loop body in a generator script.** Rhino does not
+re-initialise it, so every iteration keeps the first iteration's value and every
+line of a sign after the first is silently replaced by line one. Use `let`. This
+is documented at length, with the failing and working forms, in
+[`../generators/README.md`](../generators/README.md), and guarded by a test.
 
 ## Verifying against a real server
 
