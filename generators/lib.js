@@ -62,7 +62,7 @@ const toLines = (value) => {
     const raw = Array.isArray(value) ? value : String(value === null || value === undefined ? "" : value).split("\n");
     const out = [];
     for (let i = 0; i < raw.length; i += 1) {
-        const line = String(raw[i] === null || raw[i] === undefined ? "" : raw[i]).trim();
+        let line = String(raw[i] === null || raw[i] === undefined ? "" : raw[i]).trim();
         if (line.length > 0) {
             out.push(line);
         }
@@ -128,7 +128,7 @@ const estimateTextWidth = (text, opts) => {
     const tracking = opts && typeof opts.tracking === "number" && isFinite(opts.tracking) ? opts.tracking : 0;
     let ems = 0;
     for (let i = 0; i < str.length; i += 1) {
-        const ch = str.charAt(i);
+        let ch = str.charAt(i);
         if (NARROW_GLYPHS.indexOf(ch) >= 0) {
             ems += ADVANCE_NARROW;
         } else if (WIDE_GLYPHS.indexOf(ch) >= 0) {
@@ -181,9 +181,9 @@ const textBlock = (measure, lines, opts) => {
     let width = 0;
     let y = 0;
     for (let i = 0; i < list.length; i += 1) {
-        const raw = list[i];
-        const spec = raw !== null && typeof raw === "object" ? raw : { text: raw };
-        const textOpts = {
+        let raw = list[i];
+        let spec = raw !== null && typeof raw === "object" ? raw : { text: raw };
+        let textOpts = {
             font: spec.font || base.font || "transport-medium",
             size: toNumber(spec.size, toNumber(base.size, 20)),
             colour: spec.colour || base.colour || COLOURS.white,
@@ -193,8 +193,8 @@ const textBlock = (measure, lines, opts) => {
             align: "left",
             baseline: "top",
         };
-        const text = String(spec.text === null || spec.text === undefined ? "" : spec.text);
-        const m = measure(text, textOpts);
+        let text = String(spec.text === null || spec.text === undefined ? "" : spec.text);
+        let m = measure(text, textOpts);
         rows.push({ text: text, opts: textOpts, x: 0, y: y, width: m.width, height: m.height });
         width = Math.max(width, m.width);
         y += m.height;
@@ -214,7 +214,7 @@ const textBlock = (measure, lines, opts) => {
 
 const drawTextBlock = (ctx, block, x, y) => {
     for (let i = 0; i < block.rows.length; i += 1) {
-        const row = block.rows[i];
+        let row = block.rows[i];
         ctx.text(row.text, x + row.x, y + row.y, row.opts);
     }
 };

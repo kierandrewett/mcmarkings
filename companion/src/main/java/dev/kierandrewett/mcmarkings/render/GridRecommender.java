@@ -10,30 +10,62 @@ import java.util.List;
 /**
  * Works out how many item frames an image should occupy.
  *
- * <p>Maps are square, so a grid's shape is fixed by its frame counts. The score
- * is the relative aspect error between the grid and the image; the preferred
- * answer is the smallest grid whose error is imperceptible, because a wall of
- * frames is expensive and awkward to build.
+ * <p>Maps are square, so a grid's shape is fixed by its frame counts and an image
+ * rarely matches one exactly. The interesting question is therefore not "which
+ * grid fits best" but "how much wall is this worth", because every extra frame is
+ * something the player has to place by hand.
+ *
+ * <p>Chasing the best fit alone gives absurd answers: a 480x546 plate is within
+ * 2.6% of 6x7, but nobody builds a 42 frame wall for a speed limit sign when 1x1
+ * is 13.7% off and completely convincing on a roadside. So the candidates are
+ * reduced to a frontier where each entry is bigger than the last but genuinely
+ * less distorted, and the recommendation is the smallest entry whose stretch
+ * nobody would notice.
  */
 public final class GridRecommender {
 
     /** Beyond this the grid is bigger than anyone wants to place by hand. */
     public static final int DEFAULT_MAX_DIMENSION = 8;
 
+    /**
+     * Stretch below this reads as "that is just what the sign looks like".
+     * Deliberately far looser than {@link GridSuggestion#COMFORTABLE}, which
+     * describes a near-exact fit rather than an acceptable one.
+     */
+    public static final double ACCEPTABLE = 0.15;
+
+    /** Fallback ceiling when nothing reaches {@link #ACCEPTABLE}. */
+    public static final int DEFAULT_MAX_FRAMES = 16;
+
     private GridRecommender() {
     }
 
     /** Best grid for an image, never null. */
     public static GridSize best(int imageWidth, int imageHeight) {
-        return suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION).getFirst().grid();
+        List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
+
+        for (GridSuggestion suggestion : frontier) {
+            if (suggestion.distortion() <= ACCEPTABLE) {
+                return suggestion.grid();
+            }
+        }
+
+        // Nothing looks right small, so accept a bigger wall, but only up to the
+        // point where placing it stops being reasonable.
+        return frontier.stream()
+                .filter(suggestion -> suggestion.grid().frameCount() <= DEFAULT_MAX_FRAMES)
+                .min(Comparator.comparingDouble(GridSuggestion::distortion))
+                .map(GridSuggestion::grid)
+                .orElseGet(() -> frontier.getFirst().grid());
     }
 
     /**
-     * Candidate grids, best first.
+     * Candidate grids, smallest first, each one strictly less distorted than every
+     * smaller candidate.
      *
-     * <p>Ordering prefers a comfortable fit over a tight one: any grid within
-     * {@link GridSuggestion#COMFORTABLE} counts as visually exact, so among those
-     * the smallest wins. Outside that band, least distortion wins.
+     * <p>Dominated grids are dropped: if a grid is both bigger and no better
+     * shaped than one already on the list, there is no reason to ever pick it.
+     * The result is always non-empty and always starts at 1x1.
      */
     public static List<GridSuggestion> suggest(int imageWidth, int imageHeight, int maxDimension) {
         if (imageWidth <= 0 || imageHeight <= 0) {
@@ -41,8 +73,8 @@ public final class GridRecommender {
         }
 
         double imageAspect = (double) imageWidth / (double) imageHeight;
-        List<GridSuggestion> candidates = new ArrayList<>();
 
+        List<GridSuggestion> candidates = new ArrayList<>();
         for (int columns = 1; columns <= maxDimension; columns++) {
             for (int rows = 1; rows <= maxDimension; rows++) {
                 GridSize grid = new GridSize(columns, rows);
@@ -50,17 +82,45 @@ public final class GridRecommender {
             }
         }
 
+        // Smallest first, and among equal sizes the better shaped one, so that the
+        // frontier pass below keeps the best representative of each size.
         candidates.sort(Comparator
-                .comparing((GridSuggestion suggestion) -> !suggestion.isComfortable())
-                .thenComparingInt(suggestion -> suggestion.grid().frameCount())
+                .comparingInt((GridSuggestion suggestion) -> suggestion.grid().frameCount())
                 .thenComparingDouble(GridSuggestion::distortion));
 
-        return candidates;
+        List<GridSuggestion> frontier = new ArrayList<>();
+        double bestSoFar = Double.MAX_VALUE;
+        for (GridSuggestion suggestion : candidates) {
+            if (suggestion.distortion() < bestSoFar) {
+                frontier.add(suggestion);
+                bestSoFar = suggestion.distortion();
+            }
+        }
+
+        return frontier;
     }
 
-    /** Top {@code count} distinct suggestions, best first. */
+    /**
+     * Up to {@code count} suggestions, best first, starting from the recommended
+     * grid rather than from 1x1.
+     *
+     * <p>Leading entries worse than {@link #ACCEPTABLE} are dropped, since showing
+     * a wildly stretched 1x1 above the sensible answer just invites a misclick.
+     * If nothing is acceptable the whole frontier is offered instead of nothing.
+     */
     public static List<GridSuggestion> top(int imageWidth, int imageHeight, int count) {
-        return suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION).subList(0, count);
+        List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
+
+        int start = 0;
+        while (start < frontier.size() && frontier.get(start).distortion() > ACCEPTABLE) {
+            start++;
+        }
+        if (start == frontier.size()) {
+            start = 0;
+        }
+
+        List<GridSuggestion> offered = frontier.subList(start, frontier.size());
+        return List.copyOf(offered.subList(0, Math.min(count, offered.size())));
     }
 
     /**

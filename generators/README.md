@@ -178,6 +178,39 @@ Worth knowing before you change anything, because the contract does not settle t
 
 ---
 
+## Never use `const` inside a loop body
+
+This is the one host quirk you have to know, and it is not your fault when it bites.
+
+Rhino does not re-initialise a `const` declared inside a loop body. Every iteration keeps the value
+from the first one:
+
+```js
+// WRONG. line is "30 mph" on every pass.
+for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    ctx.text(line, x, y, opts);
+}
+
+// RIGHT.
+for (let i = 0; i < lines.length; i += 1) {
+    let line = lines[i];
+    ctx.text(line, x, y, opts);
+}
+```
+
+`let` is fine. `var` is fine. The loop variable itself can be `let`. It is only a `const` *declared
+in the body* that sticks.
+
+This cost real time to find because it fails so quietly. A generator written that way still produces
+a correctly sized, non-blank, entirely plausible sign, with every line after the first silently
+replaced by line one. `node --check` passes, because the JavaScript is valid; the bug is in the host.
+It reproduces on Rhino 1.7.15 through 1.9.1, in both interpreted and compiled mode.
+
+`RealGeneratorsIntegrationTest` guards against it by rendering a sign whose lines differ and one
+whose lines are identical, and failing if they come out the same. If you add a generator that stacks
+repeated elements, add a case there too.
+
 ## Anti-patterns
 
 - **Do not hardcode the canvas size.** `size()` must fall out of the legend and the metrics. A

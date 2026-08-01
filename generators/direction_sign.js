@@ -45,8 +45,8 @@ const layout = (measure, params) => {
     const entries = lib.toLines(source);
     const destBlocks = [];
     for (let i = 0; i < entries.length; i += 1) {
-        const dest = lib.parseDestination(entries[i]);
-        const rows = [];
+        let dest = lib.parseDestination(entries[i]);
+        let rows = [];
         if (dest.name.length > 0) {
             rows.push({ text: dest.name, colour: scheme.text });
         }
