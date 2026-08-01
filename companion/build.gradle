@@ -36,7 +36,21 @@ dependencies {
     implementation "io.wispforest:owo-lib:${project.owo_version}"
     include "io.wispforest:owo-lib:${project.owo_version}"
 
+    // The published fabric-gui-imgui jar does not bundle imgui-java, so the
+    // binding and the platform natives have to be shipped alongside it or the
+    // mod dies at runtime with an UnsatisfiedLinkError.
     implementation "cn.enaium:fabric-gui-imgui:${project.imgui_version}"
+    include "cn.enaium:fabric-gui-imgui:${project.imgui_version}"
+
+    include "io.github.spair:imgui-java-binding:${project.imgui_java_version}"
+    include("io.github.spair:imgui-java-lwjgl3:${project.imgui_java_version}") {
+        // Minecraft already provides LWJGL; letting imgui-java drag its own onto
+        // the classpath causes version conflicts.
+        exclude group: "org.lwjgl"
+    }
+    include "io.github.spair:imgui-java-natives-linux:${project.imgui_java_version}"
+    include "io.github.spair:imgui-java-natives-windows:${project.imgui_java_version}"
+    include "io.github.spair:imgui-java-natives-macos:${project.imgui_java_version}"
 
     implementation "org.mozilla:rhino:${project.rhino_version}"
     include "org.mozilla:rhino:${project.rhino_version}"
