@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "mcmarkings",
+  "version": "${version}",
+  "name": "MCMarkings Companion",
+  "description": "Browse a repository of sign images, generate TSRGD signs, and drive the ImageFrame plugin from the client.",
+  "authors": [
+    "Kieran Drewett"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.kierandrewett.mcmarkings.McMarkingsCompanion"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.1",
+    "java": ">=25",
+    "fabric-api": "*",
+    "owo": ">=0.13.0"
+  }
+}

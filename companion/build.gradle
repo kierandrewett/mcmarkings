@@ -1,0 +1,70 @@
+plugins {
+    // Non-remapping Loom. Minecraft 26.1+ is unobfuscated, so this is NOT the
+    // legacy "fabric-loom" id (which still means remapping mode).
+    id "net.fabricmc.fabric-loom" version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    // owo-lib.
+    maven {
+        name = "Wisp Forest"
+        url = "https://maven.wispforest.io/releases/"
+    }
+    // owo-lib pulls kdl4j, which is only published on jitpack. Its own docs
+    // omit this; without it resolution fails.
+    maven {
+        name = "JitPack"
+        url = "https://jitpack.io"
+    }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // Non-remapping Loom drops modImplementation/modCompileOnly; mods are plain
+    // implementation dependencies because there is nothing left to remap.
+    implementation "io.wispforest:owo-lib:${project.owo_version}"
+    include "io.wispforest:owo-lib:${project.owo_version}"
+
+    implementation "cn.enaium:fabric-gui-imgui:${project.imgui_version}"
+
+    implementation "org.mozilla:rhino:${project.rhino_version}"
+    include "org.mozilla:rhino:${project.rhino_version}"
+
+    testImplementation platform("org.junit:junit-bom:5.11.4")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+processResources {
+    def props = ["version": project.version]
+    inputs.properties props
+
+    filesMatching("fabric.mod.json") {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = "UTF-8"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+test {
+    useJUnitPlatform()
+}
