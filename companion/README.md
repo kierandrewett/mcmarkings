@@ -1,0 +1,145 @@
+# MCMarkings Companion
+
+A client-side Fabric mod that turns this repository into an in-game browser for
+the [ImageFrame](https://modrinth.com/plugin/imageframe) server plugin.
+
+Instead of finding a sign, working out how many item frames it needs, and typing
+a `/imageframe create` command with a hand-built GitHub URL, you search the
+repository in game, click the image, and the mod issues the command with a
+correctly pinned URL and hands you the right number of invisible frames.
+
+It is **client-side only**. Nothing is installed on the server. Everything it
+does goes through commands you are already allowed to run.
+
+---
+
+## Requirements
+
+| Thing | Version |
+| --- | --- |
+| Minecraft | 26.1.2 |
+| Fabric Loader | 0.19.3 or newer |
+| Java | 25 (mandatory, not optional) |
+| Server-side | ImageFrame, with the standard player command set |
+
+owo-lib, Rhino, fabric-gui-imgui and the ImGui natives are all bundled inside
+the jar. There is nothing else to install.
+
+## Build
+
+```sh
+cd companion
+./gradlew build
+```
+
+The jar lands in `build/libs/`. Copy it into your `mods` folder.
+
+Gradle 9.5.1 comes from the wrapper. Do not try to build with the Gradle on your
+`PATH` unless it is 9.5+ running on Java 25.
+
+## Configuration
+
+Written to `<minecraft>/config/mcmarkings.json` on first run.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `repoPath` | `~/dev/mcmarkings` | Local clone the mod reads from and writes generated signs into |
+| `branch` | `main` | Branch to pull and push |
+| `githubSlug` | derived from `origin` | `owner/repo` for raw URLs; set it to override |
+| `commandAlias` | `imageframe` | Command root without the slash; set to `frame` if your server rebinds it |
+| `fontSearchPaths` | `~/.local/share/fonts`, `/usr/share/fonts` | Where to look for the Transport typeface |
+| `exportPixelsPerFrame` | `256` | Export resolution per map frame |
+| `glowingFrames` | `true` | Ask for glowing invisible frames rather than plain |
+| `commandsPerSecond` | `2.0` | Command rate limit |
+
+Press **M** to open the browser. Rebind it in Minecraft's own controls screen.
+
+## How it works
+
+**Pinned URLs.** ImageFrame fetches images server-side over HTTP, so every image
+has to be reachable at a URL. The mod always builds
+`raw.githubusercontent.com/<slug>/<commit-sha>/<path>` against a commit, never a
+branch. Branch URLs are cached for around five minutes, so a freshly pushed sign
+would come back as the previous version or a 404.
+
+**Pull and refresh.** ImageFrame only re-fetches when told to. The Pull button
+runs `git pull`, diffs the old and new HEAD, and for every changed PNG that this
+client has previously turned into a map, issues an `/imageframe refresh` with a
+newly pinned URL. That mapping lives in a small registry file, because the
+repository knows nothing about ImageFrame map names and the server knows nothing
+about the repository.
+
+**Frame grids.** Maps are 128px squares, so an image's shape decides how many
+frames it wants. The recommender scores every grid up to 8x8 by aspect error and
+prefers the smallest grid whose distortion is imperceptible, since a wall of
+frames is expensive to build. A 1x1 grid gets a plain map item; anything larger
+is requested with `combined` so it arrives as one placeable item.
+
+**Generators.** Parameterised signs are JavaScript, run on Rhino, and live in
+[`../generators/`](../generators/README.md) rather than inside this mod, so
+adding a sign type is a commit to the repository rather than a rebuild. Scripts
+get a small drawing API and can composite existing repository PNGs, which is how
+a direction sign gets a real roundel on it.
+
+**Git.** Saving a generated sign writes the PNG, commits only that file, and
+pushes, so the image has a URL the server can reach. The mod **never reads or
+writes git configuration** at any scope. If a commit fails because identity or
+credentials are missing, it shows you git's own error and stops rather than
+quietly patching your setup.
+
+## Layout
+
+```
+companion/src/main/java/dev/kierandrewett/mcmarkings/
+  McMarkingsCompanion.java   entrypoint, keybind
+  CompanionServices.java     composition root
+  config/                    JSON settings
+  core/                      RepoImage, GridSize, MapEntry and friends
+  repo/                      repository scanning, git, raw URL building
+  registry/                  which maps exist and what backs them
+  imageframe/                command strings and the throttled sender
+  render/                    grid recommender, image composition, font lookup
+  js/                        Rhino generator runtime
+  texture/                   runtime texture upload and caching
+  gui/                       owo-ui browser, ImGui editors
+```
+
+## Things that will catch you out
+
+**Minecraft 26.1 is unobfuscated.** There is no Yarn, no mappings dependency and
+no remap step. The Loom plugin must be `net.fabricmc.fabric-loom`; the old
+`fabric-loom` id silently means remapping mode, which is wrong here. There is no
+`modImplementation` either, because there is nothing to remap.
+
+**`GuiGraphics` no longer exists.** It is `GuiGraphicsExtractor`, and screens
+override `extractRenderState` rather than `render`. Essentially every Fabric GUI
+tutorial online predates this.
+
+**owo renamed its core API on the 26.1 line** to avoid colliding with Mojang's
+`Component`. It is `UIComponents`, `UIContainers`, `UIComponent` and
+`OwoUIGraphics` now. The published owo docs still use the old names.
+
+**owo needs the jitpack repository.** Its own setup docs omit this, but it
+depends on kdl4j, which is not on the wisp forest maven, and resolution fails
+without it.
+
+**Texture components need `blend(true)`.** owo defaults to a no-blend pipeline,
+which draws every transparent PNG in this repository on an opaque black square.
+
+**Transport is not in this repository** and cannot be, for licensing reasons. The
+mod finds it in your system fonts. Without it, generated lettering falls back to
+a generic sans and will not match real signage; the UI says so rather than
+pretending.
+
+## Verifying against a real server
+
+The build and unit tests cover everything that can be checked offline. These
+need you in game:
+
+1. Open the browser, search for a sign, confirm thumbnails render with
+   transparency rather than on black boxes.
+2. Create a 1x1 sign; confirm a plain map item arrives.
+3. Create a larger one; confirm a single combined item arrives, not loose maps.
+4. Get frames and place the image.
+5. Change a PNG, push, then Pull in game and confirm the placed map updates.
+6. Generate a sign, save and publish, and confirm it appears on the wall.
