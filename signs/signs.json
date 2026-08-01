@@ -1,7 +1,7 @@
 {
   "source": "Wikimedia Commons, files with the 'UK traffic sign' prefix",
   "retrieved": "2026-07-31",
-  "count": 1111,
+  "count": 1113,
   "format": "PNG, RGBA, rendered from the Commons SVG at longest side 1024px",
   "naming": "Semantic snake_case derived from the Commons description; region, era, handing and variant suffixes are added only to break ties.",
   "signs": [
@@ -11036,6 +11036,34 @@
       "source_file": "UK traffic sign 882.svg",
       "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_882.svg",
       "bytes": 68657
+    },
+    {
+      "name": "single_chevron_left",
+      "file": "single_chevron_left.png",
+      "diagram": "515.1A",
+      "class": "warning",
+      "description": "UK traffic sign: Single chevron indicating a sharp deviation of route to the left (TSRGDNO 515.1A). Derived locally from the diagram 515 chevron geometry.",
+      "width": 1024,
+      "height": 1024,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign 515 (right).svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_515_(right).svg",
+      "bytes": 11983
+    },
+    {
+      "name": "single_chevron_right",
+      "file": "single_chevron_right.png",
+      "diagram": "515.1A",
+      "class": "warning",
+      "description": "UK traffic sign: Single chevron indicating a sharp deviation of route to the right (TSRGDNO 515.1A). Derived locally from the diagram 515 chevron geometry.",
+      "width": 1024,
+      "height": 1024,
+      "has_transparency": true,
+      "licence": "OGL v1.0",
+      "source_file": "UK traffic sign 515 (right).svg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:UK_traffic_sign_515_(right).svg",
+      "bytes": 12090
     },
     {
       "name": "site_of_telephone_or_emergency_telephone_at_or_near_variant_1",
