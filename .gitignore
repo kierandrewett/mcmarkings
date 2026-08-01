@@ -1,0 +1,3 @@
+# Temporary git worktrees created for parallel agent runs. These are checkouts
+# of this same repository, so committing them records confusing gitlinks.
+.claude/worktrees/
