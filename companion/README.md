@@ -79,6 +79,7 @@ Everything else has a route through the interface, so nothing below is required.
 | `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | In the editor: new, open, save |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo, redo |
 | `Ctrl+D`, `Delete`, `Ctrl+G`, `Ctrl+A` | Duplicate, delete, group, select all |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copy, cut and paste layers, including between documents |
 | `Tab` / `Shift+Tab` | Step the selection through the layer stack |
 | `Ctrl+Up` / `Ctrl+Down` | Move the selected layer one place through the stack |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Bring to front, send to back |

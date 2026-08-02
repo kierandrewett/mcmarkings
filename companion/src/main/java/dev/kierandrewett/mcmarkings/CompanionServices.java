@@ -7,6 +7,7 @@ import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.doc.Layer;
 import dev.kierandrewett.mcmarkings.doc.History;
 import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.imageframe.ClientCommandSink;
@@ -113,6 +114,24 @@ public final class CompanionServices {
     /** Writes the map registry, off the client thread, collapsing repeated calls. */
     public void saveRegistry() {
         registrySaver.request();
+    }
+
+    /**
+     * Layers cut or copied in the editor.
+     *
+     * <p>Here rather than in the editor panel for the same reason the document is:
+     * the window is rebuilt when it reopens, and a clipboard emptied by glancing at
+     * the world would be useless. It also outlives the document, which is the point,
+     * since copying between two signs is the reason to have one at all.
+     */
+    private List<Layer> clipboard = List.of();
+
+    public void copyLayers(List<Layer> layers) {
+        this.clipboard = List.copyOf(layers);
+    }
+
+    public List<Layer> clipboardLayers() {
+        return clipboard;
     }
 
     /** Called after a successful save or open. */

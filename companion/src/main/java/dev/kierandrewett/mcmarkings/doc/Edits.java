@@ -62,6 +62,44 @@ public final class Edits {
         return new Result(updated, created);
     }
 
+    /**
+     * Adds copies of layers that came from somewhere else.
+     *
+     * <p>Duplicating copies within one document; this takes layers held elsewhere,
+     * which is what makes a clipboard work across two of them. Each copy gets a new
+     * identity, groups included, so pasting twice cannot produce two layers sharing
+     * an id and the second edit silently moving both.
+     *
+     * <p>Names are kept as they were rather than gaining "copy". Pasting into a
+     * different document is moving a thing, not duplicating it, and the name is
+     * usually the reason it was worth keeping.
+     *
+     * <p>Offset so a paste on top of its origin is visible and grabbable. Pasting
+     * into an empty canvas lands where it was, which is almost always right when the
+     * two documents are the same size.
+     */
+    public static Result paste(Document document, List<Layer> layers, boolean offset) {
+        List<String> created = new ArrayList<>();
+        Document updated = document;
+
+        for (Layer layer : layers) {
+            if (layer == null) {
+                continue;
+            }
+            Layer copy = withNewIdentity(layer, layer.name());
+            if (offset) {
+                Layer.Bounds bounds = copy.bounds();
+                copy = copy.withBounds(bounds.movedTo(
+                        bounds.x() + DUPLICATE_OFFSET, bounds.y() + DUPLICATE_OFFSET));
+            }
+
+            updated = updated.add(copy);
+            created.add(copy.id());
+        }
+
+        return new Result(updated, created);
+    }
+
     /** Moves layers by a delta, for arrow keys. Locked layers stay put. */
     public static Document nudge(Document document, List<String> ids, int deltaX, int deltaY) {
         Document updated = document;

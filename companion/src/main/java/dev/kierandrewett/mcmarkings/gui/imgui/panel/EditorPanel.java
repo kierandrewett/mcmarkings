@@ -139,6 +139,9 @@ public final class EditorPanel implements Panel {
     private static final int FONT_RESULT_LIMIT = 100;
 
     private static final int KEY_A = 'A';
+    private static final int KEY_C = 'C';
+    private static final int KEY_V = 'V';
+    private static final int KEY_X = 'X';
     private static final int KEY_D = 'D';
     private static final int KEY_G = 'G';
     private static final int KEY_Z = 'Z';
@@ -1715,6 +1718,25 @@ public final class EditorPanel implements Panel {
                 .shortcut(Shortcut.of(KEY_DELETE))
                 .enabledWhen(this::hasSelection)
                 .does(this::deleteSelection));
+        commands.register(Command.of("editor.copy", "Copy").category("Layer")
+                .hint("Keep the selection, to paste into this document or another one")
+                .shortcut(Shortcut.control(KEY_C))
+                .enabledWhen(this::hasSelection)
+                .does(this::copySelection));
+        commands.register(Command.of("editor.cut", "Cut").category("Layer")
+                .hint("Copy the selection and remove it")
+                .shortcut(Shortcut.control(KEY_X))
+                .enabledWhen(this::hasSelection)
+                .does(() -> {
+                    copySelection();
+                    deleteSelection();
+                }));
+        commands.register(Command.of("editor.paste", "Paste").category("Layer")
+                .hint("Add what was last copied, offset so it can be grabbed")
+                .shortcut(Shortcut.control(KEY_V))
+                .enabledWhen(() -> !services.clipboardLayers().isEmpty())
+                .does(this::pasteClipboard));
+
         commands.register(Command.of("editor.selectAll", "Select all").category("Layer")
                 .shortcut(Shortcut.control(KEY_A))
                 .enabledWhen(() -> !history.current().layers().isEmpty())
@@ -1958,6 +1980,41 @@ public final class EditorPanel implements Panel {
         if (moved != document) {
             apply(moved, delta > 0 ? "Move up one" : "Move down one", null);
         }
+    }
+
+    /**
+     * Keeps the selection, in stack order rather than click order.
+     *
+     * <p>Pasting has to put them back in the order they overlapped in, or a legend
+     * copied from over its panel comes back underneath it.
+     */
+    private void copySelection() {
+        Document document = history.current();
+        List<Layer> copied = document.layers().stream()
+                .filter(layer -> selection.contains(layer.id()))
+                .toList();
+
+        if (!copied.isEmpty()) {
+            services.copyLayers(copied);
+        }
+    }
+
+    private void pasteClipboard() {
+        List<Layer> layers = services.clipboardLayers();
+        if (layers.isEmpty()) {
+            return;
+        }
+
+        Document document = history.current();
+
+        // Offset only when pasting back into a document that already has the
+        // originals. Into anything else it belongs where it was, which is almost
+        // always right when the two canvases are the same size.
+        boolean overlapping = layers.stream().anyMatch(layer -> document.byId(layer.id()).isPresent());
+
+        Edits.Result result = Edits.paste(document, layers, overlapping);
+        apply(result.document(), "Paste", null);
+        select(result.createdIds());
     }
 
     private void select(List<String> ids) {
