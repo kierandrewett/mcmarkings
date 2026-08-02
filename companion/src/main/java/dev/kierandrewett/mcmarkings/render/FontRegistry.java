@@ -112,21 +112,49 @@ public final class FontRegistry {
      *
      * <p>A last resort for callers that need some font file and do not care which.
      */
+    /**
+     * Faces that are not the one to read an interface in.
+     *
+     * <p>The preference list matches on a prefix, so "liberationsans" matched
+     * LiberationSans-BoldItalic just as happily as LiberationSans-Regular, and which
+     * one came back was whichever the map handed over first. On this machine that was
+     * the bold italic, so the entire interface was set in bold italic and the first
+     * thing anyone said about it was that the font is hard to read.
+     *
+     * <p>Weight and slant both, because a bold face at interface size is only
+     * slightly better than an italic one and neither is what a body font should be.
+     */
+    private static final List<String> NOT_A_BODY_FACE = List.of(
+            "italic", "oblique", "bold", "black", "heavy", "light", "thin", "medium",
+            "semibold", "demi", "condensed", "narrow", "extended", "mono");
+
+    private static boolean isBodyFace(Path path) {
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (!name.endsWith(".ttf")) {
+            return false;
+        }
+        return NOT_A_BODY_FACE.stream().noneMatch(name::contains);
+    }
+
     public synchronized Optional<Path> anyReadableFontFile() {
         ensureScanned();
         for (String preferred : List.of("dejavusans", "liberationsans", "notosans", "arial",
                 "helvetica", "roboto", "segoeui", "cantarell", "ubuntu")) {
-            Optional<Path> match = fileByName.entrySet().stream()
+            // The plain face first. Failing that, any face of this family at all, which
+            // is still a better answer than the next family down.
+            Optional<Path> plain = fileByName.entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(preferred))
                     .map(Map.Entry::getValue)
-                    .filter(path -> path.toString().toLowerCase(Locale.ROOT).endsWith(".ttf"))
+                    .filter(FontRegistry::isBodyFace)
+                    .sorted(java.util.Comparator.comparingInt(path -> path.toString().length()))
                     .findFirst();
-            if (match.isPresent()) {
-                return match;
+            if (plain.isPresent()) {
+                return plain;
             }
         }
         return fileByName.values().stream()
-                .filter(path -> path.toString().toLowerCase(Locale.ROOT).endsWith(".ttf"))
+                .filter(FontRegistry::isBodyFace)
+                .sorted(java.util.Comparator.comparingInt(path -> path.toString().length()))
                 .findFirst();
     }
 
