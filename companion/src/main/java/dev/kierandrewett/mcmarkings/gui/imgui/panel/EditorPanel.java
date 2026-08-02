@@ -1171,7 +1171,23 @@ public final class EditorPanel implements Panel {
     private void drawLayerList() {
         Document document = history.current();
         if (document.layers().isEmpty()) {
-            ImGui.textWrapped("No layers yet. Add an image, some text or a shape to start.");
+            ImGui.textWrapped("No layers yet. Add an image, some text or a shape above.");
+            ImGui.spacing();
+
+            // Templates are the intended way in and the empty canvas never said so.
+            // TemplateStore's own note says starting from something is the difference
+            // between a tool you open and a tool you use, and this is the moment that
+            // is true of.
+            Command open = commands.byId("editor.file.open").orElse(null);
+            if (open != null && open.isEnabled()) {
+                if (ImGui.button("Open a saved template##empty-open")) {
+                    open.run();
+                }
+                if (open.shortcut() != null) {
+                    ImGui.sameLine();
+                    ImGui.textDisabled(open.shortcut().display());
+                }
+            }
             return;
         }
 
