@@ -87,47 +87,56 @@ public final class ImGuiScreens {
         style.setScrollbarSize(10.0f);
         style.setGrabMinSize(10.0f);
 
-        setColour(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 0.94f);
-        setColour(ImGuiCol.ChildBg, 0.00f, 0.00f, 0.00f, 0.30f);
-        setColour(ImGuiCol.PopupBg, 0.06f, 0.06f, 0.06f, 0.96f);
-        setColour(ImGuiCol.Border, 0.00f, 0.00f, 0.00f, 0.90f);
+        setColour(ImGuiCol.WindowBg, Theme.WINDOW_BACKGROUND);
+        setColour(ImGuiCol.ChildBg, Theme.CHILD_BACKGROUND);
+        setColour(ImGuiCol.PopupBg, Theme.POPUP_BACKGROUND);
+        setColour(ImGuiCol.Border, Theme.BORDER);
 
         // Vanilla text is a slightly warm off-white, not pure white.
-        setColour(ImGuiCol.Text, 0.87f, 0.87f, 0.87f, 1.00f);
-        setColour(ImGuiCol.TextDisabled, 0.42f, 0.42f, 0.42f, 1.00f);
+        setColour(ImGuiCol.Text, Theme.TEXT);
+        setColour(ImGuiCol.TextDisabled, Theme.TEXT_MUTED);
 
         // Sunken fields, matching a vanilla text box.
-        setColour(ImGuiCol.FrameBg, 0.00f, 0.00f, 0.00f, 0.78f);
-        setColour(ImGuiCol.FrameBgHovered, 0.10f, 0.10f, 0.10f, 0.90f);
-        setColour(ImGuiCol.FrameBgActive, 0.14f, 0.14f, 0.14f, 0.95f);
+        setColour(ImGuiCol.FrameBg, Theme.FIELD);
+        setColour(ImGuiCol.FrameBgHovered, Theme.FIELD_HOVERED);
+        setColour(ImGuiCol.FrameBgActive, Theme.FIELD_ACTIVE);
 
         // Raised controls, matching a vanilla button and its hover highlight.
-        setColour(ImGuiCol.Button, 0.42f, 0.42f, 0.42f, 1.00f);
-        setColour(ImGuiCol.ButtonHovered, 0.56f, 0.56f, 0.56f, 1.00f);
-        setColour(ImGuiCol.ButtonActive, 0.34f, 0.34f, 0.34f, 1.00f);
+        setColour(ImGuiCol.Button, Theme.BUTTON);
+        setColour(ImGuiCol.ButtonHovered, Theme.BUTTON_HOVERED);
+        setColour(ImGuiCol.ButtonActive, Theme.BUTTON_ACTIVE);
 
-        setColour(ImGuiCol.Header, 0.32f, 0.32f, 0.32f, 1.00f);
-        setColour(ImGuiCol.HeaderHovered, 0.46f, 0.46f, 0.46f, 1.00f);
-        setColour(ImGuiCol.HeaderActive, 0.52f, 0.52f, 0.52f, 1.00f);
+        setColour(ImGuiCol.Header, Theme.HEADER);
+        setColour(ImGuiCol.HeaderHovered, Theme.HEADER_HOVERED);
+        setColour(ImGuiCol.HeaderActive, Theme.HEADER_ACTIVE);
 
-        setColour(ImGuiCol.TitleBg, 0.10f, 0.10f, 0.10f, 1.00f);
-        setColour(ImGuiCol.TitleBgActive, 0.14f, 0.14f, 0.14f, 1.00f);
+        setColour(ImGuiCol.TitleBg, Theme.TAB);
+        setColour(ImGuiCol.TitleBgActive, Theme.TAB_ACTIVE);
 
-        setColour(ImGuiCol.ScrollbarBg, 0.00f, 0.00f, 0.00f, 0.60f);
-        setColour(ImGuiCol.ScrollbarGrab, 0.42f, 0.42f, 0.42f, 1.00f);
-        setColour(ImGuiCol.ScrollbarGrabHovered, 0.56f, 0.56f, 0.56f, 1.00f);
+        setColour(ImGuiCol.ScrollbarBg, Theme.SCROLLBAR_BACKGROUND);
+        setColour(ImGuiCol.ScrollbarGrab, Theme.SCROLLBAR_GRAB);
+        setColour(ImGuiCol.ScrollbarGrabHovered, Theme.SCROLLBAR_GRAB_HOVERED);
 
-        setColour(ImGuiCol.CheckMark, 0.34f, 0.75f, 0.34f, 1.00f);
-        setColour(ImGuiCol.SliderGrab, 0.56f, 0.56f, 0.56f, 1.00f);
-        setColour(ImGuiCol.SliderGrabActive, 0.68f, 0.68f, 0.68f, 1.00f);
+        setColour(ImGuiCol.CheckMark, Theme.CHECK_MARK);
+        setColour(ImGuiCol.SliderGrab, Theme.SLIDER_GRAB);
+        setColour(ImGuiCol.SliderGrabActive, Theme.SLIDER_GRAB_ACTIVE);
 
-        setColour(ImGuiCol.Separator, 0.00f, 0.00f, 0.00f, 0.80f);
-        setColour(ImGuiCol.Tab, 0.16f, 0.16f, 0.16f, 1.00f);
-        setColour(ImGuiCol.TabHovered, 0.42f, 0.42f, 0.42f, 1.00f);
+        setColour(ImGuiCol.Separator, Theme.SEPARATOR);
+        setColour(ImGuiCol.Tab, Theme.TAB);
+        setColour(ImGuiCol.TabHovered, Theme.TAB_HOVERED);
+        setColour(ImGuiCol.TabSelected, Theme.TAB_ACTIVE);
     }
 
-    private static void setColour(int target, float red, float green, float blue, float alpha) {
-        ImGui.getStyle().setColor(target, red, green, blue, alpha);
+    /**
+     * Takes the colour from {@link Theme}, where it has been checked for contrast.
+     *
+     * <p>Colours are not written inline here so the palette can be tested. Text that
+     * fails against its own background is a quiet failure: people give up rather
+     * than report it.
+     */
+    private static void setColour(int target, int argb) {
+        ImGui.getStyle().setColor(target,
+                Theme.red(argb), Theme.green(argb), Theme.blue(argb), Theme.alpha(argb));
     }
 
     /**
