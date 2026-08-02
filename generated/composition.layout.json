@@ -1,0 +1,27 @@
+{
+  "columns": 1,
+  "rows": 2,
+  "items": [
+    {
+      "repoPath": "signs/bay_reserved_for_loading_and_unloading.png",
+      "x": -1.41859055E-5,
+      "y": 118.81823,
+      "scale": 0.125,
+      "z": 0
+    },
+    {
+      "repoPath": "signs/bend_ahead_to_the_left.png",
+      "x": -3.4570694E-6,
+      "y": 4.3488345,
+      "scale": 0.125,
+      "z": 1
+    },
+    {
+      "repoPath": "signs/bay_reserved_for_loading_and_unloading_by_goods_vehicles.png",
+      "x": -0.2873221,
+      "y": 176.45004,
+      "scale": 0.125,
+      "z": 2
+    }
+  ]
+}
