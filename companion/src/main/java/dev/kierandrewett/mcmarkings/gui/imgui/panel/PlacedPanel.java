@@ -34,6 +34,9 @@ public final class PlacedPanel implements Panel {
 
     private static final int QUERY_BUFFER = 128;
 
+    /** Rows drawn at once. Each carries four buttons, so this is not a free number. */
+    private static final int MAX_SHOWN = 60;
+
     private final CompanionServices services;
 
     private final ImString query = new ImString("", QUERY_BUFFER);
@@ -89,8 +92,15 @@ public final class PlacedPanel implements Panel {
         float height = Math.max(ImGui.getFrameHeight(),
                 ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing());
         ImGuiScreens.child("##placed-list", 0.0f, height, () -> {
-            for (MapEntry entry : entries) {
+            int shown = Math.min(entries.size(), MAX_SHOWN);
+            for (MapEntry entry : entries.subList(0, shown)) {
                 drawRow(entry);
+            }
+            if (entries.size() > shown) {
+                // The last list in here that did not say this. Every row carries four
+                // buttons, so a few hundred maps is a few thousand widgets a frame,
+                // and someone with that many is searching rather than scrolling.
+                ImGui.textDisabled((entries.size() - shown) + " more; search to narrow it down");
             }
         });
     }
