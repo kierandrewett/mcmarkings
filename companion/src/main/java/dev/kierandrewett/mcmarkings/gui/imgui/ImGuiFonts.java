@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui;
 import cn.enaium.fabric.imgui.DefaultImGui;
 import cn.enaium.fabric.imgui.FabricImGui;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
+import dev.kierandrewett.mcmarkings.config.CompanionConfig;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import imgui.ImFontConfig;
 import imgui.ImGui;
@@ -56,8 +57,21 @@ public final class ImGuiFonts {
      */
     private static final float BUNDLED_SCALE = 0.625f;
 
-    /** Guards against a pathological scale producing an enormous atlas. */
-    private static final float MAX_PIXELS = 64.0f;
+    /**
+     * Guards against a pathological scale producing an enormous atlas.
+     *
+     * <p>Sixty four until the text size became a setting, which was exactly the base
+     * height at GUI scale four, so every size above the default would have clamped to
+     * the same number and the new slider would have done nothing at all for anyone
+     * playing at that scale. Silently: the setting saves, the atlas rebuilds, and the
+     * text comes back the size it already was.
+     *
+     * <p>A hundred and four covers the largest offered size at the largest scale the
+     * game offers, with the clamp still there for a scale beyond that. The atlas at
+     * that size is about eighteen hundred pixels square for the ranges above, which
+     * fits comfortably in the two thousand and forty eight a driver is safe to assume.
+     */
+    private static final float MAX_PIXELS = 104.0f;
 
     private static float builtForPixels;
 
@@ -70,13 +84,18 @@ public final class ImGuiFonts {
      * <p>Call from the client tick only. Cheap and returns immediately in the
      * overwhelmingly common case where nothing has changed.
      */
-    public static void ensureMatchesGuiScale(FontRegistry fonts) {
+    public static void ensureMatchesGuiScale(FontRegistry fonts, double textScale) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.getWindow() == null) {
             return;
         }
 
-        float target = Math.min(MAX_PIXELS, BASE_PIXELS * Math.max(1.0f, client.getWindow().getGuiScale()));
+        // The chosen size multiplies the GUI scale rather than replacing it, so the
+        // setting means the same thing to everybody regardless of what the game is
+        // already doing, and someone who changes the game's scale keeps their choice.
+        float target = Math.min(MAX_PIXELS, BASE_PIXELS
+                * Math.max(1.0f, client.getWindow().getGuiScale())
+                * (float) CompanionConfig.nearestTextScale(textScale));
         if (Math.abs(target - builtForPixels) < 0.5f) {
             return;
         }

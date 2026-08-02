@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import imgui.ImGui;
+import dev.kierandrewett.mcmarkings.config.CompanionConfig;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
@@ -59,6 +60,9 @@ public final class SettingsPanel implements Panel {
 
     private final ImInt pixelsPerFrame = new ImInt();
 
+    /** Which of the offered sizes is chosen, as an index into the steps. */
+    private final ImInt textScaleStep = new ImInt();
+
     /**
      * Which font folders actually exist, worked out on a worker.
      *
@@ -96,6 +100,8 @@ public final class SettingsPanel implements Panel {
     }
 
     private void drawBody() {
+        drawInterfaceSection();
+        ImGui.spacing();
         drawPlacingSection();
         ImGui.spacing();
         drawExportSection();
@@ -119,6 +125,40 @@ public final class SettingsPanel implements Panel {
     // -----------------------------------------------------------------------
     // Sections
     // -----------------------------------------------------------------------
+
+    /**
+     * Interface text size.
+     *
+     * <p>First, above everything else, because it is the setting that decides whether
+     * the rest of this window can be read at all, and somebody who came here to fix
+     * that should not have to read their way past two other sections to find it.
+     */
+    private void drawInterfaceSection() {
+        ImGui.textDisabled("INTERFACE");
+        ImGui.separator();
+
+        var steps = CompanionConfig.TEXT_SCALE_STEPS;
+        int current = steps.indexOf(CompanionConfig.nearestTextScale(services.config.textScale));
+        textScaleStep.set(Math.max(0, current));
+
+        // A slider over the step rather than the value. The steps are the point: they
+        // are the sizes at which the bundled pixel font lands on whole pixels, and a
+        // control that let you stop between two of them would produce exactly the
+        // furry text this is here to avoid. The label shows the size, not the index,
+        // since the index is an implementation detail nobody should have to see.
+        ImGui.setNextItemWidth(fieldWidth());
+        if (ImGui.sliderInt("Text size##settings-text-scale", textScaleStep.getData(),
+                0, steps.size() - 1,
+                Math.round(steps.get(Math.clamp(textScaleStep.get(), 0, steps.size() - 1)) * 100) + "%%")) {
+            services.config.textScale = steps.get(Math.clamp(textScaleStep.get(), 0, steps.size() - 1));
+        }
+        boolean done = ImGui.isItemDeactivatedAfterEdit();
+        help("How large this window's text is, on top of the game's own GUI scale. "
+                + "It changes on the next tick, so you can see what you are choosing.");
+        if (done) {
+            services.saveConfig();
+        }
+    }
 
     private void drawPlacingSection() {
         ImGui.textDisabled("PLACING MAPS");

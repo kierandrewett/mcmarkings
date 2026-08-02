@@ -78,6 +78,49 @@ public class CompanionConfig {
     /** Invisible frames requested as glowing rather than plain. */
     public boolean glowingFrames = true;
 
+    /**
+     * Interface text size, as a multiplier on what the game's GUI scale gives.
+     *
+     * <p>Somebody had to ask me to change this in the source twice in one day, once
+     * to halve it and once to put a little back, which is the clearest possible sign
+     * that one number chosen on one monitor is not going to fit anyone else. Eyesight
+     * and screens differ and this is a tool people are meant to sit in front of for
+     * hours.
+     *
+     * <p>Stepped rather than free. The bundled face is a pixel font, and a pixel font
+     * asked for a fractional height lands its glyphs between pixels and comes out
+     * furry, which is exactly the complaint that started all of this. The steps in
+     * {@link #TEXT_SCALE_STEPS} are all tenths, and the height they multiply is ten
+     * pixels per unit of GUI scale, so every one of them lands whole.
+     */
+    public double textScale = 1.0;
+
+    /**
+     * The offered sizes.
+     *
+     * <p>Tenths, for the reason above. The range stops where it does because below
+     * eight pixels the face stops being readable and above sixteen the panels start
+     * losing their contents at ordinary window sizes.
+     */
+    public static final List<Double> TEXT_SCALE_STEPS =
+            List.of(0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6);
+
+    /**
+     * The nearest offered size to whatever is in the file.
+     *
+     * <p>Hand-edited or from an older build, either way it has to land on a step: a
+     * value between two of them would defeat the whole reason they are steps.
+     */
+    public static double nearestTextScale(double wanted) {
+        double best = 1.0;
+        for (double step : TEXT_SCALE_STEPS) {
+            if (Math.abs(step - wanted) < Math.abs(best - wanted)) {
+                best = step;
+            }
+        }
+        return best;
+    }
+
     /** Commands per second sent to the server, to stay under chat rate limits. */
     public double commandsPerSecond = 2.0;
 
