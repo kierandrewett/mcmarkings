@@ -404,7 +404,13 @@ public final class ImageBrowserPanel implements Panel {
             ImGui.popID();
         }
 
-        drawList.addRect(x, y, x + cell, y + cell, ImGui.getColorU32(ImGuiCol.Border));
+        // Around the chequerboard, not around the cell. The gutter outside it belongs
+        // to the focus ring, and a border drawn out there is near-black on the panel
+        // behind the grid at about 1.1:1, which is to say gone. Insetting the
+        // chequerboard for the ring quietly took the border with it; this puts it
+        // back on a surface it can be seen against.
+        drawList.addRect(x + FOCUS_GUTTER, y + FOCUS_GUTTER, x + cell - FOCUS_GUTTER,
+                y + cell - FOCUS_GUTTER, ImGui.getColorU32(ImGuiCol.Border));
 
         float pad = Math.max(2.0f, unit * 0.25f);
         float captionHeight = unit * 1.1f;
