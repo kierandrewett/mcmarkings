@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class GitCommandTest {
 
-    private static final Path ROOT = Path.of("/home/kieran/dev/mcmarkings");
+    private static final Path ROOT = Path.of("/srv/example-repo");
 
     @Test
     @DisplayName("outside a sandbox git is invoked directly")

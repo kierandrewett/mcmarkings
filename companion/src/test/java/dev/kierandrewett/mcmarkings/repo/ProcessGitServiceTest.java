@@ -22,30 +22,30 @@ class ProcessGitServiceTest {
 
     @Test
     void parsesHttpsRemotes() {
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("https://github.com/kierandrewett/mcmarkings.git"));
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("https://github.com/kierandrewett/mcmarkings"));
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("https://github.com/kierandrewett/mcmarkings/"));
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("  https://github.com/kierandrewett/mcmarkings.git\n"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("https://github.com/example-owner/example-repo.git"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("https://github.com/example-owner/example-repo"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("https://github.com/example-owner/example-repo/"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("  https://github.com/example-owner/example-repo.git\n"));
     }
 
     @Test
     void parsesScpStyleSshRemotes() {
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("git@github.com:kierandrewett/mcmarkings.git"));
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("git@github.com:kierandrewett/mcmarkings"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("git@github.com:example-owner/example-repo.git"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("git@github.com:example-owner/example-repo"));
     }
 
     @Test
     void parsesSshUrlAndTokenRemotes() {
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("ssh://git@github.com/kierandrewett/mcmarkings.git"));
-        assertEquals("kierandrewett/mcmarkings",
-                ProcessGitService.parseSlug("https://token@github.com/kierandrewett/mcmarkings.git"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("ssh://git@github.com/example-owner/example-repo.git"));
+        assertEquals("example-owner/example-repo",
+                ProcessGitService.parseSlug("https://token@github.com/example-owner/example-repo.git"));
     }
 
     @Test
@@ -81,13 +81,13 @@ class ProcessGitServiceTest {
         assumeTrue(gitAvailable(), "git is not on PATH");
         Path repository = newRepository(directory, "sandbox");
         assumeTrue(commit(repository, "first"), "no git identity available for a test commit");
-        run(repository, "remote", "add", "origin", "git@github.com:kierandrewett/mcmarkings.git");
+        run(repository, "remote", "add", "origin", "git@github.com:example-owner/example-repo.git");
 
         ProcessGitService git = new ProcessGitService(repository);
 
         assertEquals(40, git.head().length());
         assertFalse(git.currentBranch().isBlank());
-        assertEquals("kierandrewett/mcmarkings", git.remoteSlug());
+        assertEquals("example-owner/example-repo", git.remoteSlug());
         assertTrue(git.isClean());
     }
 

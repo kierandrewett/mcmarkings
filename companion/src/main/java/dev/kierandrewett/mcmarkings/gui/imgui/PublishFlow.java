@@ -91,7 +91,7 @@ public final class PublishFlow {
     private void runPublish(String name, Request request, Consumer<Result> onSuccess) {
         try {
             String directory = normaliseDirectory(services.config.generatedDirectory);
-            Path generatedDirectory = services.config.repoRoot().resolve(directory);
+            Path generatedDirectory = services.repoRoot().resolve(directory);
             Files.createDirectories(generatedDirectory);
 
             Path pngPath = generatedDirectory.resolve(name + ".png");
@@ -111,11 +111,13 @@ public final class PublishFlow {
 
             // Resolved before the push so a bad remote fails before anything is
             // committed, rather than leaving a commit with no usable URL.
-            String slug = services.config.githubSlug.isBlank()
-                    ? services.git.remoteSlug()
-                    : services.config.githubSlug;
+            // A per-repository override wins; otherwise ask the clone for its origin.
+            String override = services.current().entry().slugOverride();
+            String slug = override == null || override.isBlank()
+                    ? services.git().remoteSlug()
+                    : override;
 
-            String commitSha = services.git.commitAndPush(files, "feat(generated): add " + name);
+            String commitSha = services.git().commitAndPush(files, "feat(generated): add " + name);
 
             String repoPath = directory.isEmpty() ? name + ".png" : directory + "/" + name + ".png";
             String url = RawUrls.pinned(slug, commitSha, repoPath);
@@ -153,7 +155,7 @@ public final class PublishFlow {
                             result.grid());
             services.commands.send(command);
 
-            services.registry.put(new MapEntry(result.name(), result.repoPath(), result.grid(),
+            services.registry.put(new MapEntry(result.name(), services.activeRepositoryId(), result.repoPath(), result.grid(),
                     result.commitSha(), System.currentTimeMillis()));
             saveRegistryQuietly();
 
@@ -179,7 +181,7 @@ public final class PublishFlow {
     /** A stale index costs the browser a missing thumbnail, not the publish. */
     private void rescanQuietly() {
         try {
-            services.repo.rescan();
+            services.repo().rescan();
         } catch (IOException | RuntimeException exception) {
             McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not rescan after publish", exception);
         }

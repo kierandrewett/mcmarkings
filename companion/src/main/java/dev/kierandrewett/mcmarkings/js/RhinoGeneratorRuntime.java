@@ -88,10 +88,6 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
 
     private volatile Snapshot snapshot = Snapshot.empty();
 
-    public RhinoGeneratorRuntime(CompanionConfig config, FontRegistry fonts) {
-        this(config.repoRoot(), config.generatorDirectory, fonts, DEFAULT_TIMEOUT_MILLIS);
-    }
-
     public RhinoGeneratorRuntime(Path repoRoot, String generatorDirectory, FontRegistry fonts) {
         this(repoRoot, generatorDirectory, fonts, DEFAULT_TIMEOUT_MILLIS);
     }

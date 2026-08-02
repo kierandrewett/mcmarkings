@@ -120,16 +120,18 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
     private void resolveRepoIdentity() {
         Thread.ofVirtual().start(() -> {
             try {
-                String slug = services.config.githubSlug.isBlank()
-                        ? services.git.remoteSlug()
-                        : services.config.githubSlug;
+                // A per-repository override wins; otherwise ask the clone for its origin.
+            String override = services.current().entry().slugOverride();
+            String slug = override == null || override.isBlank()
+                    ? services.git().remoteSlug()
+                    : override;
                 // The last commit known to be on the remote, not HEAD: the server
                 // fetches these URLs over HTTP, so an unpushed commit is a 404.
-                String head = services.git.pinnableCommit();
+                String head = services.git().pinnableCommit();
                 Minecraft.getInstance().execute(() -> {
                     repoSlug = slug;
                     headSha = head;
-                    status(services.repo.images().size() + " images, at " + shortSha(head), ChatFormatting.GRAY);
+                    status(services.repo().images().size() + " images, at " + shortSha(head), ChatFormatting.GRAY);
                 });
             } catch (GitException exception) {
                 Minecraft.getInstance().execute(() ->
@@ -139,7 +141,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     private void showResults(String query) {
-        List<RepoImage> matches = services.repo.search(query, MAX_RESULTS);
+        List<RepoImage> matches = services.repo().search(query, MAX_RESULTS);
 
         resultsList.clearChildren();
 
@@ -262,7 +264,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         services.commands.send(ImageFrameCommands.create(
                 services.config.commandAlias, name, url, selectedGrid));
 
-        services.registry.put(new MapEntry(name, selected.path(), selectedGrid, headSha,
+        services.registry.put(new MapEntry(name, services.activeRepositoryId(), selected.path(), selectedGrid, headSha,
                 System.currentTimeMillis()));
         saveRegistry();
 
@@ -301,8 +303,8 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
 
         Thread.ofVirtual().start(() -> {
             try {
-                var result = services.git.pull();
-                services.repo.rescan();
+                var result = services.git().pull();
+                services.repo().rescan();
 
                 List<String> commands = result.changedPaths().stream()
                         .flatMap(path -> services.registry.byRepoPath(path).stream())

@@ -43,24 +43,22 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `repoPath` | `~/dev/mcmarkings` | Local clone the mod reads from and writes generated signs into |
-| `branch` | `main` | Branch to pull and push |
-| `githubSlug` | derived from `origin` | `owner/repo` for raw URLs; set it to override |
+| `repositories` | empty | Folders the mod reads from, all managed from the GUI |
 | `commandAlias` | `imageframe` | Command root without the slash; set to `frame` if your server rebinds it |
 | `fontSearchPaths` | `~/.local/share/fonts`, `/usr/share/fonts` | Where to look for the Transport typeface |
 | `exportPixelsPerFrame` | `256` | Export resolution per map frame |
 | `glowingFrames` | `true` | Ask for glowing invisible frames rather than plain |
 | `commandsPerSecond` | `2.0` | Command rate limit |
 
-| Key | Opens |
-| --- | --- |
-| **M** | Sign browser: search the repository and place an image |
-| **G** | Sign generator: fill in a form, preview, publish |
-| **B** | Sign builder: drag and drop composition onto a frame grid |
+**One key: `M`.** Rebindable in Minecraft's own controls screen. Everything else
+is reached from the screens themselves, so there is nothing else to memorise.
 
-All three are rebindable in Minecraft's own controls screen. Services are built on the first
-keypress rather than at startup, so a wrong `repoPath` can be corrected and retried without
-restarting the game.
+On a first run `M` opens a setup screen that walks you through choosing a folder.
+There is nothing to edit by hand: repositories are added, switched, renamed and
+removed entirely from the GUI, and you can have as many as you like.
+
+Repositories are opened on the first keypress rather than at startup, so a folder
+that has been moved can be pointed somewhere new without restarting the game.
 
 ## How it works
 
@@ -103,7 +101,7 @@ Two are permissions and one is not.
 **The repository and your fonts are invisible** until you grant access:
 
 ```sh
-flatpak override --user --filesystem=/home/kieran/dev/mcmarkings org.prismlauncher.PrismLauncher
+flatpak override --user --filesystem=/path/to/your/repo org.prismlauncher.PrismLauncher
 flatpak override --user --filesystem=~/.local/share/fonts:ro org.prismlauncher.PrismLauncher
 ```
 

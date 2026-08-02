@@ -33,7 +33,7 @@ class GitFilesTest {
 
         assertEquals(SHA, files.head().orElseThrow());
         assertEquals("main", files.currentBranch().orElseThrow());
-        assertEquals("kierandrewett/mcmarkings", files.remoteSlug().orElseThrow());
+        assertEquals("example-owner/example-repo", files.remoteSlug().orElseThrow());
     }
 
     @Test
@@ -74,16 +74,16 @@ class GitFilesTest {
         GitFiles files = GitFiles.at(tree).orElseThrow();
 
         assertEquals(SHA, files.head().orElseThrow());
-        assertEquals("kierandrewett/mcmarkings", files.remoteSlug().orElseThrow());
+        assertEquals("example-owner/example-repo", files.remoteSlug().orElseThrow());
     }
 
     @Test
     void parsesTheScpStyleRemoteToo(@TempDir Path root) throws IOException {
         Path git = fakeRepo(root, SHA);
         Files.writeString(git.resolve("config"),
-                "[remote \"origin\"]\n\turl = git@github.com:kierandrewett/mcmarkings.git\n");
+                "[remote \"origin\"]\n\turl = git@github.com:example-owner/example-repo.git\n");
 
-        assertEquals("kierandrewett/mcmarkings", GitFiles.at(root).orElseThrow().remoteSlug().orElseThrow());
+        assertEquals("example-owner/example-repo", GitFiles.at(root).orElseThrow().remoteSlug().orElseThrow());
     }
 
     /**
@@ -174,7 +174,7 @@ class GitFilesTest {
                 [core]
                 	repositoryformatversion = 0
                 [remote "origin"]
-                	url = https://github.com/kierandrewett/mcmarkings
+                	url = https://github.com/example-owner/example-repo
                 	fetch = +refs/heads/*:refs/remotes/origin/*
                 [branch "main"]
                 	remote = origin

@@ -26,8 +26,8 @@ class JsonMapRegistryTest {
         Path file = directory.resolve("mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
 
-        MapEntry zebra = new MapEntry("zebra_1", "zebra.png", new GridSize(2, 1), "abc1234", 1_700_000_000_000L);
-        MapEntry giveWay = new MapEntry("give_way_1", "signs/give_way.png", new GridSize(1, 1), "def5678", 1L);
+        MapEntry zebra = new MapEntry("zebra_1", "repo-a", "zebra.png", new GridSize(2, 1), "abc1234", 1_700_000_000_000L);
+        MapEntry giveWay = new MapEntry("give_way_1", "repo-a", "signs/give_way.png", new GridSize(1, 1), "def5678", 1L);
         registry.put(zebra);
         registry.put(giveWay);
         registry.save();
@@ -44,7 +44,7 @@ class JsonMapRegistryTest {
     void savedFileIsReadableJson(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
-        registry.put(new MapEntry("zebra_1", "zebra.png", new GridSize(2, 1), "abc1234", 5L));
+        registry.put(new MapEntry("zebra_1", "repo-a", "zebra.png", new GridSize(2, 1), "abc1234", 5L));
         registry.save();
 
         String json = Files.readString(file, StandardCharsets.UTF_8);
@@ -58,7 +58,7 @@ class JsonMapRegistryTest {
     void saveLeavesNoTempFilesBehind(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
-        registry.put(new MapEntry("a", "a.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("a", "repo-a", "a.png", new GridSize(1, 1), "sha", 1L));
         registry.save();
         registry.save();
 
@@ -71,7 +71,7 @@ class JsonMapRegistryTest {
     void aFailedSaveLeavesThePreviousFileIntact(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
-        registry.put(new MapEntry("a", "a.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("a", "repo-a", "a.png", new GridSize(1, 1), "sha", 1L));
         registry.save();
         String original = Files.readString(file, StandardCharsets.UTF_8);
 
@@ -90,7 +90,7 @@ class JsonMapRegistryTest {
     @Test
     void loadingAMissingFileGivesAnEmptyRegistry(@TempDir Path directory) throws IOException {
         JsonMapRegistry registry = new JsonMapRegistry(directory.resolve("not-there.json"));
-        registry.put(new MapEntry("stale", "a.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("stale", "repo-a", "a.png", new GridSize(1, 1), "sha", 1L));
 
         registry.load();
 
@@ -109,7 +109,7 @@ class JsonMapRegistryTest {
     void saveCreatesMissingDirectories(@TempDir Path directory) throws IOException {
         Path file = directory.resolve("nested/deeper/mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
-        registry.put(new MapEntry("a", "a.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("a", "repo-a", "a.png", new GridSize(1, 1), "sha", 1L));
 
         registry.save();
 
@@ -119,11 +119,11 @@ class JsonMapRegistryTest {
     @Test
     void byRepoPathReturnsEveryMapBuiltFromThatImage() {
         JsonMapRegistry registry = new JsonMapRegistry(Path.of("unused.json"));
-        MapEntry small = new MapEntry("zebra_small", "zebra.png", new GridSize(1, 1), "sha", 1L);
-        MapEntry large = new MapEntry("zebra_large", "zebra.png", new GridSize(4, 2), "sha", 2L);
+        MapEntry small = new MapEntry("zebra_small", "repo-a", "zebra.png", new GridSize(1, 1), "sha", 1L);
+        MapEntry large = new MapEntry("zebra_large", "repo-a", "zebra.png", new GridSize(4, 2), "sha", 2L);
         registry.put(small);
         registry.put(large);
-        registry.put(new MapEntry("other", "signs/give_way.png", new GridSize(1, 1), "sha", 3L));
+        registry.put(new MapEntry("other", "repo-a", "signs/give_way.png", new GridSize(1, 1), "sha", 3L));
 
         assertEquals(List.of(large, small), registry.byRepoPath("zebra.png"));
         assertTrue(registry.byRepoPath("nothing.png").isEmpty());
@@ -133,8 +133,8 @@ class JsonMapRegistryTest {
     @Test
     void putReplacesAnEntryWithTheSameName() {
         JsonMapRegistry registry = new JsonMapRegistry(Path.of("unused.json"));
-        registry.put(new MapEntry("zebra", "zebra.png", new GridSize(1, 1), "old", 1L));
-        registry.put(new MapEntry("zebra", "zebra.png", new GridSize(2, 2), "new", 2L));
+        registry.put(new MapEntry("zebra", "repo-a", "zebra.png", new GridSize(1, 1), "old", 1L));
+        registry.put(new MapEntry("zebra", "repo-a", "zebra.png", new GridSize(2, 2), "new", 2L));
 
         assertEquals(1, registry.all().size());
         assertEquals("new", registry.byName("zebra").orElseThrow().commitSha());
@@ -143,7 +143,7 @@ class JsonMapRegistryTest {
     @Test
     void removeDropsTheEntry() {
         JsonMapRegistry registry = new JsonMapRegistry(Path.of("unused.json"));
-        registry.put(new MapEntry("zebra", "zebra.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("zebra", "repo-a", "zebra.png", new GridSize(1, 1), "sha", 1L));
 
         registry.remove("zebra");
         registry.remove("never_existed");
@@ -160,13 +160,13 @@ class JsonMapRegistryTest {
 
         assertThrows(IllegalArgumentException.class, () -> registry.put(null));
         assertThrows(IllegalArgumentException.class,
-                () -> registry.put(new MapEntry("  ", "a.png", new GridSize(1, 1), "sha", 1L)));
+                () -> registry.put(new MapEntry("  ", "repo-a", "a.png", new GridSize(1, 1), "sha", 1L)));
     }
 
     @Test
     void returnedListsAreImmutable() {
         JsonMapRegistry registry = new JsonMapRegistry(Path.of("unused.json"));
-        registry.put(new MapEntry("zebra", "zebra.png", new GridSize(1, 1), "sha", 1L));
+        registry.put(new MapEntry("zebra", "repo-a", "zebra.png", new GridSize(1, 1), "sha", 1L));
 
         assertThrows(UnsupportedOperationException.class, () -> registry.all().clear());
         assertThrows(UnsupportedOperationException.class, () -> registry.byRepoPath("zebra.png").clear());
@@ -191,7 +191,7 @@ class JsonMapRegistryTest {
                 }
                 for (int index = 0; index < perWriter; index++) {
                     registry.put(new MapEntry(
-                            "map_" + id + "_" + index, "zebra.png", new GridSize(1, 1), "sha", index));
+"map_" + id + "_" + index, "repo-a", "zebra.png", new GridSize(1, 1), "sha", index));
                 }
             }));
         }
@@ -209,14 +209,16 @@ class JsonMapRegistryTest {
         Path file = directory.resolve("mcmarkings-maps.json");
         JsonMapRegistry registry = new JsonMapRegistry(file);
         for (int index = 0; index < 200; index++) {
-            registry.put(new MapEntry("map_" + index, "zebra.png", new GridSize(1, 1), "sha", index));
+            registry.put(new MapEntry(
+"map_" + index, "repo-a", "zebra.png", new GridSize(1, 1), "sha", index));
         }
 
         CountDownLatch done = new CountDownLatch(1);
         Thread writer = Thread.ofVirtual().start(() -> {
             try {
                 for (int index = 200; index < 400; index++) {
-                    registry.put(new MapEntry("map_" + index, "zebra.png", new GridSize(1, 1), "sha", index));
+                    registry.put(new MapEntry(
+"map_" + index, "repo-a", "zebra.png", new GridSize(1, 1), "sha", index));
                 }
             } finally {
                 done.countDown();

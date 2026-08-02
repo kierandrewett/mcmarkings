@@ -308,7 +308,7 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
             ImGui.setNextItemWidth(-1.0f);
             ImGui.inputTextWithHint("##picker-query", "Search images", pickerQuery);
 
-            for (RepoImage image : services.repo.search(pickerQuery.get(), 60)) {
+            for (RepoImage image : services.repo().search(pickerQuery.get(), 60)) {
                 if (!ImGui.selectable(ImGuiScreens.truncate(image.path(), 46) + "##pick-" + image.path())) {
                     continue;
                 }
@@ -448,7 +448,7 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
 
         Thread.ofVirtual().start(() -> {
             try {
-                BufferedImage image = services.generators.render(generatorId, params);
+                BufferedImage image = services.generators().render(generatorId, params);
                 Minecraft.getInstance().execute(() -> onPreview(generatorId, image));
             } catch (GeneratorException exception) {
                 Minecraft.getInstance().execute(() -> onPreviewFailed(generatorId, exception.getMessage()));
@@ -522,7 +522,7 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
     }
 
     private void reloadGeneratorList() {
-        generators = List.copyOf(services.generators.generators());
+        generators = List.copyOf(services.generators().generators());
         if (generators.isEmpty()) {
             status.info("No generators loaded");
             return;
@@ -537,13 +537,13 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
         status.info("Reloading scripts...");
         Thread.ofVirtual().start(() -> {
             try {
-                services.generators.reload();
+                services.generators().reload();
                 Minecraft.getInstance().execute(() -> {
                     String previousId = selected == null ? null : selected.id();
                     selected = null;
                     reloadGeneratorList();
                     if (previousId != null) {
-                        services.generators.byId(previousId).ifPresent(this::select);
+                        services.generators().byId(previousId).ifPresent(this::select);
                     }
                     status.good("Reloaded " + generators.size() + " generators");
                 });

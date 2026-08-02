@@ -553,7 +553,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
      * to a couple of thousand pixels and a 1:1 drop would land entirely off-canvas.
      */
     private void place(String repoPath, float designX, float designY, GridSize gridSize) {
-        RepoImage image = services.repo.byPath(repoPath).orElse(null);
+        RepoImage image = services.repo().byPath(repoPath).orElse(null);
         if (image == null) {
             status.bad("Unknown image " + repoPath);
             return;
@@ -581,7 +581,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
     }
 
     private TextureHandle handleFor(Placed item) {
-        RepoImage image = services.repo.byPath(item.repoPath).orElse(null);
+        RepoImage image = services.repo().byPath(item.repoPath).orElse(null);
         if (image == null) {
             return null;
         }
@@ -616,7 +616,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
     // Search, layouts, publish.
 
     private void refreshResults() {
-        results = List.copyOf(services.repo.search(search.get(), PALETTE_LIMIT));
+        results = List.copyOf(services.repo().search(search.get(), PALETTE_LIMIT));
     }
 
     private void scanLayouts() {
@@ -675,7 +675,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
                 .filter(entry -> entry != null && entry.repoPath != null)
                 .sorted((left, right) -> Integer.compare(left.z, right.z))
                 .toList()) {
-            RepoImage image = services.repo.byPath(entry.repoPath).orElse(null);
+            RepoImage image = services.repo().byPath(entry.repoPath).orElse(null);
             if (image == null) {
                 skipped++;
                 continue;
@@ -758,7 +758,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
             for (Placed item : snapshot) {
                 // Read the repository PNG rather than the cached thumbnail: the
                 // thumbnail exists for the browser grid and is not full resolution.
-                BufferedImage source = ImageIO.read(services.repo.resolve(item.repoPath).toFile());
+                BufferedImage source = ImageIO.read(services.repo().resolve(item.repoPath).toFile());
                 if (source == null) {
                     McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not decode {}", item.repoPath);
                     continue;
@@ -778,7 +778,7 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
     }
 
     private Path generatedDirectory() {
-        return services.config.repoRoot().resolve(services.config.generatedDirectory);
+        return services.repoRoot().resolve(services.config.generatedDirectory);
     }
 
     /** One image on the canvas, in design pixels. */
