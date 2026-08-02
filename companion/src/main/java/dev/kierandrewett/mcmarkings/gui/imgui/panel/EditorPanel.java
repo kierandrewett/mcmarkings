@@ -725,21 +725,7 @@ public final class EditorPanel implements Panel {
         float right = left + (float) (document.width() * zoom);
         float bottom = top + (float) (document.height() * zoom);
 
-        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(0.16f, 0.16f, 0.17f, 1.0f));
-
-        int columns = (int) Math.ceil((right - left) / CHEQUER_SIZE);
-        int rows = (int) Math.ceil((bottom - top) / CHEQUER_SIZE);
-        if (columns > 0 && rows > 0 && (long) columns * rows <= MAX_CHEQUER_CELLS) {
-            int light = ImGui.getColorU32(0.22f, 0.22f, 0.23f, 1.0f);
-            for (int row = 0; row < rows; row++) {
-                for (int column = row % 2; column < columns; column += 2) {
-                    float cellX = left + column * CHEQUER_SIZE;
-                    float cellY = top + row * CHEQUER_SIZE;
-                    drawList.addRectFilled(cellX, cellY, Math.min(right, cellX + CHEQUER_SIZE),
-                            Math.min(bottom, cellY + CHEQUER_SIZE), light);
-                }
-            }
-        }
+        ImGuiScreens.chequerboard(drawList, left, top, right, bottom);
 
         drawList.addRect(left, top, right, bottom, ImGui.getColorU32(0.75f, 0.75f, 0.78f, 0.9f));
     }

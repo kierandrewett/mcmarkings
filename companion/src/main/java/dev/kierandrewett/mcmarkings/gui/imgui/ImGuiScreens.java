@@ -91,6 +91,49 @@ public final class ImGuiScreens {
         }
     }
 
+    /** Cell size of the transparency chequerboard, in screen pixels. */
+    public static final float CHEQUER_SIZE = 8.0f;
+
+    /** Past this it is more draw calls than it is worth. */
+    private static final long MAX_CHEQUER_CELLS = 4096;
+
+    /**
+     * A chequerboard, for anywhere a transparent image is shown.
+     *
+     * <p>Transparency drawn over a flat dark panel is indistinguishable from a dark
+     * layer: a sign with a see-through background and one with a black one look
+     * identical, and you find out which you had after it is on a wall. The
+     * chequerboard is the usual way to tell them apart, and it belongs everywhere an
+     * image is shown rather than only on the canvas someone happened to write it for.
+     *
+     * <p>Dropped rather than drawn past a cell count, since a large area would
+     * otherwise be thousands of quads a frame.
+     */
+    public static void chequerboard(imgui.ImDrawList drawList, float left, float top,
+            float right, float bottom) {
+        if (right <= left || bottom <= top) {
+            return;
+        }
+
+        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(0.16f, 0.16f, 0.17f, 1.0f));
+
+        int columns = (int) Math.ceil((right - left) / CHEQUER_SIZE);
+        int rows = (int) Math.ceil((bottom - top) / CHEQUER_SIZE);
+        if (columns <= 0 || rows <= 0 || (long) columns * rows > MAX_CHEQUER_CELLS) {
+            return;
+        }
+
+        int light = ImGui.getColorU32(0.22f, 0.22f, 0.23f, 1.0f);
+        for (int row = 0; row < rows; row++) {
+            for (int column = row % 2; column < columns; column += 2) {
+                float cellX = left + column * CHEQUER_SIZE;
+                float cellY = top + row * CHEQUER_SIZE;
+                drawList.addRectFilled(cellX, cellY, Math.min(right, cellX + CHEQUER_SIZE),
+                        Math.min(bottom, cellY + CHEQUER_SIZE), light);
+            }
+        }
+    }
+
     public static void applyMinecraftTheme() {
         if (themed) {
             return;

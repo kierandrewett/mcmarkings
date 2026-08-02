@@ -39,13 +39,6 @@ public final class ImageComposer {
         CONTAIN
     }
 
-    /**
-     * Flat road grey. White and yellow markings are invisible against a light UI, so
-     * previews get composited onto this first; it is the same trick as eyeballing a
-     * marking against tarmac.
-     */
-    public static final Color TARMAC = new Color(60, 60, 65);
-
     private static final int DEFAULT_CACHE_CAPACITY = 64;
 
     private final LruCache cache;
@@ -185,22 +178,6 @@ public final class ImageComposer {
             graphics.dispose();
         }
         return canvas;
-    }
-
-    /** Composites over flat road grey so transparent white and yellow markings are visible. */
-    public BufferedImage onTarmac(BufferedImage source) {
-        requireImage(source);
-
-        BufferedImage output = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = output.createGraphics();
-        try {
-            graphics.setColor(TARMAC);
-            graphics.fillRect(0, 0, output.getWidth(), output.getHeight());
-            graphics.drawImage(source, 0, 0, null);
-        } finally {
-            graphics.dispose();
-        }
-        return output;
     }
 
     /** Writes a PNG, creating parent directories. */

@@ -146,21 +146,6 @@ class ImageComposerTest {
         assertEquals(source.getRGB(10, 10), scaled.getRGB(10, 10));
     }
 
-    @Test
-    @DisplayName("onTarmac makes transparent white paint visible")
-    void onTarmacFillsTheBackground() {
-        BufferedImage marking = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = marking.createGraphics();
-        graphics.setColor(Color.WHITE);
-        graphics.fillRect(8, 8, 16, 16);
-        graphics.dispose();
-
-        BufferedImage preview = composer.onTarmac(marking);
-
-        assertEquals(255, alphaAt(preview, 0, 0), "background must be opaque");
-        assertEquals(ImageComposer.TARMAC.getRGB() & 0xFFFFFF, rgbAt(preview, 0, 0));
-        assertEquals(0xFFFFFF, rgbAt(preview, 16, 16), "the paint must survive on top");
-    }
 
     @Test
     @DisplayName("load caches by path and mtime, and notices a rewrite")
@@ -238,17 +223,16 @@ class ImageComposerTest {
 
         BufferedImage marking = syntheticMarking();
         composer.writePng(marking, output.resolve("marking-source.png"));
-        composer.writePng(composer.onTarmac(marking), output.resolve("marking-on-tarmac.png"));
-        composer.writePng(composer.onTarmac(composer.scale(marking, 96, 96)),
-                output.resolve("marking-thumbnail-96-on-tarmac.png"));
+        composer.writePng(composer.scale(marking, 96, 96),
+                output.resolve("marking-thumbnail-96.png"));
 
         // If the real library is next to the mod, render one of its PNGs too. Skipped
         // silently when it is not, so the test still passes from a bare checkout.
         Path repoImage = Path.of("..", "give_way.png");
         if (Files.isRegularFile(repoImage)) {
             BufferedImage real = composer.load(repoImage);
-            composer.writePng(composer.onTarmac(composer.scale(real, 128, 128)),
-                    output.resolve("repo-give-way-128-on-tarmac.png"));
+            composer.writePng(composer.scale(real, 128, 128),
+                    output.resolve("repo-give-way-128.png"));
         }
 
         assertTrue(Files.isDirectory(output));

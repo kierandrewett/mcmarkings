@@ -351,7 +351,12 @@ public final class ImageBrowserPanel implements Panel {
 
         // Submitted before the selectable so its hover and selection highlight land
         // on top of the cell background rather than under it.
-        drawList.addRectFilled(x, y, x + cell, y + cell, ImGui.getColorU32(ImGuiCol.FrameBg));
+        //
+        // A chequerboard rather than a flat fill, because most of what this browses is
+        // transparent and a transparent background is indistinguishable from a dark
+        // one against a flat panel. The editor's canvas has always said so; the
+        // browser is where people actually decide which image they want.
+        ImGuiScreens.chequerboard(drawList, x, y, x + cell, y + cell);
 
         ImGui.pushID(image.path());
         try {
@@ -492,7 +497,7 @@ public final class ImageBrowserPanel implements Panel {
         float y = ImGui.getCursorScreenPosY();
 
         ImDrawList drawList = ImGui.getWindowDrawList();
-        drawList.addRectFilled(x, y, x + boxWidth, y + boxHeight, ImGui.getColorU32(ImGuiCol.FrameBg));
+        ImGuiScreens.chequerboard(drawList, x, y, x + boxWidth, y + boxHeight);
         drawList.addRect(x, y, x + boxWidth, y + boxHeight, ImGui.getColorU32(ImGuiCol.Border));
 
         // Advances the layout by the box, so whatever follows lands under it.
