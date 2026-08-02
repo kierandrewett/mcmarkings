@@ -172,6 +172,27 @@ public final class GridRecommender {
      * If nothing is acceptable the whole frontier is offered instead of nothing.
      */
     public static List<GridSuggestion> top(int imageWidth, int imageHeight, int count) {
+        return offered(imageWidth, imageHeight, count, false);
+    }
+
+    /**
+     * The same list, for a path where the server does the fitting.
+     *
+     * <p>Pairs with {@link #bestMatchingShape}. Recommending one rule and offering
+     * another is worse than either on its own: the button the browser lands on would
+     * be a grid the image fills and every alternative beside it would not, with
+     * nothing saying why they differ.
+     *
+     * <p>Found by listing every caller of the two rules rather than by tripping over
+     * it, which is the third of these in a row and the first I did not find by
+     * accident.
+     */
+    public static List<GridSuggestion> topMatchingShape(int imageWidth, int imageHeight, int count) {
+        return offered(imageWidth, imageHeight, count, true);
+    }
+
+    private static List<GridSuggestion> offered(int imageWidth, int imageHeight, int count,
+            boolean matchShape) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
 
         // Starts where best() would stop, so the first button offered is the one it
@@ -180,9 +201,7 @@ public final class GridRecommender {
         // sits on a third of is not one.
         double imageAspect = imageWidth / (double) Math.max(1, imageHeight);
         int start = 0;
-        while (start < frontier.size()
-                && GridSuggestion.coveragePercent(frontier.get(start).grid(), imageAspect)
-                        < MINIMUM_COVERAGE * 100.0) {
+        while (start < frontier.size() && !goodEnough(frontier.get(start), imageAspect, matchShape)) {
             start++;
         }
         if (start == frontier.size()) {
@@ -197,6 +216,15 @@ public final class GridRecommender {
      * Relative aspect error, symmetric so that a grid twice as wide as the image
      * scores the same as one half as wide.
      */
+    /** Whether a candidate clears whichever bar this path is judged against. */
+    private static boolean goodEnough(GridSuggestion suggestion, double imageAspect,
+            boolean matchShape) {
+        return matchShape
+                ? suggestion.distortion() <= ACCEPTABLE
+                : GridSuggestion.coveragePercent(suggestion.grid(), imageAspect)
+                        >= MINIMUM_COVERAGE * 100.0;
+    }
+
     private static double distortion(GridSize grid, double imageAspect) {
         double ratio = grid.aspect() / imageAspect;
         return Math.abs(ratio >= 1.0 ? ratio - 1.0 : (1.0 / ratio) - 1.0);

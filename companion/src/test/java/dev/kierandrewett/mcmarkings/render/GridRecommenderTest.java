@@ -262,6 +262,9 @@ class GridRecommenderTest {
         assertTrue(shell.contains("GridRecommender.bestMatchingShape("),
                 "the browser is choosing a grid without matching the image's shape, and it "
                         + "cannot fit the image itself");
+        assertTrue(shell.contains("GridRecommender.topMatchingShape("),
+                "the browser recommends one rule and offers another, so the button it lands "
+                        + "on and the buttons beside it disagree with nothing saying why");
 
         // The generator publishes through the mod, which squares the image up, so it
         // is the one that may prefer fewer frames.
@@ -269,5 +272,26 @@ class GridRecommenderTest {
                 "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/GeneratorPanel.java"));
         assertTrue(generator.contains("GridRecommender.best("),
                 "the generator is no longer using the rule for images the mod fits itself");
+    }
+
+    /**
+     * What is offered follows what is recommended, under either rule.
+     *
+     * <p>The list starts where the recommendation stops, so the first button is the
+     * one the mod would pick. Two rules means two starting points, and getting that
+     * wrong shows up as a panel recommending a grid it does not offer.
+     */
+    @Test
+    @DisplayName("the first thing offered is the thing recommended, whichever rule is asked for")
+    void whatIsOfferedLeadsWithWhatIsRecommended() {
+        for (int[] size : new int[][] {{1601, 445}, {2048, 512}, {1024, 733}, {601, 1024}}) {
+            List<GridSuggestion> padded = GridRecommender.top(size[0], size[1], 3);
+            assertEquals(GridRecommender.best(size[0], size[1]), padded.getFirst().grid(),
+                    size[0] + "x" + size[1] + " offers a different grid than it recommends");
+
+            List<GridSuggestion> shaped = GridRecommender.topMatchingShape(size[0], size[1], 3);
+            assertEquals(GridRecommender.bestMatchingShape(size[0], size[1]), shaped.getFirst().grid(),
+                    size[0] + "x" + size[1] + " offers a different shape-matched grid than it recommends");
+        }
     }
 }

@@ -644,7 +644,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             // URL and a grid and lets it fit the image, so a grid the image does not
             // fill is a grid the server decides what to do with.
             grid = GridRecommender.bestMatchingShape(image.width(), image.height());
-            suggestions = GridRecommender.top(image.width(), image.height(), 3);
+            suggestions = GridRecommender.topMatchingShape(image.width(), image.height(), 3);
 
             refreshPlacedAs(image);
         }
