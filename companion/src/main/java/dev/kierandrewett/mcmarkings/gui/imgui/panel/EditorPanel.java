@@ -145,6 +145,8 @@ public final class EditorPanel implements Panel {
     private static final int KEY_ZERO = '0';
     private static final int KEY_MINUS = '-';
     private static final int KEY_EQUAL = '=';
+    private static final int KEY_TAB = 258;
+
     private static final int KEY_DELETE = 261;
     private static final int KEY_RIGHT = 262;
     private static final int KEY_LEFT = 263;
@@ -225,6 +227,9 @@ public final class EditorPanel implements Panel {
      */
     private int pendingZoomSteps;
     private boolean fitRequested;
+
+    /** A box to bring into view once the canvas region's size is known. */
+    private Layer.Bounds pendingCentre;
 
     private boolean snapEnabled = true;
 
@@ -595,6 +600,31 @@ public final class EditorPanel implements Panel {
             zoomAbout(width / 2.0f, height / 2.0f, pendingZoomSteps);
             pendingZoomSteps = 0;
         }
+        if (pendingCentre != null) {
+            centreOn(pendingCentre, width, height);
+            pendingCentre = null;
+        }
+    }
+
+    /**
+     * Brings a box into view without changing the zoom.
+     *
+     * <p>Only moves when it has to. Re-centring on something already on screen makes
+     * the whole canvas jump for no reason, which is worse than not moving at all when
+     * you are stepping through layers one key at a time.
+     */
+    private void centreOn(Layer.Bounds bounds, float width, float height) {
+        float left = (float) (bounds.x() * zoom + panX);
+        float top = (float) (bounds.y() * zoom + panY);
+        float right = (float) (bounds.right() * zoom + panX);
+        float bottom = (float) (bounds.bottom() * zoom + panY);
+
+        if (left >= 0 && top >= 0 && right <= width && bottom <= height) {
+            return;
+        }
+
+        panX = (float) (width / 2.0 - bounds.centreX() * zoom);
+        panY = (float) (height / 2.0 - bounds.centreY() * zoom);
     }
 
     private void fitToRegion(Document document, float width, float height) {
@@ -1690,6 +1720,25 @@ public final class EditorPanel implements Panel {
                 .enabledWhen(() -> !history.current().layers().isEmpty())
                 .does(this::selectAll));
 
+        commands.register(Command.of("editor.selectNext", "Select next layer").category("Layer")
+                .hint("Step up through the stack without using the mouse")
+                .shortcut(Shortcut.of(KEY_TAB))
+                .enabledWhen(() -> !history.current().layers().isEmpty())
+                .does(() -> step(1)));
+        commands.register(Command.of("editor.selectPrevious", "Select previous layer").category("Layer")
+                .hint("Step down through the stack without using the mouse")
+                .shortcut(new Shortcut(KEY_TAB, false, true, false))
+                .enabledWhen(() -> !history.current().layers().isEmpty())
+                .does(() -> step(-1)));
+        // Deliberately no shortcut. Escape is the obvious one and it is also how you
+        // get back to the game, which matters more: a key that sometimes closes the
+        // window and sometimes does not is worse than one more palette entry. Clicking
+        // an empty part of the canvas already clears the selection.
+        commands.register(Command.of("editor.selectNone", "Select nothing").category("Layer")
+                .hint("Clear the selection, showing the document's own properties")
+                .enabledWhen(this::hasSelection)
+                .does(selection::clear));
+
         commands.register(Command.of("editor.group", "Group").category("Layer")
                 .hint("Wrap the selection in a group that moves together")
                 .shortcut(Shortcut.control(KEY_G))
@@ -1827,6 +1876,42 @@ public final class EditorPanel implements Panel {
     private void selectAll() {
         selection.clear();
         history.current().layers().forEach(layer -> selection.add(layer.id()));
+    }
+
+    /**
+     * Moves the selection one layer up or down the stack.
+     *
+     * <p>Arrow keys already nudge whatever is selected, but there was no way to
+     * choose what that was without pointing at it. That makes precise work with a
+     * mouse a requirement rather than a convenience, which it should not be for
+     * something whose whole job is moving rectangles by exact amounts.
+     *
+     * <p>Wraps around, and starts from the top with nothing selected, so holding the
+     * key cycles rather than sticking at an end.
+     */
+    private void step(int direction) {
+        List<Layer> layers = history.current().layers();
+        if (layers.isEmpty()) {
+            return;
+        }
+
+        int current = -1;
+        if (!selection.isEmpty()) {
+            String anchor = selection.iterator().next();
+            for (int index = 0; index < layers.size(); index++) {
+                if (layers.get(index).id().equals(anchor)) {
+                    current = index;
+                    break;
+                }
+            }
+        }
+
+        int next = Math.floorMod(current + direction, layers.size());
+        Layer stepped = layers.get(next);
+        select(List.of(stepped.id()));
+
+        // Otherwise stepping onto something off screen looks like nothing happened.
+        pendingCentre = stepped.bounds();
     }
 
     private void select(List<String> ids) {

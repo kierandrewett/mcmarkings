@@ -79,6 +79,8 @@ Everything else has a route through the interface, so nothing below is required.
 | `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | In the editor: new, open, save |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo, redo |
 | `Ctrl+D`, `Delete`, `Ctrl+G`, `Ctrl+A` | Duplicate, delete, group, select all |
+| `Tab` / `Shift+Tab` | Step the selection through the layer stack |
+| Arrow keys | Nudge the selection; hold `Shift` for a larger step |
 
 The palette is the honest answer to "what can this do". It lists everything,
 including things that are unavailable right now and why, so a missing entry
