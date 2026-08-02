@@ -456,6 +456,16 @@ public final class GeneratorPanel implements Panel {
                     opening = false;
                     status.bad(failure.getMessage());
                 });
+            } catch (RuntimeException failure) {
+                // The preview worker in this same class catches both and this one only
+                // caught the expected type. Anything else left "opening" true for the
+                // rest of the session, which disables the button permanently and says
+                // nothing: the one failure mode worse than the error it came from.
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] building layers threw", failure);
+                Minecraft.getInstance().execute(() -> {
+                    opening = false;
+                    status.bad("Could not build layers: " + failure);
+                });
             }
         });
     }
