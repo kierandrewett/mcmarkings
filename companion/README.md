@@ -318,5 +318,14 @@ need you in game:
 7. Generate an image, place it, and confirm it appears on the wall.
 8. Generate one, open it in the editor, move something, save it as a template,
    reopen it and confirm it comes back the same.
-9. Move the config file aside and confirm the first-run panel appears in the
-   window rather than as a separate screen.
+9. Press **Create map** twice on the same image. The second should say
+   "Refreshing" and update it, not fail: ImageFrame rejects `create` for a name
+   it already knows, and every path that builds one of those commands now picks
+   refresh when the registry has seen the name.
+10. Paste a **Copy command** for something already placed and confirm the same.
+11. In **Placed**, use **Get map** after breaking the item, and **Delete** on
+    something disposable. Delete cannot be undone from the mod.
+12. With unpushed commits on the branch, confirm the publish hint says so, and
+    that it stops saying so once you have placed something.
+13. Move the config file aside and confirm the first-run panel appears in the
+    window rather than as a separate screen.
