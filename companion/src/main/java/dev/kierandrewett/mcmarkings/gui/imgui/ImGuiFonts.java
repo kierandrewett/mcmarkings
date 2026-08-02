@@ -44,10 +44,17 @@ public final class ImGuiFonts {
      * interface jump, which is a thing you notice immediately and would never guess
      * from the number being the same.
      *
-     * <p>Applied to the bundled face only. Halving it for everything would leave
-     * anyone falling back to a system font reading eight pixel text.
+     * <p>Applied to the bundled face only. Doing it to everything would leave anyone
+     * falling back to a system font reading half-size text.
+     *
+     * <p>Five eighths rather than a half. Halving it was the first correction, made
+     * the moment the font was bundled and the interface visibly jumped, and it went
+     * one step too far: at eight pixels the face is legible and small. Five eighths
+     * lands on ten, and on twenty and thirty at the scales above, which are whole
+     * numbers, and a pixel font asked for a fraction lands its glyphs between pixels
+     * and comes out furry.
      */
-    private static final float BUNDLED_SCALE = 0.5f;
+    private static final float BUNDLED_SCALE = 0.625f;
 
     /** Guards against a pathological scale producing an enormous atlas. */
     private static final float MAX_PIXELS = 64.0f;

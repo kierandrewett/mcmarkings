@@ -430,11 +430,19 @@ public final class ImGuiScreens {
         style.setFrameBorderSize(1.0f);
         style.setPopupBorderSize(1.0f);
 
-        style.setWindowPadding(8.0f, 8.0f);
-        style.setFramePadding(6.0f, 4.0f);
-        style.setItemSpacing(6.0f, 6.0f);
-        style.setScrollbarSize(10.0f);
-        style.setGrabMinSize(10.0f);
+        // Tight on purpose. These were roomier and it read as loose rather than as
+        // generous: the panes are small, the window is often 854 pixels wide, and
+        // every pixel of padding is one the canvas or the layer list does not get.
+        //
+        // Frame padding stays taller than it is wide, since a control needs to be
+        // comfortable to hit vertically and a button's width comes from its label.
+        style.setWindowPadding(5.0f, 5.0f);
+        style.setFramePadding(4.0f, 3.0f);
+        style.setItemSpacing(4.0f, 4.0f);
+        style.setItemInnerSpacing(4.0f, 3.0f);
+        style.setIndentSpacing(14.0f);
+        style.setScrollbarSize(9.0f);
+        style.setGrabMinSize(9.0f);
 
         // Owned rather than left to the library, because it decides whether the label
         // on a disabled button is still readable, and every disabled control here has

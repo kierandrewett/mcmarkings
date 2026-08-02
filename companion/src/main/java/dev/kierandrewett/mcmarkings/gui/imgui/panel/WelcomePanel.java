@@ -56,9 +56,7 @@ public final class WelcomePanel {
                 + "see how many item frames each one needs, compose new ones, and place them "
                 + "in a couple of clicks.");
 
-        ImGui.spacing();
         ImGui.separator();
-        ImGui.spacing();
 
         Notice.heading("To get started");
         bullet("Choose a folder of PNGs. A clone of a git repository works best, because the "
@@ -93,7 +91,6 @@ public final class WelcomePanel {
             return;
         }
 
-        ImGui.spacing();
         ImGui.separator();
         for (String note : notes) {
             Notice.warningWrapped(note);

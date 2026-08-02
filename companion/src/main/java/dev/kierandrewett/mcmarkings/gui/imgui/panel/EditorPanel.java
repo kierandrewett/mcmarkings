@@ -255,7 +255,11 @@ public final class EditorPanel implements Panel {
             // pixels-per-frame the document is set to and a wall only ever has 128,
             // so this is the difference between what you are looking at and what you
             // are making.
-            new ToolbarItem("View at map resolution", "editor.zoom.map", Icon.MAP));
+            new ToolbarItem("View at map resolution", "editor.zoom.map", Icon.MAP),
+            // A word rather than an icon, like the zoom controls beside it, because a
+            // question mark drawn in strokes at thirteen pixels is a smudge and the
+            // character is one everybody already reads.
+            new ToolbarItem("?##help", "editor.help"));
 
     private final CompanionServices services;
 
@@ -1438,8 +1442,9 @@ public final class EditorPanel implements Panel {
             ImGui.bulletText("Drag a layer to move it, or its handles to resize.");
             ImGui.bulletText("Drag empty space to select everything inside the box.");
             ImGui.bulletText("Hold control while clicking to add or remove one.");
-            ImGui.bulletText("Scroll to zoom, right-drag to pan.");
-            ImGui.bulletText("Hold alt while dragging to suspend snapping.");
+            ImGui.bulletText("Scroll to zoom. Right-drag or middle-drag to pan.");
+            ImGui.bulletText("Moving and resizing both snap. Hold alt during a drag to suspend it.");
+            ImGui.bulletText("Hold alt with one layer selected to measure the gaps around it.");
 
             ImGui.spacing();
             ImGui.textDisabled("IN THE LAYER LIST");
