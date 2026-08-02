@@ -2,6 +2,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui;
 
 import cn.enaium.fabric.imgui.ImGuiRenderable;
 import dev.kierandrewett.mcmarkings.CompanionServices;
+import dev.kierandrewett.mcmarkings.InstallWatch;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.Workspace;
 import dev.kierandrewett.mcmarkings.core.GridSize;
@@ -484,6 +485,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (renderError == null) {
             return;
         }
+        // Said before anything breaks rather than after. The file's timestamp knows
+        // the mod has been replaced; waiting for a class to fail means the first
+        // person to find out is whoever clicked something.
+        if (InstallWatch.replaced(System.currentTimeMillis())) {
+            Notice.warningWrapped(InstallWatch.warning());
+        }
+
         // Notice.errorWrapped adds the note about a stale jar itself, which is the
         // failure everybody who updates this mod meets and the one whose own message
         // names a class nobody has heard of.
