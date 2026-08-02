@@ -88,6 +88,20 @@ public final class EditorPanel implements Panel {
     private static final float MARQUEE_WASH_ALPHA = 0.18f;
 
     /**
+     * The largest a single layer may be, per side.
+     *
+     * <p>The size field allowed Integer.MAX_VALUE. A group is given a scratch image
+     * its own size when it renders, so that number went straight into an allocation,
+     * and a group is deliberately not clipped to the canvas so it can be far larger
+     * than the document holding it.
+     *
+     * <p>Square, this is the whole budget a document gets, so a layer can still be
+     * bigger than any canvas anyone will build and cannot be bigger than the thing
+     * that draws it.
+     */
+    private static final int MAX_LAYER_EDGE = 8192;
+
+    /**
      * Longest edge of the preview texture.
      *
      * <p>A document can be several thousand pixels across and the canvas pane is a
@@ -1630,7 +1644,7 @@ public final class EditorPanel implements Panel {
 
         pair[0] = bounds.width();
         pair[1] = bounds.height();
-        if (field("Size (w, h)", () -> ImGui.dragInt2("##size", pair, 1.0f, 1, Integer.MAX_VALUE))) {
+        if (field("Size (w, h)", () -> ImGui.dragInt2("##size", pair, 1.0f, 1, MAX_LAYER_EDGE))) {
             Layer.Bounds resized = new Layer.Bounds(bounds.x(), bounds.y(),
                     Math.max(1, pair[0]), Math.max(1, pair[1]));
             // Its own key. Sharing one with Position merged a move and a resize into a

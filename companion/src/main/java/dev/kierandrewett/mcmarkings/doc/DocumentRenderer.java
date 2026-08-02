@@ -313,6 +313,23 @@ public final class DocumentRenderer {
             return;
         }
 
+        // A group gets a scratch image the size of its own box, which is the second
+        // place in this mod that allocates from a number somebody typed. The document
+        // canvas is capped; this was not, and a group is not clipped to the canvas by
+        // design, so it can be far larger than the document containing it. The size
+        // field in the properties panel had a maximum of Integer.MAX_VALUE.
+        //
+        // Reported and skipped rather than thrown. This runs against documents from
+        // disk as well as from the editor, and one impossible group should cost that
+        // group rather than the whole render. The editor already shows what lands
+        // here, so it says which layer rather than going quiet.
+        long area = (long) content.width() * content.height();
+        if (area > Document.MAX_PIXELS) {
+            problems.add("group \"" + layer.name() + "\" is " + content.width() + " by "
+                    + content.height() + ", too large to render. Resize it, or ungroup it.");
+            return;
+        }
+
         BufferedImage scratch =
                 new BufferedImage(content.width(), content.height(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D scratchGraphics = scratch.createGraphics();
