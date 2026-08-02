@@ -28,6 +28,7 @@ import imgui.flag.ImGuiButtonFlags;
 import imgui.flag.ImGuiChildFlags;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiColorEditFlags;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
@@ -557,14 +558,20 @@ public final class EditorPanel implements Panel {
             return;
         }
 
-        ImGui.beginDisabled(!command.isEnabled());
+        boolean enabled = command.isEnabled();
+        ImGui.beginDisabled(!enabled);
         boolean pressed = ImGui.button(label);
         ImGui.endDisabled();
 
-        if (ImGui.isItemHovered()) {
+        // Explicitly including the disabled case, which ImGui suppresses by default.
+        // A greyed-out button is exactly when someone wants to know why, and silence
+        // there is the difference between "not now" and "broken".
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             String shortcut = command.shortcut() == null ? "" : "   " + command.shortcut().display();
             String hint = command.hintText();
-            ImGui.setTooltip(command.label() + shortcut + (hint.isBlank() ? "" : "\n" + hint));
+            ImGui.setTooltip(command.label() + shortcut
+                    + (hint.isBlank() ? "" : "\n" + hint)
+                    + (enabled ? "" : "\n\nNot available right now."));
         }
         if (pressed) {
             command.run();

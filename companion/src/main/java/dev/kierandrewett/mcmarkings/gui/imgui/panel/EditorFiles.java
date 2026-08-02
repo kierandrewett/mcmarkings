@@ -265,10 +265,31 @@ public final class EditorFiles {
                 // Says push, because it does. A plain git push sends the whole branch,
                 // so placing one sign also sends every other local commit, and that is
                 // not something to discover afterwards.
-                .hint("Renders at full size, commits it, pushes the branch, "
-                        + "then runs the ImageFrame command")
+                //
+                // And says why it is unavailable when it is. This is the most
+                // consequential button in the mod, so "greyed out for some reason" is
+                // the worst thing it could tell someone.
+                .hint(this::describePublish)
                 .enabledWhen(() -> canWrite() && !history.current().layers().isEmpty())
                 .does(this::placeAsMap));
+    }
+
+    /** What placing would do, or why it cannot right now. */
+    private String describePublish() {
+        if (!services.hasRepositories()) {
+            return "No repository set up, so there is nowhere to write the image.";
+        }
+        if (services.isLoading()) {
+            return "Still opening the repository.";
+        }
+        if (busy()) {
+            return "Waiting for the last one to finish.";
+        }
+        if (history.current().layers().isEmpty()) {
+            return "The canvas is empty, so there is nothing to place.";
+        }
+        return "Renders at full size, commits it, pushes the branch, "
+                + "then runs the ImageFrame command";
     }
 
     private boolean repositoryReady() {
