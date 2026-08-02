@@ -14,6 +14,7 @@ import dev.kierandrewett.mcmarkings.doc.Edits;
 import dev.kierandrewett.mcmarkings.doc.History;
 import dev.kierandrewett.mcmarkings.doc.Insets;
 import dev.kierandrewett.mcmarkings.doc.Layer;
+import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
@@ -34,8 +35,6 @@ import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -166,6 +165,11 @@ public final class EditorPanel implements Panel {
      * and wrapping needs to look at each item before it is submitted.
      */
     private static final List<ToolbarItem> TOOLBAR = List.of(
+            new ToolbarItem("New", "editor.file.new"),
+            new ToolbarItem("Open", "editor.file.open"),
+            new ToolbarItem("Save", "editor.file.save"),
+            new ToolbarItem("Place as map", "editor.file.publish"),
+            new ToolbarItem("|", null),
             new ToolbarItem("Undo", "editor.undo"),
             new ToolbarItem("Redo", "editor.redo"),
             new ToolbarItem("|", null),
@@ -195,6 +199,9 @@ public final class EditorPanel implements Panel {
     private final ImageBrowserPanel picker;
 
     private final CommandRegistry commands = new CommandRegistry();
+
+    /** Saving, opening and placing. Owns its own modals and status line. */
+    private final EditorFiles files;
 
     /** What the recovery snapshot last saw, so an unchanged frame costs nothing. */
     private Document recorded;
@@ -280,9 +287,11 @@ public final class EditorPanel implements Panel {
         this.services = services;
         this.history = services.editing;
         this.picker = new ImageBrowserPanel(services, "editor-pick", "Images");
+        this.files = new EditorFiles(services, history);
         // Long text would otherwise be silently cut at the buffer size.
         this.textBuffer.inputData.isResizable = true;
         registerCommands();
+        files.registerCommands(commands);
     }
 
     @Override
@@ -336,6 +345,7 @@ public final class EditorPanel implements Panel {
             // Unconditional: an ImGui popup is only submitted while its owner is, so
             // skipping this on any frame would close whatever is open.
             picker.drawPicker();
+            files.drawPopups();
             drawPalette();
         }
     }
@@ -345,6 +355,7 @@ public final class EditorPanel implements Panel {
         maybeStartRender();
         characterWidth = Math.max(1.0f, ImGui.calcTextSizeX("n"));
 
+        files.drawRecoveryOffer();
         drawToolbar();
         ImGui.separator();
         drawColumns();
@@ -420,11 +431,19 @@ public final class EditorPanel implements Panel {
             return;
         }
 
+        if (!files.status().message().isEmpty()) {
+            files.status().draw();
+            ImGui.sameLine();
+            ImGui.textDisabled("  |  ");
+            ImGui.sameLine();
+        }
+
         Document document = history.current();
         ImGui.textDisabled(document.grid() + " frames, " + document.width() + " x " + document.height() + " px"
                 + "   zoom " + Math.round(zoom * 100.0) + "%"
                 + "   " + document.layers().size() + " layer(s)"
-                + (selection.isEmpty() ? "" : ", " + selection.size() + " selected"));
+                + (selection.isEmpty() ? "" : ", " + selection.size() + " selected")
+                + (files.hasUnsavedChanges() ? "   unsaved" : ""));
     }
 
     // -----------------------------------------------------------------------
@@ -1772,6 +1791,9 @@ public final class EditorPanel implements Panel {
      * thread.
      */
     private void noteForRecovery() {
+        if (files.holdsRecovery()) {
+            return;
+        }
         Document current = history.current();
         if (current == recorded) {
             return;
@@ -1942,7 +1964,8 @@ public final class EditorPanel implements Panel {
             // A renderer per render, because problems() belongs to the most recent
             // one and sharing an instance would make that report a race.
             DocumentRenderer renderer = new DocumentRenderer(services.fonts, services.composer);
-            BufferedImage rendered = renderer.render(document, repoPath -> resolveImage(root, repoPath));
+            BufferedImage rendered = renderer.render(document,
+                    RepositoryImages.in(services.composer, root));
             List<String> problems = renderer.problems();
             String key = "editor-preview/" + sequence;
 
@@ -1963,23 +1986,6 @@ public final class EditorPanel implements Panel {
         }
     }
 
-    /**
-     * Reads a repository image, on the worker thread.
-     *
-     * <p>{@code ImageComposer.load} caches by path and modification time, so a
-     * document using the same image on ten layers reads the file once, and an edit to
-     * that file is picked up without a restart.
-     */
-    private BufferedImage resolveImage(Path root, String repoPath) throws IOException {
-        if (repoPath == null || repoPath.isBlank()) {
-            throw new IOException("this layer has no image chosen");
-        }
-        Path path = root.resolve(repoPath);
-        if (!Files.isRegularFile(path)) {
-            throw new IOException("no image at \"" + repoPath + "\" in this repository");
-        }
-        return services.composer.load(path);
-    }
 
     private BufferedImage downscaleForPreview(BufferedImage rendered) {
         int longest = Math.max(rendered.getWidth(), rendered.getHeight());
