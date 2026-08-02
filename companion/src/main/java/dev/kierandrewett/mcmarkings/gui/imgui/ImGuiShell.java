@@ -416,6 +416,22 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // few a second, so a pull that refreshes fifty maps is half a minute of the
         // window looking finished while it is still working. Someone who cannot see
         // that either presses the button again or walks away before it is done.
+        // Visible from every tab, because the editor's own status line is not. Someone
+        // browsing images has no way to know they left something unsaved two tabs
+        // over, and the tab label cannot say so: ImGui keys a tab's selected state off
+        // its label, so changing it would deselect the tab under them.
+        if (services.hasUnsavedEdits()) {
+            ImGui.sameLine();
+            Notice.warning("unsaved");
+            if (ImGui.isItemHovered()) {
+                // Checked rather than written from memory: closing keeps the window, a
+                // crash is covered by the snapshot, and reloading asks before
+                // discarding and writes the snapshot on the way out.
+                ImGui.setTooltip("The editor has changes not saved to a template.\n"
+                        + "They survive closing this window and a crash. Reloading asks first.");
+            }
+        }
+
         int queued = services.commands.pending();
         if (queued > 0) {
             ImGui.sameLine();
