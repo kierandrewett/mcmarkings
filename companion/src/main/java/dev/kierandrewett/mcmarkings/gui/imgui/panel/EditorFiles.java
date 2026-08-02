@@ -452,6 +452,12 @@ public final class EditorFiles {
             ImGui.textDisabled("Anything you save lands in " + TemplateStore.DIRECTORY
                     + "/ and shows up here, in this repository and any clone of it.");
         } else {
+            // Said whether or not the list is empty. It only ever appeared when there
+            // was nothing here, which stopped happening the moment the repository
+            // started shipping starters: the one explanation of what this list is went
+            // from rarely seen to never.
+            ImGui.textDisabled("Saved documents in " + TemplateStore.DIRECTORY
+                    + "/. Opening one starts from it; saving adds to them.");
             drawTemplateList();
         }
 
