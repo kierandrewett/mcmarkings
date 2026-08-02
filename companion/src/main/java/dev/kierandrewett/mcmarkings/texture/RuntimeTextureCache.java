@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
+import java.util.function.Consumer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -73,10 +74,44 @@ public class RuntimeTextureCache implements ThumbnailCache {
     /** Only ever one on screen; the rest are recently clicked. */
     private static final int MAX_RESIDENT_PREVIEWS = 4;
 
+    /**
+     * How a texture is handed back to the game.
+     *
+     * <p>The one line in this class that needs a running client, and the one whose
+     * correctness is worth checking: what matters about releasing is how many times
+     * it happens and to which entry, which is bookkeeping rather than graphics. Held
+     * as a field so a test can watch it without a game attached.
+     */
+    private final Consumer<Entry> releaser;
+
     public RuntimeTextureCache(BiFunction<RepoImage, Integer, BufferedImage> loader, int maxResident) {
+        this(loader, maxResident, RuntimeTextureCache::releaseThroughClient);
+    }
+
+    RuntimeTextureCache(BiFunction<RepoImage, Integer, BufferedImage> loader, int maxResident,
+            Consumer<Entry> releaser) {
         this.loader = loader;
         this.maxResident = maxResident;
+        this.releaser = releaser;
         this.resident = new LinkedHashMap<>(64, 0.75f, true);
+    }
+
+    /**
+     * Records an already-uploaded texture, so the eviction rules can be exercised
+     * without a GPU. Package-private: the real path in is an upload.
+     */
+    synchronized Entry retainForTest(String key, Entry entry) {
+        resident.put(key, entry);
+        trim();
+        return entry;
+    }
+
+    synchronized TextureHandle retainPreviewForTest(String key, String path, Entry entry) {
+        return retainPreview(key, path, entry);
+    }
+
+    synchronized boolean isResident(String key) {
+        return resident.containsKey(key);
     }
 
     @Override
@@ -126,7 +161,7 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return inFlight.computeIfAbsent(key, ignored -> CompletableFuture
                 .supplyAsync(() -> loader.apply(image, PREVIEW_EDGE), decodePool)
                 .thenCompose(decoded -> uploadOnRenderThread(key, decoded))
-                .thenApply(handle -> retainPreview(image.path(), handle))
+                .thenApply(handle -> retainPreview(key, image.path(), handle))
                 .whenComplete((handle, error) -> {
                     inFlight.remove(key);
                     if (error != null) {
@@ -135,8 +170,28 @@ public class RuntimeTextureCache implements ThumbnailCache {
                 }));
     }
 
-    /** Moves a freshly uploaded preview into its own bounded shelf. */
-    private synchronized TextureHandle retainPreview(String path, TextureHandle handle) {
+    /**
+     * Moves a freshly uploaded preview into its own bounded shelf.
+     *
+     * <p>Out of {@code resident} on the way, not merely into {@code previews}. The
+     * upload puts every texture in {@code resident}, so without this the same Entry
+     * sits in both maps under two keys, with two independent eviction policies over
+     * one GPU texture and no idea of each other.
+     *
+     * <p>That is reachable by ordinary use. Select an image, then keep scrolling:
+     * once 512 more thumbnails have loaded, {@code trim} drops the preview from the
+     * eldest end and releases its texture, while {@code previews} still holds the
+     * same entry and hands it back to be drawn. The preview pane is showing an image
+     * whose texture has been freed underneath it, and nothing anywhere says so.
+     *
+     * <p>{@code evictAll} had the same shape of problem the other way round, calling
+     * release on both maps and so twice on any entry in both.
+     *
+     * <p>Removed without releasing, because this is a transfer of ownership rather
+     * than an eviction. One map owns each texture from here.
+     */
+    private synchronized TextureHandle retainPreview(String key, String path, TextureHandle handle) {
+        resident.remove(key);
         previews.put(path, (Entry) handle);
         while (previews.size() > MAX_RESIDENT_PREVIEWS) {
             var eldest = previews.entrySet().iterator().next();
@@ -241,6 +296,10 @@ public class RuntimeTextureCache implements ThumbnailCache {
     }
 
     private void releaseTexture(Entry entry) {
+        releaser.accept(entry);
+    }
+
+    private static void releaseThroughClient(Entry entry) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> client.getTextureManager().release(entry.identifier()));
     }
@@ -262,7 +321,7 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return key.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_./-]", "_");
     }
 
-    private record Entry(Identifier identifier, int width, int height, OptionalInt glId) implements TextureHandle {
+    record Entry(Identifier identifier, int width, int height, OptionalInt glId) implements TextureHandle {
 
         @Override
         public void close() {
