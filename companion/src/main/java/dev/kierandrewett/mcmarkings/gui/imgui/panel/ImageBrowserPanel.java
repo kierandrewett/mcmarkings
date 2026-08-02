@@ -233,7 +233,7 @@ public final class ImageBrowserPanel implements Panel {
             detailWidth = Math.min(detailWidth, availWidth - unit * 20.0f);
             ImGuiScreens.child(id + "-grid", availWidth - detailWidth - spacing, availHeight, this::drawGrid);
             ImGui.sameLine();
-            ImGuiScreens.child(id + "-detail", 0.0f, availHeight, this::drawDetail);
+            ImGuiScreens.textChild(id + "-detail", 0.0f, availHeight, this::drawDetail);
             return;
         }
 
@@ -241,7 +241,7 @@ public final class ImageBrowserPanel implements Panel {
         // couple of columns, which is worse than a shorter preview.
         float detailHeight = Math.min(availHeight * 0.45f, unit * 16.0f);
         ImGuiScreens.child(id + "-grid", 0.0f, availHeight - detailHeight - spacing, this::drawGrid);
-        ImGuiScreens.child(id + "-detail", 0.0f, 0.0f, this::drawDetail);
+        ImGuiScreens.textChild(id + "-detail", 0.0f, 0.0f, this::drawDetail);
     }
 
     private void drawSearchRow(float unit) {
@@ -442,6 +442,22 @@ public final class ImageBrowserPanel implements Panel {
         ImGuiScreens.drawImage(drawList, handle, left, top, left + drawWidth, top + drawHeight);
     }
 
+    /**
+     * Shortens a line to what the pane can actually show.
+     *
+     * <p>The path was cut to a fixed seventy two characters, which is a number of
+     * characters and not a width. The detail pane is a fraction of the window and
+     * narrows with it, so at anything but one particular size the line either stopped
+     * early or ran off the right hand edge with no ellipsis to say it had.
+     *
+     * <p>Measured from the same one-character sample the grid captions use, taken
+     * once a frame rather than per string.
+     */
+    private String fitToPane(String text) {
+        int limit = Math.max(8, (int) (ImGui.getContentRegionAvailX() / Math.max(1.0f, characterWidth)));
+        return ImGuiScreens.truncate(text, limit);
+    }
+
     private void drawCaption(ImDrawList drawList, RepoImage image,
             float x, float y, float width, float height) {
         // Character count estimated from one measurement per frame rather than
@@ -519,7 +535,7 @@ public final class ImageBrowserPanel implements Panel {
             ImGui.textWrapped(image.description());
         }
 
-        ImGui.textDisabled(ImGuiScreens.truncate(image.path(), 72));
+        ImGui.textDisabled(fitToPane(image.path()));
         ImGui.text(image.width() + " x " + image.height() + " px");
         // One line rather than three. These arrived one at a time over several
         // changes and ended up as a bare code, a bare group and a labelled licence
@@ -528,7 +544,7 @@ public final class ImageBrowserPanel implements Panel {
         // repository knows about this image, and they fit on a row.
         String catalogue = metadataLine(image);
         if (!catalogue.isEmpty()) {
-            ImGui.textDisabled(catalogue);
+            ImGui.textDisabled(fitToPane(catalogue));
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Group, catalogue code and licence, as this repository "
                         + "records them.\nThe group and the code can be searched for.");

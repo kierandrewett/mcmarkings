@@ -522,7 +522,28 @@ public final class ImGuiScreens {
      * out the following frame, so the pairing must survive a bug in the body.
      */
     public static void child(String id, float width, float height, Runnable body) {
-        boolean visible = ImGui.beginChild(id, width, height, ImGuiChildFlags.Borders);
+        child(id, width, height, 0, body);
+    }
+
+    /**
+     * A child region that always keeps room for its scrollbar.
+     *
+     * <p>For anything holding wrapped text. Without the reservation the pane flickers
+     * between two layouts and never settles: the text wraps to the width, the width
+     * depends on whether there is a scrollbar, and whether there is a scrollbar
+     * depends on how tall the text came out. Each state produces the other, so it
+     * swaps every frame.
+     *
+     * <p>Reported as the side panel bugging out, with two screenshots a moment apart
+     * that differ only by the scrollbar being there. Reserving the space costs a strip
+     * of grey on a pane that did not need one and buys a layout that holds still.
+     */
+    public static void textChild(String id, float width, float height, Runnable body) {
+        child(id, width, height, imgui.flag.ImGuiWindowFlags.AlwaysVerticalScrollbar, body);
+    }
+
+    private static void child(String id, float width, float height, int windowFlags, Runnable body) {
+        boolean visible = ImGui.beginChild(id, width, height, ImGuiChildFlags.Borders, windowFlags);
         try {
             if (visible) {
                 body.run();
