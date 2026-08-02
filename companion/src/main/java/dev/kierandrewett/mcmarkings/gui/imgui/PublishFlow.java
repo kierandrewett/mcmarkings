@@ -156,6 +156,11 @@ public final class PublishFlow {
                     result.commitSha(), System.currentTimeMillis()));
             saveRegistryQuietly();
 
+            // Everything local has just gone up, including whatever was sitting behind
+            // this commit, so the warning about unpushed work stops being true at
+            // exactly this moment.
+            services.setUnpushedCommits(false);
+
             lastResult = result;
             status.good((exists ? "Refreshed " : "Created ") + result.name()
                     + " at " + shortSha(result.commitSha()));

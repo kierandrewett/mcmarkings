@@ -826,6 +826,12 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 // what the identity lookup already used and what pull quietly undid.
                 String pinnable = services.git().pinnableCommit();
 
+                // Recomputed here too. A pull moves both sides, so a flag worked out
+                // when the repository was opened is stale from this point on, and a
+                // warning about unpushed work that is no longer true teaches people to
+                // ignore the one that is.
+                services.setUnpushedCommits(!pinnable.equals(services.git().head()));
+
                 List<String> commands = target == null ? List.of() : result.changedPaths().stream()
                         .flatMap(path -> services.registry.byRepoPath(path).stream())
                         .map(entry -> ImageFrameCommands.refresh(services.config.commandAlias,
