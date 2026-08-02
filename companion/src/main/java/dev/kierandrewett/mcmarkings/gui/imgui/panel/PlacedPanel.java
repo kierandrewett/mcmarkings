@@ -145,7 +145,7 @@ public final class PlacedPanel implements Panel {
         ImGui.sameLine();
         ImGui.textDisabled(entry.grid() + ", " + entry.grid().frameCount() + " frames");
 
-        ImGui.textDisabled(ImGuiScreens.truncate(entry.repoPath(), 64)
+        ImGui.textDisabled(ImGuiScreens.fitToPane(entry.repoPath())
                 + "   " + RelativeTime.describe(entry.createdAtEpochMillis(), drawnAtMillis)
                 + "   " + shortSha(entry.commitSha())
                 + repositoryNote(entry));

@@ -282,7 +282,7 @@ public final class GeneratorPanel implements Panel {
 
         ImGui.text(def.label() == null ? def.key() : def.label());
         if (def.help() != null && !def.help().isBlank()) {
-            ImGui.textDisabled(ImGuiScreens.truncate(def.help(), 90));
+            ImGui.textDisabled(ImGuiScreens.fitToPane(def.help()));
         }
         ImGui.spacing();
 

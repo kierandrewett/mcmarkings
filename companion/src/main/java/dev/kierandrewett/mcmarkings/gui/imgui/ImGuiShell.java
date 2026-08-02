@@ -666,7 +666,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // wall is how the same one gets placed twice.
         if (!placedAs.isEmpty()) {
             String names = String.join(", ", placedAs);
-            ImGui.textDisabled("Already placed as " + ImGuiScreens.truncate(names, 48));
+            ImGui.textDisabled(ImGuiScreens.fitToPane("Already placed as " + names));
             if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip(names + "\n\nUnder one of those names it refreshes that map. "
                         + "Under a new one it places another.");

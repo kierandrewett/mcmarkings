@@ -141,7 +141,7 @@ public final class RepositoriesPanel implements Panel {
             }
         }
 
-        ImGui.textDisabled(ImGuiScreens.truncate(entry.path(), 76));
+        ImGui.textDisabled(ImGuiScreens.fitToPane(entry.path()));
 
         if (workspace.hasWarning()) {
             // Its own words rather than a generic failure. "not a git repository" tells

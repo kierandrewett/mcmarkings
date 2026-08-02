@@ -442,22 +442,6 @@ public final class ImageBrowserPanel implements Panel {
         ImGuiScreens.drawImage(drawList, handle, left, top, left + drawWidth, top + drawHeight);
     }
 
-    /**
-     * Shortens a line to what the pane can actually show.
-     *
-     * <p>The path was cut to a fixed seventy two characters, which is a number of
-     * characters and not a width. The detail pane is a fraction of the window and
-     * narrows with it, so at anything but one particular size the line either stopped
-     * early or ran off the right hand edge with no ellipsis to say it had.
-     *
-     * <p>Measured from the same one-character sample the grid captions use, taken
-     * once a frame rather than per string.
-     */
-    private String fitToPane(String text) {
-        int limit = Math.max(8, (int) (ImGui.getContentRegionAvailX() / Math.max(1.0f, characterWidth)));
-        return ImGuiScreens.truncate(text, limit);
-    }
-
     private void drawCaption(ImDrawList drawList, RepoImage image,
             float x, float y, float width, float height) {
         // Character count estimated from one measurement per frame rather than
@@ -502,7 +486,7 @@ public final class ImageBrowserPanel implements Panel {
             return;
         }
         if (!search.get().isBlank()) {
-            ImGui.textDisabled("Nothing matches " + ImGuiScreens.truncate(search.get(), 40));
+            ImGui.textDisabled("Nothing matches " + ImGuiScreens.fitToPane(search.get()));
             return;
         }
         // The one empty state that was still a dead end, and the one a new repository
@@ -535,7 +519,7 @@ public final class ImageBrowserPanel implements Panel {
             ImGui.textWrapped(image.description());
         }
 
-        ImGui.textDisabled(fitToPane(image.path()));
+        ImGui.textDisabled(ImGuiScreens.fitToPane(image.path()));
         ImGui.text(image.width() + " x " + image.height() + " px");
         // One line rather than three. These arrived one at a time over several
         // changes and ended up as a bare code, a bare group and a labelled licence
@@ -544,7 +528,7 @@ public final class ImageBrowserPanel implements Panel {
         // repository knows about this image, and they fit on a row.
         String catalogue = metadataLine(image);
         if (!catalogue.isEmpty()) {
-            ImGui.textDisabled(fitToPane(catalogue));
+            ImGui.textDisabled(ImGuiScreens.fitToPane(catalogue));
             if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip("Group, catalogue code and licence, as this repository "
                         + "records them.\nThe group and the code can be searched for.");

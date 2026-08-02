@@ -301,7 +301,7 @@ public final class SettingsPanel implements Panel {
             // a typo looks identical to one that works until you go looking for a font.
             boolean exists = presentFontPaths.contains(path);
             if (exists) {
-                ImGui.text(ImGuiScreens.truncate(path, 64));
+                ImGui.text(ImGuiScreens.fitToPane(path));
             } else {
                 Notice.warning(
                         ImGuiScreens.truncate(path, 64) + "  (nothing there)");
@@ -350,8 +350,8 @@ public final class SettingsPanel implements Panel {
         }
         help("Re-reads the config, the repositories and the fonts. Needed after changing font folders.");
 
-        ImGui.textDisabled("Config file: " + ImGuiScreens.truncate(
-                String.valueOf(dev.kierandrewett.mcmarkings.config.CompanionConfig.configPath()), 70));
+        ImGui.textDisabled("Config file: " + ImGuiScreens.fitToPane(
+                String.valueOf(dev.kierandrewett.mcmarkings.config.CompanionConfig.configPath())));
     }
 
     // -----------------------------------------------------------------------

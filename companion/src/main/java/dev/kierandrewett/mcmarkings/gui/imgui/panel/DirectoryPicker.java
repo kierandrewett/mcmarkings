@@ -150,7 +150,7 @@ public final class DirectoryPicker {
 
     private void drawLocationRow() {
         Path current = here;
-        ImGui.textDisabled(current == null ? "" : ImGuiScreens.truncate(current.toString(), 70));
+        ImGui.textDisabled(current == null ? "" : ImGuiScreens.fitToPane(current.toString()));
 
         ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(24.0f));
         boolean submitted = ImGui.inputText("##" + id + "-path", typedPath);

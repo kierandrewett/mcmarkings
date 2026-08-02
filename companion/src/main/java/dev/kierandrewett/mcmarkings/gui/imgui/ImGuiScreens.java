@@ -706,6 +706,24 @@ public final class ImGuiScreens {
         }
     }
 
+    /**
+     * Shortens a line to what the pane can actually show.
+     *
+     * <p>Distinct from {@link #truncate}, which takes a number of characters. A count
+     * is right for a message about to be wrapped or put in a tooltip, where the cap is
+     * about not flooding rather than about fitting. It is wrong for a line drawn
+     * straight into a pane whose width comes from the window: at any size but one the
+     * line either stops early or runs off the edge with nothing to say it has.
+     *
+     * <p>Measured from one character rather than from the string, so a list of a
+     * hundred rows costs one measurement rather than a hundred.
+     */
+    public static String fitToPane(String text) {
+        float character = Math.max(1.0f, ImGui.calcTextSizeX("n"));
+        int limit = Math.max(8, (int) (ImGui.getContentRegionAvailX() / character));
+        return truncate(text, limit);
+    }
+
     /** Trim for labels that would otherwise blow out a fixed-width pane. */
     public static String truncate(String text, int limit) {
         return dev.kierandrewett.mcmarkings.core.Summary.truncate(text, limit);

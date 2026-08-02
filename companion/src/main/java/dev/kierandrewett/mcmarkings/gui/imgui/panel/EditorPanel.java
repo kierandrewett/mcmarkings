@@ -1901,7 +1901,7 @@ public final class EditorPanel implements Panel {
     }
 
     private void drawImageFields(Document document, Layer.Image image) {
-        ImGui.textDisabled(ImGuiScreens.truncate(image.repoPath(), 44));
+        ImGui.textDisabled(ImGuiScreens.fitToPane(image.repoPath()));
         if (ImGui.button("Change image", -1.0f, 0.0f)) {
             String id = image.id();
             picker.openPicker(chosen -> replaceImagePath(id, chosen));
