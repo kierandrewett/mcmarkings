@@ -12,6 +12,7 @@ import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.GeneratorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.PlacedPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.WelcomePanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.RepositoriesPanel;
@@ -147,6 +148,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 browser,
                 editor,
                 new GeneratorPanel(services, () -> pendingTab = "Editor"),
+                new PlacedPanel(services),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
 
