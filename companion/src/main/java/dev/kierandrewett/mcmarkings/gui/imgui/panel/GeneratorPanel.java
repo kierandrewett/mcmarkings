@@ -491,10 +491,19 @@ public final class GeneratorPanel implements Panel {
             return;
         }
         PublishFlow.Result published = result.get();
-        String command = "/" + ImageFrameCommands.create(services.config.commandAlias,
-                published.name(), published.url(), published.grid());
+
+        // Refresh, not create, and this one is not a corner case: there is only a
+        // result to copy because it was just published, so the server already knows
+        // the name and a create would be rejected every single time.
+        boolean exists = services.registry.byName(published.name()).isPresent();
+        String command = "/" + (exists
+                ? ImageFrameCommands.refresh(services.config.commandAlias,
+                        published.name(), published.url())
+                : ImageFrameCommands.create(services.config.commandAlias,
+                        published.name(), published.url(), published.grid()));
+
         Minecraft.getInstance().keyboardHandler.setClipboard(command);
-        status.good("Copied to clipboard");
+        status.good("Copied the " + (exists ? "refresh" : "create") + " command");
     }
 
     private void select(GeneratorDef generator) {

@@ -714,12 +714,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     }
 
     private void copyCommand(RepoImage image) {
-        String command = "/" + ImageFrameCommands.create(services.config.commandAlias,
-                ImageFrameCommands.sanitiseName(image.name()),
-                rawUrls.pinned(headSha, image.path()),
-                grid);
+        String name = ImageFrameCommands.sanitiseName(image.name());
+        String url = rawUrls.pinned(headSha, image.path());
+
+        // The same choice the button makes. A copied create for a name the server
+        // already knows is a command that fails when pasted, which is worse than the
+        // button failing: by then the mod is not involved and there is nothing to
+        // explain it.
+        boolean exists = services.registry.byName(name).isPresent();
+        String command = "/" + (exists
+                ? ImageFrameCommands.refresh(services.config.commandAlias, name, url)
+                : ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
+
         Minecraft.getInstance().keyboardHandler.setClipboard(command);
-        status.good("Copied to clipboard");
+        status.good("Copied the " + (exists ? "refresh" : "create") + " command");
     }
 
     private void saveRegistry() {
