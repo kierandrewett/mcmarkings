@@ -447,7 +447,15 @@ public final class ImageBrowserPanel implements Panel {
             ImGui.textDisabled("Nothing matches " + ImGuiScreens.truncate(search.get(), 40));
             return;
         }
+        // The one empty state that was still a dead end, and the one a new repository
+        // always starts in. The answer is not only "go and put files there": two of
+        // the tabs can fill it, which is most of the point of the mod.
         ImGui.textWrapped("This repository has no PNGs in it yet.");
+        ImGui.spacing();
+        ImGui.textWrapped("Compose one in the Editor, or run a script in Generate, and placing it "
+                + "writes the image into this repository.");
+        ImGui.spacing();
+        ImGui.textDisabled("Already added some outside the game? Rescan, at the top.");
     }
 
     private void drawDetail() {
