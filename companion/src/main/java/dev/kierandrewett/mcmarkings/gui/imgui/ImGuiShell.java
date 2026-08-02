@@ -678,16 +678,23 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 PullResult result = services.git().pull();
                 services.repo().rescan();
 
+                // Not the head the pull produced. That is the local branch tip, and a
+                // pull onto unpushed commits leaves a merge commit that exists only
+                // here, so every URL built from it is a 404 and the signs come back
+                // blank. This is the newest commit known to be on the remote, which is
+                // what the identity lookup already used and what pull quietly undid.
+                String pinnable = services.git().pinnableCommit();
+
                 List<String> commands = target == null ? List.of() : result.changedPaths().stream()
                         .flatMap(path -> services.registry.byRepoPath(path).stream())
                         .map(entry -> ImageFrameCommands.refresh(services.config.commandAlias,
                                 entry.imageFrameName(),
-                                target.pinned(result.newHead(), entry.repoPath())))
+                                target.pinned(pinnable, entry.repoPath())))
                         .toList();
 
                 Minecraft.getInstance().execute(() -> {
                     pulling = false;
-                    headSha = result.newHead();
+                    headSha = pinnable;
                     browser.refresh();
                     services.commands.sendAll(commands);
                     status.good(result.changed()
