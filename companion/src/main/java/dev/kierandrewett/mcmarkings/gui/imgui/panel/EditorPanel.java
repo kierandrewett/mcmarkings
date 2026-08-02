@@ -138,6 +138,9 @@ public final class EditorPanel implements Panel {
     /** A screenful. Beyond this, scrolling is not how anyone is going to find it. */
     private static final int FONT_RESULT_LIMIT = 100;
 
+    /** Below this many layers, a filter box costs more room than it saves. */
+    private static final int LAYER_FILTER_THRESHOLD = 6;
+
     private static final int KEY_A = 'A';
     private static final int KEY_C = 'C';
     private static final int KEY_V = 'V';
@@ -253,6 +256,8 @@ public final class EditorPanel implements Panel {
     private final ImString nameBuffer = new ImString("", NAME_BUFFER);
     private final ImString textBuffer = new ImString("", TEXT_BUFFER);
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
+
+    private final ImString layerFilter = new ImString("", NAME_BUFFER);
     private final ImString documentNameBuffer = new ImString("", NAME_BUFFER);
 
     /** Which layer the name and text buffers were last filled from. */
@@ -536,7 +541,8 @@ public final class EditorPanel implements Panel {
 
         if (ImGui.isItemHovered()) {
             String shortcut = command.shortcut() == null ? "" : "   " + command.shortcut().display();
-            ImGui.setTooltip(command.label() + shortcut + (command.hint().isBlank() ? "" : "\n" + command.hint()));
+            String hint = command.hintText();
+            ImGui.setTooltip(command.label() + shortcut + (hint.isBlank() ? "" : "\n" + hint));
         }
         if (pressed) {
             command.run();
@@ -1144,6 +1150,15 @@ public final class EditorPanel implements Panel {
             return;
         }
 
+        // Only once there are enough to lose one in. A filter above six rows is
+        // furniture, and the panel is narrow enough that furniture costs a row.
+        String filter = "";
+        if (document.layers().size() >= LAYER_FILTER_THRESHOLD) {
+            ImGui.setNextItemWidth(-1.0f);
+            ImGui.inputTextWithHint("##layer-filter", "Filter layers", layerFilter);
+            filter = layerFilter.get().trim().toLowerCase(Locale.ROOT);
+        }
+
         boolean showReorder = ImGui.getContentRegionAvailX() >= unit() * REORDER_BUTTON_LINES;
         float rowHeight = ImGui.getFrameHeight();
 
@@ -1155,11 +1170,25 @@ public final class EditorPanel implements Panel {
         // Reversed: index 0 is the bottom of the stack, and the top of a layers list
         // is the front. Showing it the other way up reads as back to front.
         List<Layer> layers = document.layers();
+        int hidden = 0;
         for (int index = layers.size() - 1; index >= 0; index--) {
-            Runnable action = drawLayerRow(layers.get(index), showReorder, rowHeight);
+            Layer layer = layers.get(index);
+            if (!filter.isEmpty() && !layer.name().toLowerCase(Locale.ROOT).contains(filter)) {
+                hidden++;
+                continue;
+            }
+
+            Runnable action = drawLayerRow(layer, showReorder, rowHeight);
             if (action != null) {
                 pending = action;
             }
+        }
+
+        if (hidden > 0) {
+            // Said, like every other list here. A layer filtered out looks exactly
+            // like a layer that was deleted, and the panel is where someone would go
+            // to check whether it still exists.
+            ImGui.textDisabled(hidden + " hidden by the filter");
         }
 
         if (pending != null) {
@@ -1739,8 +1768,12 @@ public final class EditorPanel implements Panel {
     // -----------------------------------------------------------------------
 
     private void registerCommands() {
+        // The hint names the actual step rather than saying "step back one action",
+        // which nobody needs told twice. After an hour of edits the useful question is
+        // what is about to be undone, and the answer already exists in the history.
         commands.register(Command.of("editor.undo", "Undo").category("Edit")
-                .hint("Step back one action")
+                .hint(() -> history.undoLabel().map(label -> "Undo " + label.toLowerCase(Locale.ROOT))
+                        .orElse("Nothing to undo"))
                 .shortcut(Shortcut.control(KEY_Z))
                 .enabledWhen(history::canUndo)
                 .does(() -> {
@@ -1748,7 +1781,8 @@ public final class EditorPanel implements Panel {
                     forgetMissingSelection();
                 }));
         commands.register(Command.of("editor.redo", "Redo").category("Edit")
-                .hint("Step forward again")
+                .hint(() -> history.redoLabel().map(label -> "Redo " + label.toLowerCase(Locale.ROOT))
+                        .orElse("Nothing to redo"))
                 .shortcut(Shortcut.controlShift(KEY_Z))
                 .enabledWhen(history::canRedo)
                 .does(() -> {

@@ -96,8 +96,8 @@ public final class CommandPalette {
                 if (ImGui.selectable(label)) {
                     chosen = command;
                 }
-                if (ImGui.isItemHovered() && !command.hint().isEmpty()) {
-                    ImGui.setTooltip(command.hint());
+                if (ImGui.isItemHovered() && !command.hintText().isEmpty()) {
+                    ImGui.setTooltip(command.hintText());
                 }
             }
 

@@ -2,6 +2,7 @@ package dev.kierandrewett.mcmarkings.command;
 
 import java.util.Locale;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * One thing the user can ask for, wherever they ask for it from.
@@ -24,7 +25,7 @@ public record Command(
         String id,
         String label,
         String category,
-        String hint,
+        Supplier<String> hint,
         Shortcut shortcut,
         BooleanSupplier enabled,
         Runnable action) {
@@ -39,7 +40,20 @@ public record Command(
         enabled = enabled == null ? () -> true : enabled;
         label = label == null || label.isBlank() ? id : label;
         category = category == null ? "" : category;
-        hint = hint == null ? "" : hint;
+        hint = hint == null ? () -> "" : hint;
+    }
+
+    /**
+     * The hint as it reads right now.
+     *
+     * <p>A supplier rather than a string because the useful hint is sometimes a fact
+     * about the current state: after an hour of edits, "undo" is less use than "undo
+     * move layer", and the history already knows which it is. Evaluated on demand, so
+     * a hint that changes is never stale.
+     */
+    public String hintText() {
+        String text = hint.get();
+        return text == null ? "" : text;
     }
 
     public static Builder of(String id, String label) {
@@ -61,7 +75,7 @@ public record Command(
 
     /** Lowercase haystack the palette searches. */
     public String searchKey() {
-        return (label + " " + category + " " + hint + " " + id).toLowerCase(Locale.ROOT);
+        return (label + " " + category + " " + hintText() + " " + id).toLowerCase(Locale.ROOT);
     }
 
     public static final class Builder {
@@ -69,7 +83,7 @@ public record Command(
         private final String id;
         private final String label;
         private String category = "";
-        private String hint = "";
+        private Supplier<String> hint = () -> "";
         private Shortcut shortcut;
         private BooleanSupplier enabled = () -> true;
 
@@ -83,7 +97,13 @@ public record Command(
             return this;
         }
 
+        /** A hint that never changes, which is most of them. */
         public Builder hint(String value) {
+            return hint(() -> value);
+        }
+
+        /** A hint worked out when it is shown, for anything that depends on state. */
+        public Builder hint(Supplier<String> value) {
             this.hint = value;
             return this;
         }
