@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -94,8 +95,14 @@ public final class PublishFlow {
             Path generatedDirectory = services.repoRoot().resolve(directory);
             Files.createDirectories(generatedDirectory);
 
+            // Both written through a temporary and moved into place, as the config,
+            // the registry, the recovery snapshot and the templates already were. This
+            // was the one write that did not, and it is the one that matters most: the
+            // commit happens moments later, so an interrupted write here does not
+            // leave a half a file lying about, it gets committed and pushed to the
+            // address a server fetches from.
             Path pngPath = generatedDirectory.resolve(name + ".png");
-            if (!ImageIO.write(request.image(), "PNG", pngPath.toFile())) {
+            if (!writePngAtomically(request.image(), pngPath)) {
                 fail("No PNG writer available");
                 return;
             }
@@ -105,7 +112,7 @@ public final class PublishFlow {
 
             if (request.layoutJson() != null) {
                 Path layoutPath = generatedDirectory.resolve(name + ".layout.json");
-                Files.writeString(layoutPath, request.layoutJson(), StandardCharsets.UTF_8);
+                writeAtomically(layoutPath, request.layoutJson());
                 files.add(layoutPath);
             }
 
@@ -170,6 +177,49 @@ public final class PublishFlow {
             }
         } finally {
             running = false;
+        }
+    }
+
+    /**
+     * Writes a PNG through a temporary file in the same directory.
+     *
+     * <p>Same directory on purpose: a move across a filesystem boundary is a copy and
+     * stops being atomic, which is the whole point of doing it this way.
+     *
+     * @return false when there is no PNG writer, matching {@link ImageIO#write}
+     */
+    private static boolean writePngAtomically(BufferedImage image, Path target) throws IOException {
+        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+        try {
+            if (!ImageIO.write(image, "PNG", temporary.toFile())) {
+                Files.deleteIfExists(temporary);
+                return false;
+            }
+            move(temporary, target);
+            return true;
+        } catch (IOException failure) {
+            Files.deleteIfExists(temporary);
+            throw failure;
+        }
+    }
+
+    private static void writeAtomically(Path target, String contents) throws IOException {
+        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+        try {
+            Files.writeString(temporary, contents, StandardCharsets.UTF_8);
+            move(temporary, target);
+        } catch (IOException failure) {
+            Files.deleteIfExists(temporary);
+            throw failure;
+        }
+    }
+
+    private static void move(Path temporary, Path target) throws IOException {
+        try {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException atomicNotSupported) {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
