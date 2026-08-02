@@ -28,6 +28,7 @@ import dev.kierandrewett.mcmarkings.command.Command;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.command.Shortcut;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.CommandPalette;
+import imgui.ImFont;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiHoveredFlags;
@@ -371,6 +372,19 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // consumed at the start of the next frame anyway, so the lag cancels out.
         ImGuiScreens.enableKeyboardNavigation();
         this.io = frameIo;
+
+        // The text size, set here rather than by rebuilding the atlas for it. ImGui
+        // rasterises a font at whatever size it is asked for, and clearing an atlas to
+        // rebuild it at a new size takes the game down with free(): invalid pointer.
+        //
+        // Pushed and popped around everything, and popped in a finally, because a
+        // throw between the two would leave the font stack one deep every frame.
+        ImFont face = ImGuiFonts.bundledFace();
+        float pixels = ImGuiFonts.wantedPixels();
+        boolean pushed = face != null && pixels > 0.0f;
+        if (pushed) {
+            ImGui.pushFont(face, pixels);
+        }
         try {
             ImGuiScreens.fullViewportWindow(WINDOW_ID, this::drawBody);
             renderError = null;
@@ -383,6 +397,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] shell render failed", throwable);
             }
             renderError = message;
+        } finally {
+            if (pushed) {
+                ImGui.popFont();
+            }
         }
     }
 

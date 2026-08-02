@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import imgui.ImFontConfig;
+import imgui.ImFont;
 import imgui.ImGui;
 import net.minecraft.client.Minecraft;
 
@@ -75,6 +76,27 @@ public final class ImGuiFonts {
 
     private static float builtForPixels;
 
+    /**
+     * The size the interface wants, which is not the size the atlas was built at.
+     *
+     * <p>These used to be the same number, and keeping them the same meant clearing
+     * and rebuilding the atlas whenever either moved. That crashed the game: the
+     * atlas builds once perfectly well and dies on being cleared, natively, with
+     * free(): invalid pointer, because clearing frees font data ImGui did not
+     * allocate. Nobody had ever exercised it, since the only thing that used to move
+     * was the game's GUI scale and almost nobody changes that mid-session. Making the
+     * text size a setting turned a path that was never taken into one taken by a
+     * slider.
+     *
+     * <p>Dear ImGui 1.92 rasterises a font at whatever size it is asked for, so there
+     * is no need to rebuild anything: the atlas is built once and the size is pushed
+     * per frame. This is that size.
+     */
+    private static volatile float wantedPixels;
+
+    /** Built once. Pushed at whatever size is wanted, rather than rebuilt. */
+    private static ImFont bundledFace;
+
     private ImGuiFonts() {
     }
 
@@ -96,19 +118,39 @@ public final class ImGuiFonts {
         float target = Math.min(MAX_PIXELS, BASE_PIXELS
                 * Math.max(1.0f, client.getWindow().getGuiScale())
                 * (float) CompanionConfig.nearestTextScale(textScale));
-        if (Math.abs(target - builtForPixels) < 0.5f) {
+
+        // Rounded here rather than at the draw, so the value the frame is given is
+        // already whole and the pixel font lands on pixels.
+        wantedPixels = Math.max(1.0f, Math.round(target * BUNDLED_SCALE));
+
+        if (builtForPixels > 0.0f) {
             return;
         }
 
         try {
-            rebuild(fonts, target);
+            build(fonts, target);
             builtForPixels = target;
         } catch (Throwable error) {
-            // A failed rebuild would otherwise be retried every tick forever, and
-            // the previous atlas is still perfectly usable.
+            // A failed build would otherwise be retried every tick forever, and
+            // whatever font is already there is still perfectly usable.
             builtForPixels = target;
-            McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not rebuild the imgui font atlas", error);
+            McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not build the imgui font atlas", error);
         }
+    }
+
+    /**
+     * The size this frame's text should be drawn at.
+     *
+     * <p>Zero until the atlas exists, which reads as "whatever the font was built
+     * for" at the one call site.
+     */
+    public static float wantedPixels() {
+        return wantedPixels;
+    }
+
+    /** The bundled face, or null if it could not be loaded and a fallback is in use. */
+    public static ImFont bundledFace() {
+        return bundledFace;
     }
 
     /**
@@ -159,7 +201,7 @@ public final class ImGuiFonts {
         }
     }
 
-    private static void rebuild(FontRegistry fonts, float pixels) {
+    private static void build(FontRegistry fonts, float pixels) {
         var atlas = ImGui.getIO().getFonts();
         atlas.clear();
 
@@ -174,8 +216,8 @@ public final class ImGuiFonts {
             // lands its glyphs between pixels and comes out furry, which is the exact
             // thing a font like this is for avoiding.
             float bundledPixels = Math.max(1.0f, Math.round(pixels * BUNDLED_SCALE));
-            atlas.addFontFromMemoryTTF(bundled, bundledPixels, glyphRanges());
-            McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from Monocraft",
+            bundledFace = atlas.addFontFromMemoryTTF(bundled, bundledPixels, glyphRanges());
+            McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas built at {}px from Monocraft",
                     (int) bundledPixels);
             finishAtlas(atlas);
             return;
@@ -192,7 +234,7 @@ public final class ImGuiFonts {
             atlas.addFontDefault(config);
             config.destroy();
         }
-        McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from {}",
+        McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas built at {}px from {}",
                 (int) pixels, file.map(Path::getFileName).map(Path::toString).orElse("the built-in font"));
         finishAtlas(atlas);
     }
