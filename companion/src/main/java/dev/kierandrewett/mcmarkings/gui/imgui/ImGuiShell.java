@@ -610,12 +610,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             grid = GridRecommender.best(image.width(), image.height());
             suggestions = GridRecommender.top(image.width(), image.height(), 3);
 
-            // Worked out when the selection changes rather than every frame. It reads
-            // a list the registry already holds, which is cheap, but doing it sixty
-            // times a second for an answer that changes when you click is waste.
-            placedAs = services.registry.byRepoPath(image.path()).stream()
-                    .map(MapEntry::imageFrameName)
-                    .toList();
+            refreshPlacedAs(image);
         }
 
         // The registry has known this since the beginning and only Pull ever asked.
@@ -710,7 +705,24 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 System.currentTimeMillis()));
         saveRegistry();
 
+        // Placing does not change the selection, so without this the image you just
+        // put on a wall still reads as never placed until you click away and back.
+        refreshPlacedAs(image);
+
         status.good((exists ? "Refreshing " : "Creating ") + name + " at " + grid);
+    }
+
+    /**
+     * Which maps already come from this image.
+     *
+     * <p>Worked out when the answer can change rather than every frame. It reads a
+     * list the registry already holds, which is cheap, but doing it sixty times a
+     * second for something that changes when you click or place is waste.
+     */
+    private void refreshPlacedAs(RepoImage image) {
+        placedAs = services.registry.byRepoPath(image.path()).stream()
+                .map(MapEntry::imageFrameName)
+                .toList();
     }
 
     private void copyCommand(RepoImage image) {
