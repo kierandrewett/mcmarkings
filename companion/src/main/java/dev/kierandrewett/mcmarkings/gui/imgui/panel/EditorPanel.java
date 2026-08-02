@@ -2188,10 +2188,15 @@ public final class EditorPanel implements Panel {
             boolean pressed = ImGui.button(label + "##suggest-" + grid, -1.0f, 0.0f);
             ImGui.endDisabled();
 
-            if (ImGuiScreens.explaining() && covers < 100) {
-                ImGui.setTooltip("Your layers keep their size and position. The canvas becomes "
-                        + grid.pixelWidth() + "x" + grid.pixelHeight() + ", which is a different "
-                        + "shape from what is on it, so " + (100 - covers) + "% of it would be empty.");
+            if (ImGuiScreens.explaining()) {
+                // Disabled means this is the size already in use, and saying so is
+                // better than describing a change it will not make.
+                ImGui.setTooltip(current
+                        ? "This is the frame size the document is already set to."
+                        : "Your layers keep their size and position. The canvas becomes "
+                                + grid.pixelWidth() + "x" + grid.pixelHeight()
+                                + (covers < 100 ? ", which is a different shape from what is on it, so "
+                                        + (100 - covers) + "% of it would be empty." : "."));
             }
             if (pressed) {
                 apply(document.withGrid(grid, document.pixelsPerFrame()), "Frame grid " + grid, null);

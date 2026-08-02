@@ -409,9 +409,14 @@ public final class GeneratorPanel implements Panel {
         ImGui.beginDisabled(busy || previewImage == null || grid == null);
         boolean publishPressed = ImGui.button("Save & publish");
         if (ImGuiScreens.explaining()) {
+            // Says why it is dead as well as what it does. It can speak while disabled
+            // now, which without this means describing an action it will not take.
+            String why = busy ? "\n\nAlready publishing."
+                    : previewImage == null ? "\n\nGenerate a preview first."
+                    : grid == null ? "\n\nWaiting for a frame size."
+                    : services.pushState().note();
             ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
-                    + "then creates the map."
-                    + services.pushState().note());
+                    + "then creates the map." + why);
         }
         ImGui.endDisabled();
 
@@ -469,7 +474,8 @@ public final class GeneratorPanel implements Panel {
         ImGui.endDisabled();
 
         if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip("Puts this in the editor as layers you can move, restyle and save.");
+            ImGui.setTooltip((opening ? "Opening it now.\n\n" : "")
+                    + "Puts this in the editor as layers you can move, restyle and save.");
         }
         if (pressed) {
             openInEditor();

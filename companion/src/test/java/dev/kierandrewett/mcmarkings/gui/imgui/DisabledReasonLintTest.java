@@ -136,4 +136,76 @@ class DisabledReasonLintTest {
         }
         return found;
     }
+
+    /**
+     * A control that can speak while disabled says why, not only what.
+     *
+     * <p>The rule above checks a disabled control is able to explain itself. This
+     * checks it has something to explain: making every tooltip answer while disabled
+     * meant several of them describing an action the button was not going to take,
+     * which is a confident answer to the wrong question.
+     *
+     * <p>Only for tooltips inside a disabled block whose condition is a variable
+     * rather than a constant. A control disabled by something fixed is disabled
+     * always, and there is nothing to say about a state it never leaves.
+     */
+    @Test
+    @DisplayName("a tooltip on a control that can be disabled accounts for being disabled")
+    void disabledTooltipsSayWhy() throws IOException {
+        List<String> silent = new ArrayList<>();
+        Path root = Path.of("src/main/java/dev/kierandrewett/mcmarkings/gui");
+
+        try (Stream<Path> files = Files.walk(root)) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
+                List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+
+                // The depth at every line, so a tooltip can be asked about the control
+                // it actually belongs to. Looking back a fixed number of lines finds
+                // the previous control's block after it has closed, which reported
+                // "Add to editor" as needing a disabled reason when it is never
+                // disabled.
+                int[] depthAt = new int[lines.size()];
+                int depth = 0;
+                for (int line = 0; line < lines.size(); line++) {
+                    if (lines.get(line).contains("beginDisabled(")) {
+                        depth++;
+                    }
+                    depthAt[line] = depth;
+                    if (lines.get(line).contains("endDisabled(")) {
+                        depth = Math.max(0, depth - 1);
+                    }
+                }
+
+                for (int at = 0; at < lines.size(); at++) {
+                    if (!lines.get(at).contains("ImGuiScreens.explaining()")) {
+                        continue;
+                    }
+                    // The control a tooltip explains is the one submitted before it.
+                    int control = at;
+                    while (control > 0 && !lines.get(control).contains("ImGui.button(")
+                            && !lines.get(control).contains("ImGui.selectable(")
+                            && !lines.get(control).contains("iconButton(")) {
+                        control--;
+                    }
+                    if (control == 0 || depthAt[control] == 0) {
+                        continue;
+                    }
+                    String tooltip = String.join(" ", lines.subList(at, Math.min(lines.size(), at + 8)));
+                    // A branch, a helper that carries one, or a named reason.
+                    boolean accounts = tooltip.contains("?") || tooltip.contains("Reason(")
+                            || tooltip.contains(".note()");
+                    if (!accounts) {
+                        silent.add("  " + file.getFileName() + ":" + (at + 1));
+                    }
+                }
+            }
+        }
+
+        assertTrue(silent.isEmpty(), () -> """
+                A tooltip can be read while its control is disabled and says the same \
+                thing either way, so it describes an action the button will not take. \
+                Branch on the condition that disables it, or fold the reason into a \
+                helper the way the publish buttons do.
+                """ + String.join("\n", silent));
+    }
 }
