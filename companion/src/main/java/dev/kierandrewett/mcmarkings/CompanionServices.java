@@ -152,6 +152,31 @@ public final class CompanionServices {
         return unpushedCommits;
     }
 
+    /**
+     * Set when a whole document is put into the editor from somewhere else.
+     *
+     * <p>Opening a template, converting an old layout, taking a generator's layers or
+     * reopening a placed sign all replace the canvas entirely, and the view stays
+     * wherever it was: zoomed into the corner of the last thing, which for a document
+     * of a different size can mean looking at nothing at all. The editor consumes
+     * this and fits once.
+     *
+     * <p>Deliberately not fired for ordinary edits. A view that re-fits itself while
+     * someone is working is worse than one that never moves.
+     */
+    private boolean editorFitRequested;
+
+    public void requestEditorFit() {
+        this.editorFitRequested = true;
+    }
+
+    /** True once per request, so the editor cannot fit on every frame. */
+    public boolean consumeEditorFit() {
+        boolean requested = editorFitRequested;
+        editorFitRequested = false;
+        return requested;
+    }
+
     /** Called after a successful save or open. */
     public void markSaved(Document document) {
         this.savedDocument = document;

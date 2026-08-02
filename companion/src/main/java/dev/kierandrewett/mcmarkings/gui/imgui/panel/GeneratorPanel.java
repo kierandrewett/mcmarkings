@@ -448,6 +448,7 @@ public final class GeneratorPanel implements Panel {
                     // already on the canvas is one undo away.
                     services.editing.push(document, "Generate " + generator.title(), null);
                     services.editing.endGesture();
+                    services.requestEditorFit();
                     status.good("Opened in the editor.");
                     showEditor.run();
                 });

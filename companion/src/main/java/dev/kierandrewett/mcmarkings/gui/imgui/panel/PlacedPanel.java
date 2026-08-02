@@ -395,6 +395,7 @@ public final class PlacedPanel implements Panel {
                     // Pushed, so whatever was on the canvas is one undo away.
                     services.editing.push(result.document(), "Open " + entry.imageFrameName(), null);
                     services.editing.endGesture();
+                    services.requestEditorFit();
 
                     if (result.warnings().isEmpty()) {
                         status.good("Opened " + entry.imageFrameName() + " in the editor.");

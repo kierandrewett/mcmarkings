@@ -363,6 +363,7 @@ public final class EditorFiles {
 
             history.push(recovered.document(), "Restore recovered work", null);
             history.endGesture();
+            services.requestEditorFit();
 
             // Cleared because it is no longer lost work: it is the document on the
             // canvas. Leaving it would offer to restore it again the next time the
@@ -699,6 +700,7 @@ public final class EditorFiles {
         // that was there a moment ago, which is exactly what it is for.
         history.push(blank, "New document", null);
         history.endGesture();
+        services.requestEditorFit();
         services.markSaved(blank);
         status.info("New document.");
     }
@@ -752,6 +754,7 @@ public final class EditorFiles {
 
     private void onOpened(Document document) {
         busy = false;
+        services.requestEditorFit();
 
         // Pushed, so opening the wrong thing by mistake does not cost whatever was on
         // the canvas. It is a big undo step, but a recoverable one.

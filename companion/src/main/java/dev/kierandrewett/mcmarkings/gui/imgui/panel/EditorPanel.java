@@ -634,6 +634,12 @@ public final class EditorPanel implements Panel {
             viewInitialised = true;
             fitRequested = true;
         }
+
+        // Something outside the editor put a whole document on the canvas, so show it
+        // rather than leaving the view pointed at where the last one used to be.
+        if (services.consumeEditorFit()) {
+            fitRequested = true;
+        }
         if (fitRequested) {
             fitRequested = false;
             pendingZoomSteps = 0;
