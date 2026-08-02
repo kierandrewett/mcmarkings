@@ -483,7 +483,8 @@ public final class EditorFiles {
         float rowHeight = ImGui.getFrameHeightWithSpacing();
         float height = Math.min(rowHeight * 10.0f, rowHeight * Math.max(1, found.size()));
 
-        if (ImGui.beginChild("##editor-open-list", ImGui.getFontSize() * 22.0f, height, true)) {
+        if (ImGui.beginChild("##editor-open-list",
+                ImGuiScreens.withinWindow(ImGui.getFontSize() * 22.0f, 0.8f, false), height, true)) {
             if (found.isEmpty()) {
                 ImGui.textDisabled("Nothing matches that.");
             }

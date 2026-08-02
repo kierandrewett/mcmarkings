@@ -33,9 +33,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FieldWidthLintTest {
 
-    /** A width in font sizes, handed to setNextItemWidth without anything bounding it. */
+    /**
+     * A size in font sizes handed straight to something that takes one.
+     *
+     * <p>setNextItemWidth was the only one this looked at when it was written, and
+     * beginChild takes a size the same way. The folder picker's list was 28 font
+     * sizes across and ten rows down inside a modal that resizes around its contents,
+     * so at a high GUI scale the window grew past the screen and the button that
+     * chooses the folder went with it. This checked the fields on that same screen
+     * and said nothing about the list.
+     */
     private static final Pattern UNCLAMPED = Pattern.compile(
-            "setNextItemWidth\\(\\s*ImGui\\.(getFontSize|getTextLineHeight)\\(\\)");
+            "(setNextItemWidth|beginChild)\\([^;]*?ImGui\\.(getFontSize|getTextLineHeight)\\(\\)");
 
     @Test
     @DisplayName("no field asks for a width the pane may not have")
@@ -59,8 +68,9 @@ class FieldWidthLintTest {
                 A field's width is a multiple of the font size with nothing bounding \
                 it. That multiple grows with the GUI scale and the pane does not, so \
                 at a high scale on a small window the field is wider than the window. \
-                Use ImGuiScreens.fieldWidth(characters), which is the same width until \
-                it would not fit, or -1 to fill what is left.
+                Use ImGuiScreens.fieldWidth(characters) inside a pane, or \
+                ImGuiScreens.withinWindow(wanted, fraction, vertical) inside a modal \
+                that resizes around its contents, or -1 to fill what is left.
                 """ + String.join("\n", unclamped));
     }
 

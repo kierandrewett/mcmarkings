@@ -197,10 +197,15 @@ public final class DirectoryPicker {
     }
 
     private void drawList() {
+        // Both held inside the game window rather than asked for outright. This sits
+        // in a modal that resizes around its contents and so has no scrollbar, which
+        // means anything past the edge is gone rather than scrolled to, and what is
+        // below this list is the button that chooses the folder.
         float rowHeight = ImGui.getFrameHeightWithSpacing();
-        float width = ImGui.getFontSize() * 28.0f;
+        float width = ImGuiScreens.withinWindow(ImGui.getFontSize() * 28.0f, 0.8f, false);
+        float height = ImGuiScreens.withinWindow(rowHeight * 10.0f, 0.5f, true);
 
-        if (!ImGui.beginChild("##" + id + "-list", width, rowHeight * 10.0f, true)) {
+        if (!ImGui.beginChild("##" + id + "-list", width, height, true)) {
             ImGui.endChild();
             return;
         }

@@ -248,6 +248,29 @@ public final class ImGuiScreens {
     }
 
     /**
+     * A size in font sizes, held inside the game window.
+     *
+     * <p>{@link #fieldWidth} clamps against the pane, which is the right question for
+     * a control inside one. It is the wrong question inside a modal set to resize
+     * around its contents: there the pane is whatever the contents ask for, so a list
+     * asking for twenty eight font sizes across and ten rows down gets exactly that,
+     * and the window grows past the screen to hold it.
+     *
+     * <p>An auto-resizing window has no scrollbar either, so what falls off the bottom
+     * is gone rather than reachable. In the folder picker that is the button that
+     * chooses the folder, on first run, at the GUI scale someone raised so they could
+     * read the list.
+     *
+     * <p>The fraction is of the game window, not of the pane, because that is the
+     * thing that actually has to contain it.
+     */
+    public static float withinWindow(float wanted, float fractionOfWindow, boolean vertical) {
+        ImGuiViewport viewport = ImGui.getMainViewport();
+        float available = vertical ? viewport.getWorkSizeY() : viewport.getWorkSizeX();
+        return Math.min(wanted, available * fractionOfWindow);
+    }
+
+    /**
      * Keeps the next control on this row while there is room, and starts a new one
      * when there is not.
      *
