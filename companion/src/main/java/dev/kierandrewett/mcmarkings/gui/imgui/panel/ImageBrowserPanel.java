@@ -450,7 +450,7 @@ public final class ImageBrowserPanel implements Panel {
         drawList.pushClipRect(x, y, x + width, y + height, true);
         try {
             drawList.addText(x, y, ImGui.getColorU32(ImGuiCol.Text),
-                    ImGuiScreens.truncate(image.displayName(), limit));
+                    ImGuiScreens.truncate(image.shortName(), limit));
         } finally {
             drawList.popClipRect();
         }

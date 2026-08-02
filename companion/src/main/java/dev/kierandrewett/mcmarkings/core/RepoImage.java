@@ -62,6 +62,29 @@ public record RepoImage(
         return name.replace('_', ' ');
     }
 
+    /**
+     * The short label for a grid cell, where there is room for a few words.
+     *
+     * <p>Not {@link #displayName()}, which prefers the description. Measured against
+     * this repository: 84% of descriptions are too long for a cell, and what survives
+     * the cut is often the part every neighbouring image shares. Four hundred and
+     * sixty four of them begin "UK traffic sign", and whole runs of the ISO set read
+     * "Fire safety sign F...", "Prohibition sign P...", so a screenful of cells
+     * carried the same caption and none of it said which image was which.
+     *
+     * <p>The file name is the opposite shape and always has been: short, written to
+     * distinguish one image from its neighbours, and unique here for all but one of
+     * 1445 files. "risk of stumbling" fits whole where "Warning sign W007: Risk of
+     * stumbling" does not.
+     *
+     * <p>Nothing here knows about road signs, and this does not either. Prose is for
+     * the tooltip and the detail pane, which have room for it; a caption gets the
+     * name, whatever the repository happens to hold.
+     */
+    public String shortName() {
+        return name.replace('_', ' ');
+    }
+
     /** Lowercase haystack used by the browser search box. */
     public String searchKey() {
         StringBuilder builder = new StringBuilder(path).append(' ').append(name);
