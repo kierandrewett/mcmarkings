@@ -465,7 +465,16 @@ public final class EditorPanel implements Panel {
         }
 
         Document document = history.current();
+
+        // Both sizes, because they are different numbers and the second is the one
+        // that decides whether the sign is readable. The first is the PNG that gets
+        // committed; the wall only ever has 128 pixels per frame.
+        int wallWidth = document.grid().columns() * GridSize.MAP_PIXELS;
+        int wallHeight = document.grid().rows() * GridSize.MAP_PIXELS;
+
         ImGui.textDisabled(document.grid() + " frames, " + document.width() + " x " + document.height() + " px"
+                + (document.pixelsPerFrame() == GridSize.MAP_PIXELS
+                        ? "" : " (" + wallWidth + " x " + wallHeight + " on the wall)")
                 + "   zoom " + Math.round(zoom * 100.0) + "%"
                 + "   " + document.layers().size() + " layer(s)"
                 + (selection.isEmpty() ? "" : ", " + selection.size() + " selected")

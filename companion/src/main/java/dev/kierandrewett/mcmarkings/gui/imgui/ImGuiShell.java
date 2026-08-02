@@ -570,6 +570,17 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
 
         ImGui.text("Frame size " + grid + ", " + grid.frameCount() + " frames");
+
+        // What it becomes, not what it is. A tall sign on a short grid loses most of
+        // its detail, and the source dimensions above give no hint of that: 128 pixels
+        // per frame is all a wall ever has.
+        int wallWidth = grid.columns() * GridSize.MAP_PIXELS;
+        int wallHeight = grid.rows() * GridSize.MAP_PIXELS;
+        ImGui.textDisabled(wallWidth + " x " + wallHeight + " on the wall");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Every item frame shows a 128 pixel map, so this is the detail "
+                    + "the sign really has however large the source image is.");
+        }
         for (GridSuggestion suggestion : suggestions) {
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
                     + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
