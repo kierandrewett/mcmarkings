@@ -35,6 +35,20 @@ public final class ImGuiFonts {
     /** Text size at GUI scale 1. Chosen to sit close to Minecraft's own font. */
     private static final float BASE_PIXELS = 16.0f;
 
+    /**
+     * How much smaller Monocraft is asked for than a normal face.
+     *
+     * <p>Pixel fonts fill their em box in a way a proportional sans does not, so at
+     * the same nominal size Monocraft comes out around twice as large on screen. The
+     * base above was chosen against a sans and bundling Monocraft made the whole
+     * interface jump, which is a thing you notice immediately and would never guess
+     * from the number being the same.
+     *
+     * <p>Applied to the bundled face only. Halving it for everything would leave
+     * anyone falling back to a system font reading eight pixel text.
+     */
+    private static final float BUNDLED_SCALE = 0.5f;
+
     /** Guards against a pathological scale producing an enormous atlas. */
     private static final float MAX_PIXELS = 64.0f;
 
@@ -128,9 +142,13 @@ public final class ImGuiFonts {
         // before their interface reads properly, and most people will not.
         byte[] bundled = bundledFont();
         if (bundled != null) {
-            atlas.addFontFromMemoryTTF(bundled, pixels, glyphRanges());
+            // Rounded, and never below one. A pixel font asked for a fractional size
+            // lands its glyphs between pixels and comes out furry, which is the exact
+            // thing a font like this is for avoiding.
+            float bundledPixels = Math.max(1.0f, Math.round(pixels * BUNDLED_SCALE));
+            atlas.addFontFromMemoryTTF(bundled, bundledPixels, glyphRanges());
             McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from Monocraft",
-                    (int) pixels);
+                    (int) bundledPixels);
             finishAtlas(atlas);
             return;
         }

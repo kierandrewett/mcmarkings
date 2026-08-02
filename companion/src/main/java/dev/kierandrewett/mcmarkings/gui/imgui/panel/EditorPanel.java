@@ -904,6 +904,13 @@ public final class EditorPanel implements Panel {
             drawHandles(drawList, focused.bounds(), originX, originY, selectedColour);
         }
 
+        // Alt means nothing outside a drag, where it suspends snapping, so it is free
+        // to mean this while the mouse is up.
+        if (drag == null && ImGui.getIO().getKeyAlt()) {
+            singleSelection(document).ifPresent(layer ->
+                    drawSpacing(drawList, document, layer, originX, originY));
+        }
+
         int guideColour = ImGui.getColorU32(Theme.red(Theme.SNAP_GUIDE), Theme.green(Theme.SNAP_GUIDE), Theme.blue(Theme.SNAP_GUIDE), Theme.alpha(Theme.SNAP_GUIDE));
         for (Snapping.Guide guide : guides) {
             if (guide.vertical()) {
@@ -945,6 +952,70 @@ public final class EditorPanel implements Panel {
                 Theme.red(Theme.SELECTION), Theme.green(Theme.SELECTION),
                 Theme.blue(Theme.SELECTION), MARQUEE_WASH_ALPHA));
         ImGuiScreens.overlayRect(drawList, left, top, right, bottom, colour);
+    }
+
+    /**
+     * The gaps around the selected layer, while Alt is held.
+     *
+     * <p>Measured to whatever is under the cursor, and to the canvas when that is
+     * nothing. Composing a sign is mostly a question of whether two things are the
+     * same distance apart as two others, and answering it by eye is what makes an
+     * arrangement look almost right. The numbers are the answer.
+     *
+     * <p>Only for a single selection. With several selected there is no one thing the
+     * gaps belong to, and four numbers that could mean any of them is worse than
+     * none.
+     */
+    private void drawSpacing(ImDrawList drawList, Document document, Layer layer,
+            float originX, float originY) {
+        Layer.Bounds box = layer.bounds();
+        Layer against = hoveredOther(document, layer, originX, originY);
+        Layer.Bounds target = against == null
+                ? new Layer.Bounds(0, 0, document.width(), document.height())
+                : against.bounds();
+
+        int colour = ImGui.getColorU32(Theme.red(Theme.SNAP_GUIDE), Theme.green(Theme.SNAP_GUIDE),
+                Theme.blue(Theme.SNAP_GUIDE), Theme.alpha(Theme.SNAP_GUIDE));
+
+        float midY = screenY(box.centreY(), originY);
+        float midX = screenX(box.centreX(), originX);
+
+        gap(drawList, screenX(target.x(), originX), midY, screenX(box.x(), originX), midY,
+                box.x() - target.x(), colour);
+        gap(drawList, screenX(box.right(), originX), midY, screenX(target.right(), originX), midY,
+                target.right() - box.right(), colour);
+        gap(drawList, midX, screenY(target.y(), originY), midX, screenY(box.y(), originY),
+                box.y() - target.y(), colour);
+        gap(drawList, midX, screenY(box.bottom(), originY), midX, screenY(target.bottom(), originY),
+                target.bottom() - box.bottom(), colour);
+    }
+
+    /**
+     * One measured gap, drawn only when there is one.
+     *
+     * <p>A zero gap is left out rather than labelled. Two edges touching is the state
+     * you were aiming for, and a nought floating between them says nothing you cannot
+     * already see while covering up the join.
+     */
+    private void gap(ImDrawList drawList, float fromX, float fromY, float toX, float toY,
+            int distance, int colour) {
+        if (distance == 0) {
+            return;
+        }
+
+        ImGuiScreens.overlayLine(drawList, fromX, fromY, toX, toY, colour);
+
+        String label = String.valueOf(Math.abs(distance));
+        float labelX = (fromX + toX) / 2.0f - ImGui.calcTextSizeX(label) / 2.0f;
+        float labelY = (fromY + toY) / 2.0f - ImGui.getTextLineHeight() / 2.0f;
+        ImGuiScreens.overlayText(drawList, labelX, labelY,
+                ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f), label);
+    }
+
+    /** The visible layer under the cursor, if it is not the one selected. */
+    private Layer hoveredOther(Document document, Layer selected, float originX, float originY) {
+        Layer hit = topmostAt(document, mouseDocX(originX), mouseDocY(originY));
+        return hit == null || hit.id().equals(selected.id()) ? null : hit;
     }
 
     private void drawHandles(ImDrawList drawList, Layer.Bounds bounds, float originX, float originY, int colour) {
