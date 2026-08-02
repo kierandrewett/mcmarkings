@@ -336,8 +336,8 @@ public final class ImGuiScreens {
                 return;
             }
             switch (level) {
-                case GOOD -> ImGui.textColored(0.45f, 0.85f, 0.45f, 1.0f, message);
-                case BAD -> ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, message);
+                case GOOD -> Notice.success(message);
+                case BAD -> Notice.error(message);
                 default -> ImGui.textDisabled(message);
             }
         }

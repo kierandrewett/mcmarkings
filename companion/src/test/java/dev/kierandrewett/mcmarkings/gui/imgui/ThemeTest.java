@@ -111,6 +111,38 @@ class ThemeTest {
     }
 
     @Test
+    @DisplayName("warnings and errors are readable, on panels and in popups")
+    void noticeColoursAreReadable() {
+        // These four were written inline as raw floats in two dozen places and had
+        // never been checked against anything at all. They carry the messages people
+        // most need to read and least want to squint at.
+        for (int surface : new int[] {Theme.WINDOW_BACKGROUND, Theme.POPUP_BACKGROUND, Theme.CHILD_BACKGROUND}) {
+            assertReadable("error text", Theme.ERROR, surface, Theme.MINIMUM_TEXT_CONTRAST);
+            assertReadable("warning text", Theme.WARNING, surface, Theme.MINIMUM_TEXT_CONTRAST);
+            assertReadable("success text", Theme.SUCCESS, surface, Theme.MINIMUM_TEXT_CONTRAST);
+            assertReadable("heading text", Theme.HEADING, surface, Theme.MINIMUM_TEXT_CONTRAST);
+        }
+    }
+
+    @Test
+    @DisplayName("a warning and an error do not rely on being told apart by colour")
+    void warningAndErrorAreNotDistinguishedByColourAlone() {
+        // Red and amber are the pair most people with a colour vision deficiency
+        // cannot separate, and this palette makes no attempt to solve that: the two
+        // are genuinely close in luminance as well.
+        //
+        // The test exists to record that, so nobody later reads the colours as doing
+        // work they do not do. What actually carries the difference is the wording at
+        // each site, which is why Notice says so and why no message in this interface
+        // means "something is wrong" only by being red.
+        double error = Theme.relativeLuminance(surface(Theme.ERROR));
+        double warning = Theme.relativeLuminance(surface(Theme.WARNING));
+
+        assertTrue(Math.abs(error - warning) < 0.5,
+                "if these ever became far apart in brightness, the wording rule could be relaxed");
+    }
+
+    @Test
     @DisplayName("the contrast maths matches the published examples")
     void contrastMathsIsCorrect() {
         // Black on white is the defined maximum, and a colour against itself is 1.

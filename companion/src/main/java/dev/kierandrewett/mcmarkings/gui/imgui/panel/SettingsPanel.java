@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -104,7 +105,7 @@ public final class SettingsPanel implements Panel {
         if (!note.isEmpty()) {
             ImGui.separator();
             if (noteIsWarning) {
-                ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, note);
+                Notice.warning(note);
             } else {
                 ImGui.textDisabled(note);
             }
@@ -217,7 +218,7 @@ public final class SettingsPanel implements Panel {
             if (exists) {
                 ImGui.text(ImGuiScreens.truncate(path, 64));
             } else {
-                ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
+                Notice.warning(
                         ImGuiScreens.truncate(path, 64) + "  (nothing there)");
             }
 

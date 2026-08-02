@@ -17,6 +17,7 @@ import dev.kierandrewett.mcmarkings.doc.Layer;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
@@ -333,7 +334,7 @@ public final class EditorPanel implements Panel {
             // The shell catches this too, but handling it here keeps the failure to
             // the body and still submits the picker and palette below.
             McMarkingsCompanion.LOGGER.error("[mcmarkings] editor panel failed to draw", failure);
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "The editor could not finish drawing this frame.");
+            Notice.error("The editor could not finish drawing this frame.");
             ImGui.textWrapped(String.valueOf(failure));
         } finally {
             // Unconditional: an ImGui popup is only submitted while its owner is, so
@@ -413,14 +414,14 @@ public final class EditorPanel implements Panel {
      */
     private void drawStatusLine() {
         if (renderFailure != null) {
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f,
+            Notice.error(
                     "Render failed: " + ImGuiScreens.truncate(renderFailure, 90));
             return;
         }
         if (!renderProblems.isEmpty()) {
             String first = ImGuiScreens.truncate(renderProblems.getFirst(), 70);
             String extra = renderProblems.size() > 1 ? " (+" + (renderProblems.size() - 1) + " more)" : "";
-            ImGui.textColored(0.95f, 0.72f, 0.35f, 1.0f, first + extra);
+            Notice.warning(first + extra);
             return;
         }
 

@@ -89,6 +89,26 @@ public final class Theme {
     /** The selected tab, which has to be obvious without relying on colour alone. */
     public static final int TAB_ACTIVE = 0xFF474747;
 
+    /**
+     * Something failed.
+     *
+     * <p>These four were written inline as raw floats in two dozen places and had
+     * never been checked against anything. Colour is also the weakest signal there
+     * is: red and amber are the classic pair people cannot tell apart, so the
+     * wording at each site has to carry the meaning on its own and the colour is
+     * only there to help whoever can see it.
+     */
+    public static final int ERROR = 0xFFF27373;
+
+    /** Something worth knowing about that is not a failure. */
+    public static final int WARNING = 0xFFF2C759;
+
+    /** Something worked. */
+    public static final int SUCCESS = 0xFF73DA73;
+
+    /** A section heading, for the few places that are prose rather than controls. */
+    public static final int HEADING = 0xFFFAD96B;
+
     private Theme() {
     }
 

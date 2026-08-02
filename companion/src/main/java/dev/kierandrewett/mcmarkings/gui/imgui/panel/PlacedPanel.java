@@ -4,6 +4,7 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.registry.MapRegistry;
@@ -167,7 +168,7 @@ public final class PlacedPanel implements Panel {
         if (confirming.equals(entry.imageFrameName())) {
             // Says what it does not do. "Forget" next to a map on a wall reads like it
             // might take the map down, and it does not: this list is a client-side note.
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, "Forget this one?");
+            Notice.warning("Forget this one?");
             ImGui.sameLine();
             if (ImGui.button("Forget")) {
                 confirming = "";

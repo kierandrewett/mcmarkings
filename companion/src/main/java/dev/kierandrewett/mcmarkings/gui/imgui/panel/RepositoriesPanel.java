@@ -5,6 +5,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.Workspace;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -140,8 +141,7 @@ public final class RepositoriesPanel implements Panel {
         if (workspace.hasWarning()) {
             // Its own words rather than a generic failure. "not a git repository" tells
             // someone what to do; "could not open" does not.
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
-                    ImGuiScreens.truncate(workspace.warning(), 90));
+            Notice.warningWrapped(workspace.warning());
         }
 
         drawRowActions(workspace, entry);
@@ -197,7 +197,7 @@ public final class RepositoriesPanel implements Panel {
         if (confirmingRemoval.equals(workspace.id())) {
             // Inline rather than a modal, and it says what it does not do. Removing a
             // repository from a list sounds like it might delete the folder.
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, "Remove from the list?");
+            Notice.warning("Remove from the list?");
             ImGui.sameLine();
             if (ImGui.button("Remove")) {
                 confirmingRemoval = "";

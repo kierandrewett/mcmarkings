@@ -2,6 +2,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -175,7 +176,7 @@ public final class DirectoryPicker {
         } else if (current.problem() != null) {
             // Not being allowed in somewhere is ordinary, so it reads as a fact about
             // the folder rather than as an error the person has caused.
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, current.problem());
+            Notice.warning(current.problem());
         } else if (current.entries().isEmpty()) {
             ImGui.textDisabled("No folders in here.");
         } else {

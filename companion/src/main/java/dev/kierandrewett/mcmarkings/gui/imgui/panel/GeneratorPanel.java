@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.js.GeneratorDef;
@@ -399,7 +400,7 @@ public final class GeneratorPanel implements Panel {
 
     private void drawPreview() {
         if (generatorError != null) {
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "Generator failed");
+            Notice.error("Generator failed");
             ImGui.separator();
             ImGui.textWrapped(generatorError);
             return;

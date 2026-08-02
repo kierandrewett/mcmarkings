@@ -402,7 +402,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
         if (renderError != null) {
             ImGui.sameLine();
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f,
+            Notice.error(
                     "render error: " + ImGuiScreens.truncate(renderError, 100));
         }
     }
@@ -519,7 +519,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             if (!message.equals(previous)) {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] panel {} failed to draw", panel.title(), throwable);
             }
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "This panel failed to draw.");
+            Notice.error("This panel failed to draw.");
             ImGui.textWrapped(message);
         }
     }

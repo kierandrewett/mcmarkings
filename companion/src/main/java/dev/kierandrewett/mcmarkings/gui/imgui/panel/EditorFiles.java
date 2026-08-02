@@ -15,6 +15,7 @@ import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.doc.TemplateStore;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -230,7 +231,7 @@ public final class EditorFiles {
             return;
         }
 
-        ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
+        Notice.warning(
                 "Unsaved work from a previous session: \"" + recovered.document().name() + "\", "
                         + recovered.document().layers().size() + " layer(s).");
         ImGui.sameLine();
@@ -275,9 +276,9 @@ public final class EditorFiles {
         String name = nameBuffer.get().trim();
         boolean valid = !name.isEmpty();
         if (!valid) {
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "It needs a name.");
+            Notice.error("It needs a name.");
         } else if (existingTemplate(name)) {
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, "This replaces the template already called that.");
+            Notice.warning("This replaces the template already called that.");
         }
 
         ImGui.separator();
@@ -304,7 +305,7 @@ public final class EditorFiles {
         if (listing) {
             ImGui.text("Reading " + TemplateStore.DIRECTORY + "/...");
         } else if (listingProblem != null) {
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f,
+            Notice.error(
                     "Could not read the templates: " + ImGuiScreens.truncate(listingProblem, 80));
         } else if (templates.isEmpty()) {
             ImGui.text("Nothing saved yet.");
@@ -318,7 +319,7 @@ public final class EditorFiles {
 
         if (hasUnsavedChanges() && !templates.isEmpty()) {
             ImGui.separator();
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
+            Notice.warning(
                     "Opening one leaves the current document undoable, not lost.");
         }
 

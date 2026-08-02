@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.Workspace;
+import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import imgui.ImGui;
 
 import java.nio.file.Path;
@@ -46,7 +47,7 @@ public final class WelcomePanel {
     }
 
     private void drawBody() {
-        ImGui.textColored(0.98f, 0.85f, 0.42f, 1.0f, "Welcome to MCMarkings");
+        Notice.heading("Welcome to MCMarkings");
         ImGui.spacing();
 
         ImGui.textWrapped("Put your own images on walls in game, without typing commands.");
@@ -59,7 +60,7 @@ public final class WelcomePanel {
         ImGui.separator();
         ImGui.spacing();
 
-        ImGui.textColored(0.98f, 0.85f, 0.42f, 1.0f, "To get started");
+        Notice.heading("To get started");
         bullet("Choose a folder of PNGs. A clone of a git repository works best, because the "
                 + "server fetches the images over the internet rather than from your machine.");
         bullet("Add as many folders as you like, and switch between them whenever you want.");
@@ -80,11 +81,11 @@ public final class WelcomePanel {
     private void drawNotes() {
         if (!problem.isEmpty()) {
             ImGui.spacing();
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, problem);
+            Notice.errorWrapped(problem);
         }
         if (!caution.isEmpty()) {
             ImGui.spacing();
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, caution);
+            Notice.warningWrapped(caution);
         }
 
         List<String> notes = services.startupNotes();
@@ -95,7 +96,7 @@ public final class WelcomePanel {
         ImGui.spacing();
         ImGui.separator();
         for (String note : notes) {
-            ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, note);
+            Notice.warningWrapped(note);
         }
     }
 
