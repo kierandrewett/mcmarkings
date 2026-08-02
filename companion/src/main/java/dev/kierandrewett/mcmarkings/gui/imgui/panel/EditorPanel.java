@@ -1304,8 +1304,12 @@ public final class EditorPanel implements Panel {
         ImGui.beginDisabled(group == null || !group.isEnabled());
         boolean pressed = ImGui.button("Group##add-group", half, 0.0f);
         ImGui.endDisabled();
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Wraps two or more selected layers in a group that moves together");
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            // Plain isItemHovered before, which ImGui suppresses on a disabled item,
+            // so the one sentence that says what to select never appeared while it
+            // was greyed out. It only ever showed when it was not needed.
+            ImGui.setTooltip("Wraps two or more selected layers in a group that moves together"
+                    + (group != null && group.isEnabled() ? "" : "\n\nSelect two or more layers first."));
         }
         if (pressed && group != null) {
             group.run();

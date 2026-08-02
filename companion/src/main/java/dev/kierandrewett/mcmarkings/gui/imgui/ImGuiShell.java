@@ -28,6 +28,7 @@ import dev.kierandrewett.mcmarkings.command.Shortcut;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.CommandPalette;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import net.minecraft.client.Minecraft;
@@ -395,11 +396,21 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(pulling || !services.hasRepositories());
         boolean pullPressed = ImGui.button("Pull");
         ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("Fetches the repository, then refreshes every placed map whose image moved."
+                    + (pulling ? "\n\nAlready pulling." : "")
+                    + (services.hasRepositories() ? "" : "\n\nThere is no repository to pull."));
+        }
 
         ImGui.sameLine();
         ImGui.beginDisabled(services.isLoading() || !services.hasRepositories());
         boolean rescanPressed = ImGui.button("Rescan");
         ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("Reads the folder again, after adding or changing images outside the game."
+                    + (services.isLoading() ? "\n\nAlready reading the folder." : "")
+                    + (services.hasRepositories() ? "" : "\n\nThere is no repository to read."));
+        }
 
         if (pullPressed) {
             pull();
@@ -661,6 +672,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(!pinnable);
         boolean create = ImGui.button("Create map", -1.0f, 0.0f);
         ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("Places this on the wall you are looking at." + pinnableReason());
+        }
 
         boolean frames = ImGui.button("Get frames", -1.0f, 0.0f);
 
@@ -672,6 +686,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(!pinnable);
         boolean copy = ImGui.button("Copy command", -1.0f, 0.0f);
         ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip("Puts the ImageFrame command on the clipboard, to run yourself."
+                    + pinnableReason());
+        }
 
         if (toEditor) {
             editor.addImage(image);
@@ -749,6 +767,26 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
     private void saveRegistry() {
         services.saveRegistry();
+    }
+
+    /**
+     * Why the two publishing buttons are dead, when they are.
+     *
+     * <p>They depend on a git lookup that runs when the window opens, and until it
+     * lands there is nothing to build a URL from. Both buttons used to grey out with
+     * no explanation at all, which is the worst moment in the mod to say nothing:
+     * you have found the image you wanted and the two things that would put it on a
+     * wall are dead. A second of "still working this out" reads completely
+     * differently from a permanent "broken".
+     *
+     * <p>Empty when they work, so the tooltip is only about what the button does.
+     */
+    private String pinnableReason() {
+        if (rawUrls != null && headSha != null) {
+            return "";
+        }
+        return "\n\nStill working out where this repository's files are served from. "
+                + "If this does not clear, the status line at the bottom says what git could not do.";
     }
 
     /**

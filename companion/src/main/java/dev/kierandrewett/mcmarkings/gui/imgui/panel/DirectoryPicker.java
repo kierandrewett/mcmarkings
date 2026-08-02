@@ -4,6 +4,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
@@ -270,6 +271,11 @@ public final class DirectoryPicker {
         }
         if (!choosable) {
             ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(choosable
+                    ? "Use this folder."
+                    : "Still reading this folder.");
         }
 
         ImGui.sameLine();

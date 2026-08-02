@@ -363,6 +363,11 @@ public final class GeneratorPanel implements Panel {
         ImGui.beginDisabled(grid == null);
         boolean framesPressed = ImGui.button("Get frames");
         ImGui.endDisabled();
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+            ImGui.setTooltip(grid == null
+                    ? "Generate a preview first, so the sign has a size to fit."
+                    : "Gives you the item frames this sign needs, ready to place on a wall.");
+        }
 
         ImGui.sameLine();
         boolean copyPressed = ImGui.button("Copy command");
