@@ -5,7 +5,9 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.gui.imgui.Theme;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import imgui.ImDrawList;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -560,10 +562,71 @@ public final class GeneratorPanel implements Panel {
         }
         ImGui.separator();
 
-        float scale = ImGuiScreens.fitScale(width, height,
-                Math.max(32.0f, ImGui.getContentRegionAvailX()),
-                Math.max(32.0f, ImGui.getContentRegionAvailY()));
-        ImGuiScreens.image(previewTexture, width * scale, height * scale);
+        drawPreviewOnFrames(width, height);
+    }
+
+    /**
+     * The sign inside the frames it is going onto, rather than on its own.
+     *
+     * <p>Publishing fits the image to the grid keeping its shape and centring it, so
+     * a sign whose proportions do not match its grid arrives with transparent space
+     * around it. This used to draw the image alone, which showed the sign correctly
+     * and showed nothing of that: someone placing two frames expected the sign to
+     * fill them and would find it across the middle.
+     *
+     * <p>The sign itself looks the same either way. What this adds is where it sits
+     * in what you are about to build, which is the part you cannot get back once the
+     * frames are on the wall.
+     *
+     * <p>Falls back to the plain image before a grid has been chosen, which is the
+     * moment between the first render landing and the recommendation being worked
+     * out.
+     */
+    private void drawPreviewOnFrames(int width, int height) {
+        float availableX = Math.max(32.0f, ImGui.getContentRegionAvailX());
+        float availableY = Math.max(32.0f, ImGui.getContentRegionAvailY());
+
+        if (grid == null) {
+            float plain = ImGuiScreens.fitScale(width, height, availableX, availableY);
+            ImGuiScreens.image(previewTexture, width * plain, height * plain);
+            return;
+        }
+
+        float boxScale = ImGuiScreens.fitScale(grid.pixelWidth(), grid.pixelHeight(),
+                availableX, availableY);
+        float boxWidth = grid.pixelWidth() * boxScale;
+        float boxHeight = grid.pixelHeight() * boxScale;
+
+        float left = ImGui.getCursorScreenPosX();
+        float top = ImGui.getCursorScreenPosY();
+        ImDrawList drawList = ImGui.getWindowDrawList();
+
+        // The chequerboard says the margin is see-through rather than white, which on
+        // a wall is the difference between a sign and a sign on a slab.
+        ImGuiScreens.chequerboard(drawList, left, top, left + boxWidth, top + boxHeight);
+
+        float inner = ImGuiScreens.fitScale(width, height, boxWidth, boxHeight);
+        float signWidth = width * inner;
+        float signHeight = height * inner;
+        ImGuiScreens.drawImage(drawList, previewTexture,
+                left + (boxWidth - signWidth) / 2.0f, top + (boxHeight - signHeight) / 2.0f,
+                left + (boxWidth + signWidth) / 2.0f, top + (boxHeight + signHeight) / 2.0f);
+
+        // Where each frame divides, so the count on the button is something you can
+        // see rather than a number to take on trust.
+        int lines = ImGui.getColorU32(Theme.red(Theme.FRAME_GRID), Theme.green(Theme.FRAME_GRID),
+                Theme.blue(Theme.FRAME_GRID), Theme.alpha(Theme.FRAME_GRID));
+        for (int column = 1; column < grid.columns(); column++) {
+            float x = left + boxWidth * column / grid.columns();
+            ImGuiScreens.overlayLine(drawList, x, top, x, top + boxHeight, lines);
+        }
+        for (int row = 1; row < grid.rows(); row++) {
+            float y = top + boxHeight * row / grid.rows();
+            ImGuiScreens.overlayLine(drawList, left, y, left + boxWidth, y, lines);
+        }
+        ImGuiScreens.overlayRect(drawList, left, top, left + boxWidth, top + boxHeight, lines);
+
+        ImGui.dummy(boxWidth, boxHeight);
     }
 
     private void copyCommand() {

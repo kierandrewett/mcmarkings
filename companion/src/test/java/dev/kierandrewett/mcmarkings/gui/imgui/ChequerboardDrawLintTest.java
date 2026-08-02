@@ -35,7 +35,10 @@ class ChequerboardDrawLintTest {
 
     private static final List<Path> PANELS = List.of(
             Path.of("src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/ImageBrowserPanel.java"),
-            Path.of("src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/EditorPanel.java"));
+            Path.of("src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/EditorPanel.java"),
+            // Added when the generator preview started drawing the sign inside the
+            // frames it is going onto, which put a chequerboard behind it.
+            Path.of("src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/GeneratorPanel.java"));
 
     /**
      * Draws that are right as they are, each with the reason.
