@@ -163,7 +163,7 @@ public final class GeneratorPanel implements Panel {
 
     private void drawGeneratorList() {
         if (generators.isEmpty()) {
-            ImGui.textWrapped("No generators found in " + services.config.generatorDirectory);
+            drawEmptyState();
             return;
         }
 
@@ -176,6 +176,38 @@ public final class GeneratorPanel implements Panel {
                 ImGui.setTooltip(generator.description());
             }
         }
+    }
+
+    /**
+     * What to do when there is nothing here.
+     *
+     * <p>"No generators found in generators" is a fact and a dead end. Generators are
+     * the mod's whole extension story and it was invisible from inside the mod: a
+     * folder name, no mention that these are scripts you write, and nothing saying
+     * where they come from or how to get one to appear.
+     */
+    private void drawEmptyState() {
+        ImGui.textWrapped("No generators in this repository yet.");
+        ImGui.spacing();
+
+        ImGui.textWrapped("A generator is a JavaScript file that draws an image from parameters "
+                + "you fill in, so one script makes every variation of a sign rather than you "
+                + "making each one by hand.");
+        ImGui.spacing();
+
+        ImGui.textDisabled("Looked in:");
+        ImGui.sameLine();
+        ImGui.text(services.config.generatorDirectory + "/");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(services.repo().root().resolve(services.config.generatorDirectory).toString()
+                    + "\n\nChange the folder in Settings.");
+        }
+
+        ImGui.textWrapped("Any .js file there that calls defineGenerator appears in this list. "
+                + "Add one and press Reload scripts; nothing needs restarting.");
+        ImGui.spacing();
+        ImGui.textDisabled("The contract is written up in generators/README.md in the "
+                + "mcmarkings repository, alongside two working examples.");
     }
 
     private void drawForm() {
