@@ -373,8 +373,19 @@ public final class ImGuiScreens {
      * and a greyed-out control is exactly when somebody wants to know why.
      */
     public static boolean explaining() {
-        return ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)
-                || ImGui.isItemFocused();
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            return true;
+        }
+        // Focus alone is not enough, and this is the correction. An item keeps focus
+        // after it has been clicked, so a button somebody pressed went on explaining
+        // itself while the mouse moved away, and whichever of the two was submitted
+        // later won the frame. What that looks like is a tooltip that will not change
+        // as you move along a row, which is how it was reported.
+        //
+        // The mouse being over anything at all means it is driving, so the focused
+        // item stays quiet. With the mouse over nothing, focus is the keyboard's and
+        // the tooltip is the only way to find out what a control does.
+        return ImGui.isItemFocused() && !ImGui.isAnyItemHovered();
     }
 
     /**
