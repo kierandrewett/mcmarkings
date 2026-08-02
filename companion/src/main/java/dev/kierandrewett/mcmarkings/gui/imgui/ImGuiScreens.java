@@ -271,6 +271,38 @@ public final class ImGuiScreens {
     }
 
     /**
+     * Draws an icon's geometry into a square.
+     *
+     * <p>The same unit coordinates the test renders through Java2D, so what is
+     * checked on a sheet is what appears on a button.
+     *
+     * <p>Coordinates are rounded. These are around a dozen pixels across and a stroke
+     * landing on a half pixel is a grey smear rather than a line, which at this size
+     * is most of the icon.
+     */
+    public static void drawIcon(imgui.ImDrawList drawList, Icon icon, float x, float y,
+            float size, int colour) {
+        float thickness = Math.max(1.0f, Math.round(size / 12.0f));
+
+        for (float[] shape : icon.boxes()) {
+            float left = Math.round(x + shape[0] * size);
+            float top = Math.round(y + shape[1] * size);
+            float right = Math.round(x + (shape[0] + shape[2]) * size);
+            float bottom = Math.round(y + (shape[1] + shape[3]) * size);
+            if (shape[4] > 0.5f) {
+                drawList.addRectFilled(left, top, right, bottom, colour);
+            } else {
+                drawList.addRect(left, top, right, bottom, colour, 0.0f, 0, thickness);
+            }
+        }
+        for (float[] stroke : icon.strokes()) {
+            drawList.addLine(Math.round(x + stroke[0] * size), Math.round(y + stroke[1] * size),
+                    Math.round(x + stroke[2] * size), Math.round(y + stroke[3] * size),
+                    colour, thickness);
+        }
+    }
+
+    /**
      * Keeps the next control on this row while there is room, and starts a new one
      * when there is not.
      *

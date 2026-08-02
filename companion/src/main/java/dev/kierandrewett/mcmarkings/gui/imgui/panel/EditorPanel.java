@@ -19,6 +19,7 @@ import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
+import dev.kierandrewett.mcmarkings.gui.imgui.Icon;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.Theme;
@@ -209,30 +210,30 @@ public final class EditorPanel implements Panel {
      * and wrapping needs to look at each item before it is submitted.
      */
     private static final List<ToolbarItem> TOOLBAR = List.of(
-            new ToolbarItem("New", "editor.file.new"),
-            new ToolbarItem("Open", "editor.file.open"),
-            new ToolbarItem("Save", "editor.file.save"),
+            new ToolbarItem("New", "editor.file.new", Icon.NEW),
+            new ToolbarItem("Open", "editor.file.open", Icon.OPEN),
+            new ToolbarItem("Save", "editor.file.save", Icon.SAVE),
             // Short, because the toolbar is a row of seventeen things in a monospace
             // font and the long ones pushed the end of it off a narrow window. Every
             // one of these carries a tooltip with its full name and its shortcut, so
             // the words are still there for anyone who wants them.
-            new ToolbarItem("Place", "editor.file.publish"),
-            new ToolbarItem("Frames", "editor.file.frames"),
+            new ToolbarItem("Place", "editor.file.publish", Icon.PLACE),
+            new ToolbarItem("Frames", "editor.file.frames", Icon.FRAMES),
             new ToolbarItem("|", null),
-            new ToolbarItem("Undo", "editor.undo"),
-            new ToolbarItem("Redo", "editor.redo"),
+            new ToolbarItem("Undo", "editor.undo", Icon.UNDO),
+            new ToolbarItem("Redo", "editor.redo", Icon.REDO),
             new ToolbarItem("|", null),
-            new ToolbarItem("Duplicate", "editor.duplicate"),
-            new ToolbarItem("Delete", "editor.delete"),
-            new ToolbarItem("Group", "editor.group"),
-            new ToolbarItem("Ungroup", "editor.ungroup"),
-            new ToolbarItem("\u2191##front", "editor.front"),
-            new ToolbarItem("\u2193##back", "editor.back"),
+            new ToolbarItem("Duplicate", "editor.duplicate", Icon.DUPLICATE),
+            new ToolbarItem("Delete", "editor.delete", Icon.DELETE),
+            new ToolbarItem("Group", "editor.group", Icon.GROUP),
+            new ToolbarItem("Ungroup", "editor.ungroup", Icon.UNGROUP),
+            new ToolbarItem("Front", "editor.front", Icon.FRONT),
+            new ToolbarItem("Back", "editor.back", Icon.BACK),
             new ToolbarItem("|", null),
             new ToolbarItem("Align", null),
-            new ToolbarItem("L##align-left", "editor.align.left"),
-            new ToolbarItem("C##align-centre", "editor.align.centre"),
-            new ToolbarItem("R##align-right", "editor.align.right"),
+            new ToolbarItem("Align left", "editor.align.left", Icon.ALIGN_LEFT),
+            new ToolbarItem("Align centre", "editor.align.centre", Icon.ALIGN_CENTRE),
+            new ToolbarItem("Align right", "editor.align.right", Icon.ALIGN_RIGHT),
             new ToolbarItem("T##align-top", "editor.align.top"),
             new ToolbarItem("M##align-middle", "editor.align.middle"),
             new ToolbarItem("B##align-bottom", "editor.align.bottom"),
@@ -566,7 +567,7 @@ public final class EditorPanel implements Panel {
                 ImGui.textDisabled(item.label());
                 continue;
             }
-            commandButton(item.label(), item.commandId());
+            commandButton(item.label(), item.commandId(), item.icon());
         }
 
         ImGuiScreens.flowTo("Snap");
@@ -600,6 +601,10 @@ public final class EditorPanel implements Panel {
      * after this one.
      */
     private void commandButton(String label, String commandId) {
+        commandButton(label, commandId, null);
+    }
+
+    private void commandButton(String label, String commandId, Icon icon) {
         Command command = commands.byId(commandId).orElse(null);
         if (command == null) {
             return;
@@ -607,7 +612,24 @@ public final class EditorPanel implements Panel {
 
         boolean enabled = command.isEnabled();
         ImGui.beginDisabled(!enabled);
-        boolean pressed = ImGui.button(label);
+        boolean pressed;
+        if (icon == null) {
+            pressed = ImGui.button(label);
+        } else {
+            // A square the height of an ordinary button, so a row of icons lines up
+            // with the words beside them. The icon is drawn over the button rather
+            // than into it: ImGui has no way to give a button a picture, and drawing
+            // after it means the button's own hover and pressed states still show.
+            float side = ImGui.getFrameHeight();
+            float x = ImGui.getCursorScreenPosX();
+            float y = ImGui.getCursorScreenPosY();
+            pressed = ImGui.button("##" + commandId, side, side);
+
+            float inset = Math.max(2.0f, side * 0.2f);
+            ImGuiScreens.drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset,
+                    side - inset * 2.0f,
+                    ImGui.getColorU32(enabled ? ImGuiCol.Text : ImGuiCol.TextDisabled));
+        }
         ImGui.endDisabled();
 
         // Explicitly including the disabled case, which ImGui suppresses by default.
@@ -2945,7 +2967,18 @@ public final class EditorPanel implements Panel {
     }
 
     /** One control on the toolbar. A null command id is a divider rather than a button. */
-    private record ToolbarItem(String label, String commandId) {
+    /**
+     * One toolbar control.
+     *
+     * <p>The label is still there when there is an icon: it is what the tooltip says
+     * and what the flow layout measures, so a row of icons wraps on the same rule as
+     * a row of words.
+     */
+    private record ToolbarItem(String label, String commandId, Icon icon) {
+
+        ToolbarItem(String label, String commandId) {
+            this(label, commandId, null);
+        }
     }
 
     /** A drag in progress on the canvas. */
