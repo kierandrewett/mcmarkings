@@ -34,8 +34,21 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class JsonMapRegistry implements MapRegistry {
 
-    /** Bumped only if the on-disk shape changes in a way a reader has to know about. */
-    private static final int FORMAT_VERSION = 1;
+    /**
+     * Bumped only if the on-disk shape changes in a way a reader has to know about.
+     *
+     * <p>Version 2 added {@code repositoryId} to each entry.
+     */
+    private static final int FORMAT_VERSION = 2;
+
+    /**
+     * What a file written before the version field existed reads back as.
+     *
+     * <p>The {@link Document} default has to sit below every real version, or an
+     * unversioned file would be mistaken for the current one and its entries would
+     * never get a repository.
+     */
+    private static final int UNVERSIONED = 0;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -83,6 +96,21 @@ public class JsonMapRegistry implements MapRegistry {
     }
 
     @Override
+    public List<MapEntry> byRepository(String repositoryId) {
+        if (repositoryId == null) {
+            return List.of();
+        }
+        List<MapEntry> matches = new ArrayList<>();
+        for (MapEntry entry : entries.values()) {
+            if (repositoryId.equals(repositoryOf(entry))) {
+                matches.add(entry);
+            }
+        }
+        matches.sort(Comparator.comparing(MapEntry::imageFrameName));
+        return List.copyOf(matches);
+    }
+
+    @Override
     public List<MapEntry> all() {
         List<MapEntry> snapshot = new ArrayList<>(entries.values());
         snapshot.sort(Comparator.comparing(MapEntry::imageFrameName));
@@ -122,15 +150,61 @@ public class JsonMapRegistry implements MapRegistry {
         }
 
         entries.clear();
-        if (document == null || document.entries == null) {
+        if (document == null) {
             return;
         }
-        for (MapEntry entry : document.entries) {
-            if (entry != null && entry.imageFrameName() != null && !entry.imageFrameName().isBlank()) {
-                entries.put(entry.imageFrameName(), entry);
+        if (document.version > FORMAT_VERSION) {
+            // Refusing beats reading what we can understand. A newer writer may hold
+            // fields this build knows nothing about, the first save would drop them
+            // for good, and this file is the only record of what was placed.
+            throw new IOException("[mcmarkings] map registry at " + file + " is version " + document.version
+                    + ", but this build only understands up to " + FORMAT_VERSION
+                    + ". Update the mod rather than letting an older one rewrite the file.");
+        }
+
+        int unclaimed = 0;
+        if (document.entries != null) {
+            for (MapEntry entry : document.entries) {
+                if (entry == null || entry.imageFrameName() == null || entry.imageFrameName().isBlank()) {
+                    continue;
+                }
+                MapEntry usable = entry;
+                if (isBlank(entry.repositoryId())) {
+                    usable = withRepository(entry, UNKNOWN_REPOSITORY);
+                    unclaimed++;
+                }
+                entries.put(usable.imageFrameName(), usable);
             }
         }
         McMarkingsCompanion.LOGGER.info("[mcmarkings] loaded {} map entries from {}", entries.size(), file);
+
+        if (document.version < FORMAT_VERSION) {
+            migrateOnDisk(document.version, unclaimed);
+        }
+    }
+
+    /**
+     * Writes the migrated entries straight back out, so the file on disk stops being
+     * an older format the moment it has been understood once.
+     *
+     * <p>Leaving it alone until the next map is placed would mean an install that
+     * only ever reads keeps a version 1 file indefinitely, and every future reader
+     * has to keep guessing at the missing repository.
+     */
+    private void migrateOnDisk(int from, int unclaimed) {
+        McMarkingsCompanion.LOGGER.info(
+                "[mcmarkings] migrating map registry {} from version {} to {}; {} entries had no repository "
+                        + "and are marked {} until adopted",
+                file, from, FORMAT_VERSION, unclaimed, UNKNOWN_REPOSITORY);
+        try {
+            save();
+        } catch (IOException exception) {
+            // The entries are already migrated in memory and the mod works from those,
+            // so a config directory that cannot be written should not take the whole
+            // load down with it. The next successful save finishes the job.
+            McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not rewrite {} as version {}, carrying on",
+                    file, FORMAT_VERSION, exception);
+        }
     }
 
     @Override
@@ -166,6 +240,20 @@ public class JsonMapRegistry implements MapRegistry {
         }
     }
 
+    /** Treats a hand-edited entry with no repository the same as a migrated one. */
+    private static String repositoryOf(MapEntry entry) {
+        return isBlank(entry.repositoryId()) ? UNKNOWN_REPOSITORY : entry.repositoryId();
+    }
+
+    private static MapEntry withRepository(MapEntry entry, String repositoryId) {
+        return new MapEntry(entry.imageFrameName(), repositoryId, entry.repoPath(), entry.grid(),
+                entry.commitSha(), entry.createdAtEpochMillis());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     /**
      * On-disk shape. A wrapper rather than a bare array so a version can travel with
      * it. Plain mutable fields with a default constructor, because that is what Gson
@@ -173,7 +261,7 @@ public class JsonMapRegistry implements MapRegistry {
      */
     private static final class Document {
 
-        private int version = FORMAT_VERSION;
+        private int version = UNVERSIONED;
         private List<MapEntry> entries = List.of();
     }
 }

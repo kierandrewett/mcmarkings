@@ -24,8 +24,53 @@ public final class GitFiles {
 
     private final Path gitDir;
 
+    /**
+     * Where shared refs live.
+     *
+     * <p>A linked worktree's git directory holds HEAD but not {@code refs/} or
+     * {@code packed-refs}: those stay in the main repository and are pointed at by a
+     * {@code commondir} file. Without following it, a repository that happens to be
+     * a worktree resolves no HEAD at all, which means no pinned URL and nothing
+     * placeable. Equal to {@link #gitDir} in the ordinary case.
+     */
+    private final Path commonDir;
+
     private GitFiles(Path gitDir) {
         this.gitDir = gitDir;
+        this.commonDir = resolveCommonDir(gitDir);
+    }
+
+    private static Path resolveCommonDir(Path gitDir) {
+        Path pointer = gitDir.resolve("commondir");
+        if (!Files.isRegularFile(pointer)) {
+            return gitDir;
+        }
+        try {
+            String target = Files.readString(pointer, StandardCharsets.UTF_8).trim();
+            if (target.isEmpty()) {
+                return gitDir;
+            }
+            Path candidate = Path.of(target);
+            Path resolved = candidate.isAbsolute() ? candidate : gitDir.resolve(candidate).normalize();
+            return Files.isDirectory(resolved) ? resolved : gitDir;
+        } catch (IOException exception) {
+            return gitDir;
+        }
+    }
+
+    /** Looks in the worktree's own git directory first, then in the shared one. */
+    private Optional<String> readRef(String ref) {
+        Optional<String> local = readTrimmed(gitDir.resolve(ref)).filter(GitFiles::isSha);
+        if (local.isPresent()) {
+            return local;
+        }
+        if (!commonDir.equals(gitDir)) {
+            Optional<String> shared = readTrimmed(commonDir.resolve(ref)).filter(GitFiles::isSha);
+            if (shared.isPresent()) {
+                return shared;
+            }
+        }
+        return packedRef(ref);
     }
 
     /** Resolves the git directory for a working tree, or empty when there is not one. */
@@ -69,11 +114,7 @@ public final class GitFiles {
         }
 
         String ref = contents.substring("ref:".length()).trim();
-        Optional<String> loose = readTrimmed(gitDir.resolve(ref));
-        if (loose.isPresent() && isSha(loose.get())) {
-            return loose;
-        }
-        return packedRef(ref);
+        return readRef(ref);
     }
 
     /**
@@ -84,12 +125,7 @@ public final class GitFiles {
      * machine is a guaranteed 404 no matter how correct the URL looks.
      */
     public Optional<String> remoteHead(String branch) {
-        String ref = "refs/remotes/origin/" + branch;
-        Optional<String> loose = readTrimmed(gitDir.resolve(ref));
-        if (loose.isPresent() && isSha(loose.get())) {
-            return loose;
-        }
-        return packedRef(ref);
+        return readRef("refs/remotes/origin/" + branch);
     }
 
     /** Checked-out branch name, or empty when HEAD is detached. */
@@ -113,7 +149,7 @@ public final class GitFiles {
     private Optional<String> remoteUrl() {
         List<String> lines;
         try {
-            lines = Files.readAllLines(gitDir.resolve("config"), StandardCharsets.UTF_8);
+            lines = Files.readAllLines(commonDir.resolve("config"), StandardCharsets.UTF_8);
         } catch (IOException exception) {
             return Optional.empty();
         }
@@ -140,7 +176,7 @@ public final class GitFiles {
     private Optional<String> packedRef(String ref) {
         List<String> lines;
         try {
-            lines = Files.readAllLines(gitDir.resolve("packed-refs"), StandardCharsets.UTF_8);
+            lines = Files.readAllLines(commonDir.resolve("packed-refs"), StandardCharsets.UTF_8);
         } catch (IOException exception) {
             return Optional.empty();
         }

@@ -1,6 +1,9 @@
 package dev.kierandrewett.mcmarkings.config;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 
 /**
@@ -28,13 +31,45 @@ public record RepositoryEntry(
         return of(absolute, fileName == null ? absolute.toString() : fileName.toString(), "main");
     }
 
-    /** Stable, readable, and unique per folder. */
+    /**
+     * Stable, readable, and genuinely unique per folder.
+     *
+     * <p>The readable part alone is not enough: collapsing every run of punctuation
+     * to a dash maps {@code /srv/signs/uk} and {@code /srv/signs-uk} onto the same
+     * string, and two folders sharing an id would merge their map lists. A short
+     * digest of the full path is appended so distinct folders always differ, while
+     * the leading text keeps the config file legible.
+     */
     public static String idFor(Path directory) {
-        String cleaned = directory.toAbsolutePath().normalize().toString()
-                .toLowerCase(Locale.ROOT)
+        String absolute = directory.toAbsolutePath().normalize().toString();
+
+        String readable = absolute.toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("(^-|-$)", "");
-        return cleaned.isBlank() ? "repository" : cleaned;
+        if (readable.isBlank()) {
+            readable = "repository";
+        }
+        if (readable.length() > 40) {
+            // Keep the tail, since the last segments are what identify a folder.
+            readable = readable.substring(readable.length() - 40).replaceAll("^-+", "");
+        }
+
+        return readable + "-" + digestOf(absolute);
+    }
+
+    private static String digestOf(String value) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(8);
+            for (int index = 0; index < 4; index++) {
+                hex.append(String.format(Locale.ROOT, "%02x", hash[index]));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            // SHA-256 is mandated by the platform, so this cannot happen; fall back
+            // rather than making every caller handle an impossible failure.
+            return Integer.toHexString(value.hashCode());
+        }
     }
 
     public Path root() {
@@ -42,7 +77,12 @@ public record RepositoryEntry(
     }
 
     public String displayName() {
-        return name == null || name.isBlank() ? root().getFileName().toString() : name;
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        // A filesystem root has no file name, so fall back to the path itself.
+        Path fileName = root().getFileName();
+        return fileName == null ? path : fileName.toString();
     }
 
     public RepositoryEntry withName(String newName) {

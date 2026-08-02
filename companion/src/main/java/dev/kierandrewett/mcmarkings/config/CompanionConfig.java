@@ -86,7 +86,14 @@ public class CompanionConfig {
      */
     public RepositoryEntry addRepository(Path directory) {
         RepositoryEntry candidate = RepositoryEntry.of(directory);
-        Optional<RepositoryEntry> existing = byId(candidate.id());
+
+        // Matched on the folder itself rather than the id. Ids are derived, and
+        // matching on a derived value would let a change in how they are derived
+        // quietly add a second entry for a folder that is already here.
+        Path target = directory.toAbsolutePath().normalize();
+        Optional<RepositoryEntry> existing = repositories.stream()
+                .filter(entry -> entry.root().toAbsolutePath().normalize().equals(target))
+                .findFirst();
         if (existing.isPresent()) {
             return existing.get();
         }

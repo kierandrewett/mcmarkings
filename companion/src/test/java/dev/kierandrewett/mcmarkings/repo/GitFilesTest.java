@@ -23,6 +23,9 @@ class GitFilesTest {
 
     private static final String SHA = "0123456789abcdef0123456789abcdef01234567";
 
+    @TempDir
+    Path tempRoot;
+
     @Test
     void readsHeadBranchAndSlugFromLooseRefs(@TempDir Path root) throws IOException {
         Path git = fakeRepo(root, "ref: refs/heads/main");
@@ -125,6 +128,41 @@ class GitFilesTest {
         Files.writeString(git.resolve("refs/heads/main"), SHA + "\n");
 
         assertTrue(GitFiles.at(root).orElseThrow().remoteHead("main").isEmpty());
+    }
+
+    /**
+     * A linked worktree keeps HEAD in its own git directory but leaves refs, config
+     * and packed-refs in the main repository, pointed at by a commondir file.
+     * Without following it nothing resolves, which means no pinned URL and nothing
+     * placeable for anyone whose image folder happens to be a worktree.
+     */
+    @Test
+    void resolvesRefsThroughCommondirInALinkedWorktree() throws IOException {
+        Path main = tempRoot.resolve("main/.git");
+        Files.createDirectories(main.resolve("refs/heads"));
+        Files.createDirectories(main.resolve("refs/remotes/origin"));
+        Files.writeString(main.resolve("refs/heads/main"), SHA + "\n");
+        Files.writeString(main.resolve("refs/remotes/origin/main"),
+                "3333333333333333333333333333333333333333\n");
+        Files.writeString(main.resolve("config"), config());
+
+        // What "git worktree add" lays down: HEAD locally, everything else shared.
+        Path linked = main.resolve("worktrees/signs");
+        Files.createDirectories(linked);
+        Files.writeString(linked.resolve("HEAD"), "ref: refs/heads/main\n");
+        Files.writeString(linked.resolve("commondir"), "../..\n");
+
+        Path tree = tempRoot.resolve("signs");
+        Files.createDirectories(tree);
+        Files.writeString(tree.resolve(".git"), "gitdir: " + linked.toAbsolutePath() + "\n");
+
+        GitFiles files = GitFiles.at(tree).orElseThrow();
+
+        assertEquals(SHA, files.head().orElseThrow(), "HEAD should resolve through commondir");
+        assertEquals("main", files.currentBranch().orElseThrow());
+        assertEquals("example-owner/example-repo", files.remoteSlug().orElseThrow(),
+                "config lives in the common directory");
+        assertEquals("3333333333333333333333333333333333333333", files.remoteHead("main").orElseThrow());
     }
 
     @Test
