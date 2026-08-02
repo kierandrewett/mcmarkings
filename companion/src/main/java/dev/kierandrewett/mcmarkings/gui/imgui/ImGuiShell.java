@@ -503,7 +503,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 .map(workspace -> "Repository: " + displayName(workspace))
                 .orElse(services.isLoading() ? "Opening repositories..." : "No repository yet");
 
-        ImGui.setNextItemWidth(Math.max(160.0f, ImGui.getTextLineHeight() * 20.0f));
+        // Never wider than the bar it sits in. The floor keeps it usable on a wide
+        // window; the pane wins on a narrow one, where a picker running past the edge
+        // takes Pull and Rescan off with it.
+        ImGui.setNextItemWidth(Math.min(ImGui.getContentRegionAvailX(),
+                Math.max(160.0f, ImGui.getTextLineHeight() * 20.0f)));
         if (!ImGui.beginCombo("##repository", ImGuiScreens.truncate(label, 40))) {
             return;
         }

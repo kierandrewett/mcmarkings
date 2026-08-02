@@ -444,7 +444,7 @@ public final class SettingsPanel implements Panel {
     }
 
     private static float fieldWidth() {
-        return ImGui.getFontSize() * 16.0f;
+        return ImGuiScreens.fieldWidth(16.0f);
     }
 
     private static double clamp(double value, double low, double high) {

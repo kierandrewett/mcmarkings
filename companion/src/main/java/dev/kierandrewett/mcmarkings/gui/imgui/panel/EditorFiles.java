@@ -409,7 +409,7 @@ public final class EditorFiles {
         }
 
         ImGui.text("Save into " + TemplateStore.DIRECTORY + "/ in this repository.");
-        ImGui.setNextItemWidth(ImGui.getFontSize() * 18.0f);
+        ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(18.0f));
         boolean submitted = ImGui.inputText("##editor-save-name", nameBuffer);
         ImGui.textDisabled("Reopening it later uses this name, so make it one you will recognise.");
 
@@ -476,7 +476,7 @@ public final class EditorFiles {
         // Only once there are enough to be worth searching. A search box above four
         // items is furniture.
         if (templates.size() >= SEARCH_THRESHOLD) {
-            ImGui.setNextItemWidth(ImGui.getFontSize() * 22.0f);
+            ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(22.0f));
             ImGui.inputTextWithHint("##editor-open-query", "Search templates", templateQuery);
         }
 

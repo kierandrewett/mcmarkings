@@ -152,7 +152,7 @@ public final class DirectoryPicker {
         Path current = here;
         ImGui.textDisabled(current == null ? "" : ImGuiScreens.truncate(current.toString(), 70));
 
-        ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
+        ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(24.0f));
         boolean submitted = ImGui.inputText("##" + id + "-path", typedPath);
         ImGuiScreens.flowTo("Go##");
         if (ImGui.button("Go##" + id) || submitted) {
@@ -192,7 +192,7 @@ public final class DirectoryPicker {
             }
         }
 
-        ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
+        ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(24.0f));
         ImGui.inputTextWithHint("##" + id + "-filter", "Filter this folder", filter);
     }
 

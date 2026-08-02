@@ -157,7 +157,7 @@ public final class RepositoriesPanel implements Panel {
     }
 
     private void drawRenameField(RepositoryEntry entry) {
-        ImGui.setNextItemWidth(ImGui.getFontSize() * 16.0f);
+        ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(16.0f));
         boolean submitted = ImGui.inputText("##rename", renameBuffer);
         ImGuiScreens.flowTo("Save##rename-save");
         if (ImGui.button("Save##rename-save") || submitted) {
@@ -247,7 +247,7 @@ public final class RepositoriesPanel implements Panel {
                 templateBuffer.set(entry.rawUrlTemplate());
             }
 
-            ImGui.setNextItemWidth(ImGui.getFontSize() * 18.0f);
+            ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(18.0f));
             ImGui.inputTextWithHint("##slug", "owner/repo", slugBuffer);
             boolean slugDone = ImGui.isItemDeactivatedAfterEdit();
             ImGui.textDisabled("Slug");

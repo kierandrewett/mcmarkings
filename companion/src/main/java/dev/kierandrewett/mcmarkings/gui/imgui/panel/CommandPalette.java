@@ -2,6 +2,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 
 import dev.kierandrewett.mcmarkings.command.Command;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import imgui.ImGui;
 import imgui.type.ImString;
 
@@ -74,7 +75,7 @@ public final class CommandPalette {
                 ImGui.setKeyboardFocusHere();
                 focusPending = false;
             }
-            ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
+            ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(24.0f));
             ImGui.inputTextWithHint("##" + id + "-query", "Search commands", query);
 
             Results results = results();

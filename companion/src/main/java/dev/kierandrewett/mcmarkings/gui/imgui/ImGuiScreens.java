@@ -227,6 +227,27 @@ public final class ImGuiScreens {
     }
 
     /**
+     * A field roughly this many characters wide, but never wider than the pane.
+     *
+     * <p>Widths written as a multiple of the font size grow with the GUI scale, and
+     * the pane does not: at scale 4 on an 854 pixel window the font is about forty
+     * pixels, so a field asking for twenty four of them wants 960 and the window is
+     * 854. It does not overflow gracefully, it pushes a horizontal scrollbar onto a
+     * pane that had no reason for one and takes the right hand side of the field with
+     * it.
+     *
+     * <p>Worth more than it looks, because the people most likely to meet it are the
+     * ones who raised the GUI scale in order to be able to read.
+     *
+     * <p>The editor never had this problem: every field there asks for -1, which is
+     * ImGui's own "fill what is left". This is the same idea for the places that want
+     * a particular width rather than all of it.
+     */
+    public static float fieldWidth(float characters) {
+        return Math.min(ImGui.getFontSize() * characters, ImGui.getContentRegionAvailX());
+    }
+
+    /**
      * Keeps the next control on this row while there is room, and starts a new one
      * when there is not.
      *

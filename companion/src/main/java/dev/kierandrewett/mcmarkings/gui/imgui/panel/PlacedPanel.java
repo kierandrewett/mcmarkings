@@ -94,7 +94,7 @@ public final class PlacedPanel implements Panel {
 
         List<MapEntry> entries = matching();
 
-        ImGui.setNextItemWidth(ImGui.getFontSize() * 18.0f);
+        ImGui.setNextItemWidth(ImGuiScreens.fieldWidth(18.0f));
         ImGui.inputTextWithHint("##placed-query", "Search by name or path", query);
         ImGui.sameLine();
         ImGui.textDisabled(entries.size() + " of " + services.registry.all().size());
