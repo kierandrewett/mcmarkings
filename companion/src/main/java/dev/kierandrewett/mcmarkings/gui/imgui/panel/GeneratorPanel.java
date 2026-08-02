@@ -355,10 +355,7 @@ public final class GeneratorPanel implements Panel {
         if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
                     + "then creates the map."
-                    + (services.hasUnpushedCommits()
-                            ? "\n\nThis branch has local commits the remote has not seen. "
-                                    + "Pushing sends those too."
-                            : "\nA push sends the branch, not just this commit."));
+                    + services.pushState().note());
         }
         ImGui.endDisabled();
 

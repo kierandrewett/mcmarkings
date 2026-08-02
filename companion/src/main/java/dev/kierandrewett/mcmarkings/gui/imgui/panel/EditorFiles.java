@@ -292,10 +292,7 @@ public final class EditorFiles {
         // pressing a button labelled place a sign.
         return "Renders at full size, commits it, pushes the branch, "
                 + "then runs the ImageFrame command"
-                + (services.hasUnpushedCommits()
-                        ? "\n\nThis branch has local commits the remote has not seen. "
-                                + "Pushing sends those too."
-                        : "");
+                + services.pushState().note();
     }
 
     private boolean repositoryReady() {

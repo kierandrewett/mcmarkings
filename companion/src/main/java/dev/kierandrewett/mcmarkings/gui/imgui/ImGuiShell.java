@@ -5,6 +5,7 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.Workspace;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
@@ -761,6 +762,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     private void resolveIdentity() {
         rawUrls = null;
         headSha = null;
+        // Cleared with the rest of the repository's identity. It is answered below by
+        // a lookup that can fail, and the answer for the folder just switched away
+        // from is worse than no answer at all.
+        services.setPushState(PushState.UNKNOWN);
         if (!services.hasRepositories()) {
             return;
         }
@@ -777,7 +782,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 // both are already on a worker here. Placing a sign pushes the branch,
                 // so the publish controls need to be able to say so with a straight
                 // face rather than after the fact.
-                services.setUnpushedCommits(!head.equals(services.git().head()));
+                services.setPushState(PushState.of(!head.equals(services.git().head())));
 
                 // Never shown until now, and the mod commits and pushes to whatever
                 // branch is checked out. Working on one branch while believing you are
@@ -846,7 +851,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 // when the repository was opened is stale from this point on, and a
                 // warning about unpushed work that is no longer true teaches people to
                 // ignore the one that is.
-                services.setUnpushedCommits(!pinnable.equals(services.git().head()));
+                services.setPushState(PushState.of(!pinnable.equals(services.git().head())));
 
                 List<String> commands = target == null ? List.of() : result.changedPaths().stream()
                         .flatMap(path -> services.registry.byRepoPath(path).stream())

@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.repo.GitException;
@@ -166,7 +167,7 @@ public final class PublishFlow {
             // Everything local has just gone up, including whatever was sitting behind
             // this commit, so the warning about unpushed work stops being true at
             // exactly this moment.
-            services.setUnpushedCommits(false);
+            services.setPushState(PushState.CLEAN);
 
             lastResult = result;
             status.good((exists ? "Refreshed " : "Created ") + result.name()

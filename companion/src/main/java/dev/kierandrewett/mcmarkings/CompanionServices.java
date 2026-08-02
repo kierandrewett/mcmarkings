@@ -5,6 +5,7 @@ import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.Layer;
@@ -142,14 +143,14 @@ public final class CompanionServices {
      * controls, which is the one moment it matters: placing a sign pushes the branch,
      * so it pushes everything else sitting on it too.
      */
-    private volatile boolean unpushedCommits;
+    private volatile PushState pushState = PushState.UNKNOWN;
 
-    public void setUnpushedCommits(boolean unpushed) {
-        this.unpushedCommits = unpushed;
+    public void setPushState(PushState state) {
+        this.pushState = state == null ? PushState.UNKNOWN : state;
     }
 
-    public boolean hasUnpushedCommits() {
-        return unpushedCommits;
+    public PushState pushState() {
+        return pushState;
     }
 
     /**
