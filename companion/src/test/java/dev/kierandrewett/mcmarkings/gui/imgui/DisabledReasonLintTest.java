@@ -79,6 +79,18 @@ class DisabledReasonLintTest {
      */
     private static final int LINES_AFTER_CLOSE = 8;
 
+    /**
+     * Everything a tooltip can belong to.
+     *
+     * <p>Walking back from a tooltip finds the control it explains, so a control
+     * missing from this list is invisible and the search runs past it to whatever
+     * came before.
+     */
+    private static final List<String> CONTROLS = List.of(
+            "ImGui.button(", "ImGui.selectable(", "iconButton(", "ImGui.checkbox(",
+            "ImGui.dragInt(", "ImGui.dragFloat(", "ImGui.sliderInt(", "ImGui.sliderFloat(",
+            "ImGui.inputText(", "ImGui.inputInt(", "ImGui.combo(", "ImGui.colorEdit4(");
+
     @Test
     @DisplayName("every disabled control says why, in a tooltip that shows while disabled")
     void disabledControlsExplainThemselves() throws IOException {
@@ -181,10 +193,14 @@ class DisabledReasonLintTest {
                         continue;
                     }
                     // The control a tooltip explains is the one submitted before it.
+                    // Every control, not only the ones that can be pressed. Knowing
+                    // three of them meant a tooltip on a drag field was attributed to
+                    // whichever button happened to sit above it, and if that button was
+                    // inside a disabled block the tooltip was reported for not
+                    // explaining a state it has nothing to do with. Two correct
+                    // tooltips were named that way.
                     int control = at;
-                    while (control > 0 && !lines.get(control).contains("ImGui.button(")
-                            && !lines.get(control).contains("ImGui.selectable(")
-                            && !lines.get(control).contains("iconButton(")) {
+                    while (control > 0 && CONTROLS.stream().noneMatch(lines.get(control)::contains)) {
                         control--;
                     }
                     if (control == 0 || depthAt[control] == 0) {

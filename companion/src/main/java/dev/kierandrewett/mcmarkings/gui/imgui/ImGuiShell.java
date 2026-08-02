@@ -131,6 +131,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
     /** Whichever image the action buttons were last built for, and its grid choices. */
     private RepoImage actionImage;
+    /**
+     * Largest side the size picker offers.
+     *
+     * <p>The same eight the recommender searches to, so the two agree about what a
+     * sensible wall is. Eight by eight is sixty four item frames and a sign four
+     * blocks square, which is already a large thing to build; the frame count beside
+     * the numbers is what makes the cost of going near it obvious.
+     */
+    private static final int MAX_GRID_SIDE = GridRecommender.DEFAULT_MAX_DIMENSION;
+
     private GridSize grid;
     private List<GridSuggestion> suggestions = List.of();
 
@@ -712,8 +722,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
                     + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
             if (ImGui.button(label + "##grid-" + suggestion.grid(), -1.0f, 0.0f)) {
-                grid = suggestion.grid();
-                status.info("Frame size " + grid);
+                setGrid(suggestion.grid());
             }
             if (ImGuiScreens.explaining() && !suggestion.isComfortable()) {
                 ImGui.setTooltip("This image is placed straight from the repository, so the "
@@ -721,6 +730,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                         + "this far from the image's own shape may come out squashed.");
             }
         }
+
+        drawGridChoice(image);
 
         ImGui.separator();
 
@@ -849,6 +860,69 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
      * <p>Sanitised either way, since ImageFrame will not take a name with anything
      * unusual in it and someone typing one has no reason to know that.
      */
+    /**
+     * Any size at all, not only the three that were suggested.
+     *
+     * <p>The suggestions are the sizes matching the image's own shape inside a budget
+     * of a few frames. That is the right default and the wrong constraint to impose.
+     * Somebody wanting a no entry sign two frames square is not confused about aspect
+     * ratios, they are deciding how big it should be on a wall, which is not a
+     * question this mod has any business answering for them.
+     *
+     * <p>The cost is shown rather than prevented. This path hands ImageFrame a URL
+     * and a grid and lets the server fit the image, so a grid that is not the image's
+     * shape leaves frames showing nothing, and that is worth seeing before placing
+     * rather than after. It is still theirs to accept.
+     */
+    private void drawGridChoice(RepoImage image) {
+        ImGui.textDisabled("Or choose a size");
+
+        int[] columns = {grid.columns()};
+        int[] rows = {grid.rows()};
+        float half = Math.max(ImGui.getFontSize() * 4.0f,
+                (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) / 2.0f);
+
+        ImGui.setNextItemWidth(half);
+        boolean changed = ImGui.dragInt("##grid-columns", columns, 0.1f, 1, MAX_GRID_SIDE, "%d across");
+        ImGui.sameLine();
+        ImGui.setNextItemWidth(half);
+        changed |= ImGui.dragInt("##grid-rows", rows, 0.1f, 1, MAX_GRID_SIDE, "%d down");
+        if (ImGuiScreens.explaining()) {
+            ImGui.setTooltip("How many item frames wide and tall. Drag, or control-click to type "
+                    + "a number. The suggestions above match the image's shape; this does "
+                    + "whatever you tell it.");
+        }
+
+        if (changed) {
+            // Clamped rather than trusted. A drag field's range is a suggestion in
+            // ImGui: control-clicking one lets you type straight past it, and a grid
+            // of nought is an exception rather than a small sign.
+            setGrid(new GridSize(Math.clamp(columns[0], 1, MAX_GRID_SIDE),
+                    Math.clamp(rows[0], 1, MAX_GRID_SIDE)));
+        }
+
+        double imageAspect = image.height() <= 0 ? 0.0 : (double) image.width() / image.height();
+        int covers = GridSuggestion.coveragePercent(grid, imageAspect);
+        if (imageAspect > 0.0 && covers < 100) {
+            ImGui.textDisabled(ImGuiScreens.fitToPane(
+                    "Covers " + covers + "% of those frames, the rest left empty"));
+            if (ImGuiScreens.explaining()) {
+                ImGui.setTooltip("This grid is not the image's shape, so the server fits the "
+                        + "image inside it and the frames around the edge show nothing. Bigger "
+                        + "is not sharper either: every frame is " + GridSize.MAP_PIXELS
+                        + " pixels whatever you choose.");
+            }
+        }
+    }
+
+    private void setGrid(GridSize chosen) {
+        if (chosen.equals(grid)) {
+            return;
+        }
+        grid = chosen;
+        status.info("Frame size " + grid + ", " + grid.frameCount() + " frames");
+    }
+
     private String chosenName(RepoImage image) {
         String typed = mapName.get().trim();
         return ImageFrameCommands.sanitiseName(typed.isEmpty() ? image.name() : typed);

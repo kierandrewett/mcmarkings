@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,6 +62,29 @@ class StarterTemplatesTest {
     }
 
     /**
+     * Loads an image layer's file the way the mod does.
+     *
+     * <p>This used to resolve everything to null, which was fine while the only
+     * templates here were made of shapes and text, and stopped being fine the moment
+     * somebody saved one with a sign in it: the template was perfectly good and the
+     * check called it broken, because the check had decided in advance that no
+     * template would ever contain an image.
+     *
+     * <p>Reading them for real is also the more useful test. A saved template holds a
+     * repository-relative path, and a path that no longer resolves is exactly the
+     * failure worth catching, since what it produces in game is a layer that silently
+     * draws nothing.
+     */
+    private static BufferedImage imageFromRepository(String path) {
+        try {
+            Path file = Path.of("..").toAbsolutePath().normalize().resolve(path);
+            return Files.isRegularFile(file) ? ImageIO.read(file.toFile()) : null;
+        } catch (IOException unreadable) {
+            return null;
+        }
+    }
+
+    /**
      * And that they draw. A template of invisible layers loads without complaint and
      * puts an empty canvas in front of somebody who just asked for a starting point.
      */
@@ -73,7 +97,7 @@ class StarterTemplatesTest {
         for (TemplateStore.Entry entry : store.list()) {
             Document document = store.load(entry);
             DocumentRenderer renderer = new DocumentRenderer(fonts, new ImageComposer());
-            BufferedImage rendered = renderer.render(document, path -> null);
+            BufferedImage rendered = renderer.render(document, StarterTemplatesTest::imageFromRepository);
 
             assertEquals(List.of(), renderer.problems(),
                     entry.name() + " reported problems while drawing");
