@@ -9,6 +9,7 @@ import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
+import java.util.Optional;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
@@ -739,6 +740,23 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                     + "image somewhere else as well, rather than moving the one you have.");
         }
 
+        // Said before the button rather than after the command, because after is too
+        // late. ImageFrame keys a map by name, so placing an image under a name that
+        // is already taken refreshes the map that has it: the one on the wall quietly
+        // becomes a different picture, and "Refreshing give_way" reads exactly like an
+        // ordinary update after a pull.
+        //
+        // Not hypothetical. This repository holds give_way.png at its root and another
+        // in signs/, and both come out of the sanitiser as give_way. Anything scanned
+        // from more than one folder can do this.
+        String wanted = ImageFrameCommands.sanitiseName(mapName.get().trim());
+        services.registry.byName(wanted)
+                .filter(taken -> !taken.repoPath().equals(image.path()))
+                .ifPresent(taken -> Notice.warningWrapped(
+                        "The name " + wanted + " is already showing " + taken.repoPath()
+                                + ". Placing this replaces that image on the wall. Change the "
+                                + "name above to put this one up as well."));
+
         // Presses are collected first and acted on below, so an action that threw
         // cannot leave ImGui's disabled stack unbalanced for the next frame.
         boolean pinnable = rawUrls != null && headSha != null;
@@ -806,7 +824,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // image twice failed on the server with nothing here explaining why. Publishing
         // has always handled this and said so in a comment; this path, which is the one
         // most people use, sent create every time.
-        boolean exists = services.registry.byName(name).isPresent();
+        Optional<MapEntry> existing = services.registry.byName(name);
+        boolean exists = existing.isPresent();
         services.commands.send(exists
                 ? ImageFrameCommands.refresh(services.config.commandAlias, name, url)
                 : ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
@@ -819,8 +838,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // What happens next, not only what happened. The command goes to the server
         // and an item comes back, and somebody who has not used ImageFrame before has
         // no way to know that from "Creating no_entry at 2x1".
+        // Which image it was is the part that matters when the name was taken by a
+        // different one. "Refreshing give_way" is true either way and only one of the
+        // two meanings is the one somebody wanted.
+        String replaced = existing.map(MapEntry::repoPath).filter(path -> !path.equals(image.path()))
+                .orElse("");
         status.good(exists
-                ? "Refreshing " + name + ". The map already on the wall updates itself."
+                ? replaced.isEmpty()
+                        ? "Refreshing " + name + ". The map already on the wall updates itself."
+                        : "Refreshing " + name + ", which was showing " + replaced
+                                + ". That map now shows this image instead."
                 : "Creating " + name + " at " + grid + ". It arrives as one placeable item.");
     }
 
