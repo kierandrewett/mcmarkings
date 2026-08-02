@@ -246,4 +246,48 @@ class ThemeTest {
                 A colour in the palette is neither checked for contrast nor listed as                 decorative. Add an assertion for what it is drawn on, or add it to                 DECORATIVE if it carries no meaning by itself.
                 unclassified: """ + unclassified);
     }
+
+    /** A colour faded the way ImGui fades everything inside beginDisabled. */
+    private static int faded(int argb, float multiplier) {
+        int alpha = Math.round(((argb >>> 24) & 0xFF) * multiplier);
+        return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    /**
+     * Disabled controls, which nothing checked and this interface is full of.
+     *
+     * <p>beginDisabled fades the control and its label together, so both the text and
+     * the surface under it move and the contrast between them is not the enabled one.
+     * Publish, Get frames, and most of the editor toolbar spend much of their time
+     * disabled, and each carries a tooltip saying why. A label too faint to read
+     * makes that tooltip unreachable, because you cannot tell what you are hovering.
+     */
+    @Test
+    @DisplayName("a disabled control is still readable, on every surface one appears on")
+    void disabledControlsStayReadable() {
+        for (int control : new int[] {Theme.BUTTON, Theme.HEADER, Theme.FIELD, Theme.TAB}) {
+            int surface = surface(Theme.over(faded(control, Theme.DISABLED_ALPHA), surface(Theme.WINDOW_BACKGROUND)));
+            assertReadable("a disabled label", faded(Theme.TEXT, Theme.DISABLED_ALPHA),
+                    surface, Theme.MINIMUM_TEXT_CONTRAST);
+        }
+    }
+
+    /**
+     * The fade has almost no room beneath it.
+     *
+     * <p>Worth pinning as its own fact rather than leaving implied by the check
+     * above. The obvious future edit is to fade disabled controls further so they
+     * read as more clearly unavailable, and the margin for that is under a twentieth.
+     */
+    @Test
+    void thereIsNoRoomToFadeDisabledControlsFurther() {
+        int window = surface(Theme.WINDOW_BACKGROUND);
+        int surface = Theme.over(faded(Theme.BUTTON, 0.55f), window);
+        double ratio = Theme.contrastRatio(Theme.over(faded(Theme.TEXT, 0.55f), surface), surface);
+
+        assertTrue(ratio < Theme.MINIMUM_TEXT_CONTRAST,
+                () -> String.format("0.55 now passes at %.2f:1, so this note is stale", ratio));
+        assertTrue(Theme.DISABLED_ALPHA >= 0.60f,
+                "fading below 0.60 puts disabled labels under " + Theme.MINIMUM_TEXT_CONTRAST + ":1");
+    }
 }

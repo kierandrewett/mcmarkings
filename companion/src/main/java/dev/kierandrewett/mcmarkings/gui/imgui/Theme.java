@@ -26,6 +26,22 @@ public final class Theme {
     /** The relaxed threshold, for text that is deliberately de-emphasised. */
     public static final double MINIMUM_MUTED_CONTRAST = 3.0;
 
+    /**
+     * How far a disabled control fades.
+     *
+     * <p>Set rather than inherited. ImGui's own default happens to be this number,
+     * and it is the lowest one that still passes: at 0.55 a disabled button label
+     * lands at 4.3:1 against its own background and fails. Leaving that to a library
+     * default meant an accessibility property this interface depends on could change
+     * under it without anything noticing.
+     *
+     * <p>It cannot simply go lower to make disabled controls read as more obviously
+     * disabled, because the labels here have to stay readable. Every disabled control
+     * in this mod carries a tooltip saying why it is unavailable, and you have to be
+     * able to read the label to know what you are hovering over in the first place.
+     */
+    public static final float DISABLED_ALPHA = 0.60f;
+
     /** Panels sit over the game, so they are dark and mostly opaque. */
     public static final int WINDOW_BACKGROUND = 0xF00F0F0F;
 

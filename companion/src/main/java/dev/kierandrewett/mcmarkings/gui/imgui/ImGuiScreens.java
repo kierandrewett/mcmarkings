@@ -189,6 +189,11 @@ public final class ImGuiScreens {
         style.setScrollbarSize(10.0f);
         style.setGrabMinSize(10.0f);
 
+        // Owned rather than left to the library, because it decides whether the label
+        // on a disabled button is still readable, and every disabled control here has
+        // a tooltip explaining itself that you cannot use if you cannot read the label.
+        style.setDisabledAlpha(Theme.DISABLED_ALPHA);
+
         setColour(ImGuiCol.WindowBg, Theme.WINDOW_BACKGROUND);
         setColour(ImGuiCol.ChildBg, Theme.CHILD_BACKGROUND);
         setColour(ImGuiCol.PopupBg, Theme.POPUP_BACKGROUND);
