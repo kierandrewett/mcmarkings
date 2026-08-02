@@ -72,6 +72,15 @@ public final class ImageBrowserPanel implements Panel {
     /** A cell may stretch this far past its target before the row gains a column. */
     private static final float CELL_STRETCH_LIMIT = 1.5f;
 
+    /**
+     * Panel left showing at the edge of a cell, for the keyboard focus ring.
+     *
+     * <p>Three pixels rather than one, because ImGui draws the ring with a rounding
+     * and a thickness of its own and a hairline gutter puts half of it back on the
+     * chequerboard it was moved off.
+     */
+    private static final float FOCUS_GUTTER = 3.0f;
+
     private static final float DETAIL_FRACTION = 0.28f;
 
     /** Below this the preview goes under the grid instead of beside it. */
@@ -362,7 +371,20 @@ public final class ImageBrowserPanel implements Panel {
         // transparent and a transparent background is indistinguishable from a dark
         // one against a flat panel. The editor's canvas has always said so; the
         // browser is where people actually decide which image they want.
-        ImGuiScreens.chequerboard(drawList, x, y, x + cell, y + cell);
+        //
+        // Inset by a gutter, so the keyboard focus ring has somewhere to land. ImGui
+        // draws that ring at the item's edge, and the item is the whole cell: over a
+        // light chequer square the amber ring measures 1.20:1 and is simply not
+        // there. No single colour fixes it, since 3:1 against both a 0xBF square and
+        // a 0x2E one cannot be met at once. Against the panel behind the grid it is
+        // 12.5:1, so the answer is to leave panel at the edge rather than to keep
+        // hunting for a colour.
+        //
+        // This matters more than it looks. A focus ring nobody can see means you can
+        // move around the grid by keyboard and never know where you are, which is the
+        // whole of navigating without a mouse.
+        ImGuiScreens.chequerboard(drawList, x + FOCUS_GUTTER, y + FOCUS_GUTTER,
+                x + cell - FOCUS_GUTTER, y + cell - FOCUS_GUTTER);
 
         ImGui.pushID(image.path());
         try {

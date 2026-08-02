@@ -485,4 +485,53 @@ class ThemeTest {
         assertTrue(opacity < 0.95, () -> "the band is effectively solid at " + opacity);
         assertTrue(opacity > 0.6, () -> "the band is too faint to carry the text at " + opacity);
     }
+
+    /**
+     * The focus ring, which is the whole of navigating without a mouse.
+     *
+     * <p>It is drawn by ImGui at the edge of whatever has focus, so unlike the
+     * canvas overlays it cannot be given a halo. Against a light chequer square the
+     * amber measures 1.20:1 and is simply absent, and no single colour fixes that:
+     * meeting 3:1 against both a 0xBF square and a 0x2E one at the same time is
+     * arithmetically impossible, which is what the halo exists to get around
+     * everywhere it can be used.
+     *
+     * <p>So the browser leaves a gutter of panel at the edge of each cell and the
+     * ring lands there instead. This pins the surface it is guaranteed against.
+     */
+    @Test
+    @DisplayName("the focus ring is unmissable on the surface it is drawn against")
+    void theFocusRingIsVisibleWhereItLands() {
+        assertReadable("the focus ring on a panel", Theme.FOCUS_RING, Theme.WINDOW_BACKGROUND,
+                Theme.MINIMUM_MUTED_CONTRAST);
+        assertReadable("the focus ring on a control", Theme.FOCUS_RING, Theme.BUTTON,
+                Theme.MINIMUM_MUTED_CONTRAST);
+
+        // Stated rather than implied. If this ever passes, a single colour has become
+        // possible and the gutter in the browser is no longer earning its keep.
+        double onLightChequer = Theme.contrastRatio(Theme.FOCUS_RING, Theme.CHEQUER_LIGHT);
+        assertTrue(onLightChequer < Theme.MINIMUM_MUTED_CONTRAST,
+                () -> String.format("the ring now reads on a light chequer square at %.2f:1, "
+                        + "so the browser gutter can go", onLightChequer));
+    }
+
+    /**
+     * That the gutter is there, not merely that it would help.
+     *
+     * <p>The same trap as the overlay halos and the caption: the maths above is a
+     * fact about two colours and says nothing about what the browser draws.
+     */
+    @Test
+    @DisplayName("the browser insets its chequerboard so the ring has panel to sit on")
+    void theBrowserLeavesTheGutter() throws Exception {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/ImageBrowserPanel.java"));
+
+        int at = source.indexOf("ImGuiScreens.chequerboard(drawList, x");
+        assertTrue(at > 0, "the grid cell no longer draws a chequerboard");
+
+        String call = source.substring(at, source.indexOf(";", at));
+        assertTrue(call.contains("FOCUS_GUTTER"),
+                "the cell chequerboard fills the whole cell again, so the focus ring is back on it");
+    }
 }
