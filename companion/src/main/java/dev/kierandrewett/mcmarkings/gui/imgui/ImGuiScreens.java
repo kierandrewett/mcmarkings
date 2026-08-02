@@ -398,10 +398,7 @@ public final class ImGuiScreens {
 
     /** Trim for labels that would otherwise blow out a fixed-width pane. */
     public static String truncate(String text, int limit) {
-        if (text == null) {
-            return "";
-        }
-        return text.length() <= limit ? text : text.substring(0, Math.max(1, limit - 3)) + "...";
+        return dev.kierandrewett.mcmarkings.core.Summary.truncate(text, limit);
     }
 
     /**

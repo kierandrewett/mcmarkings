@@ -139,10 +139,8 @@ public final class DocumentJson {
         if (warnings == null || warnings.isEmpty()) {
             return "";
         }
-        String first = warnings.getFirst();
-        String shortened = first.length() > limit ? first.substring(0, limit) + "..." : first;
-        String more = warnings.size() > 1 ? " (+" + (warnings.size() - 1) + " more)" : "";
-        return name + " did not open whole: " + shortened + more;
+        return name + " did not open whole: "
+                + dev.kierandrewett.mcmarkings.core.Summary.of(warnings, limit);
     }
 
     public record Result(Document document, List<String> warnings) {

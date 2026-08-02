@@ -456,9 +456,7 @@ public final class EditorPanel implements Panel {
             return;
         }
         if (!renderProblems.isEmpty()) {
-            String first = ImGuiScreens.truncate(renderProblems.getFirst(), 70);
-            String extra = renderProblems.size() > 1 ? " (+" + (renderProblems.size() - 1) + " more)" : "";
-            Notice.warning(first + extra);
+            Notice.warning(dev.kierandrewett.mcmarkings.core.Summary.of(renderProblems, 70));
 
             // "(+4 more)" with no way to see the four is a count, not information.
             // Each one names a layer, and which layers are broken is the whole
