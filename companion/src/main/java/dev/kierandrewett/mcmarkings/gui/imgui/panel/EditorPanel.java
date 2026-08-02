@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.command.Command;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.command.Shortcut;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.doc.Alignment;
 import dev.kierandrewett.mcmarkings.doc.Document;
@@ -15,6 +16,7 @@ import dev.kierandrewett.mcmarkings.doc.History;
 import dev.kierandrewett.mcmarkings.doc.Insets;
 import dev.kierandrewett.mcmarkings.doc.Layer;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
+import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
@@ -1504,6 +1506,48 @@ public final class EditorPanel implements Panel {
         single[0] = document.pixelsPerFrame();
         if (field("Pixels per frame", () -> ImGui.dragInt("##pixels-per-frame", single, 1.0f, 16, 2048))) {
             apply(document.withGrid(document.grid(), Math.max(16, single[0])), "Change resolution", "resolution");
+        }
+
+        drawGridSuggestions(document);
+    }
+
+    /**
+     * Frame sizes that suit what is on the canvas.
+     *
+     * <p>The browser has always worked out a sensible frame size from an image's
+     * shape, and the editor made you guess at it with two number fields. Getting it
+     * wrong is not obvious here and very obvious on a wall, where the sign comes out
+     * stretched, so the same answer belongs in both places.
+     *
+     * <p>Measured from the layers rather than the canvas, because the canvas is the
+     * thing being chosen. With nothing on it there is nothing to suit.
+     */
+    private void drawGridSuggestions(Document document) {
+        Layer.Bounds content = document.contentBounds().orElse(null);
+        if (content == null) {
+            return;
+        }
+
+        ImGui.textDisabled("Suits this content");
+        for (GridSuggestion suggestion : GridRecommender.top(content.width(), content.height(), 3)) {
+            GridSize grid = suggestion.grid();
+            boolean current = grid.equals(document.grid());
+
+            String label = grid + "   " + grid.frameCount() + " frames"
+                    + (suggestion.isComfortable() ? "" : "   " + suggestion.distortionPercent() + "% stretch")
+                    + (current ? "   (current)" : "");
+
+            ImGui.beginDisabled(current);
+            boolean pressed = ImGui.button(label + "##suggest-" + grid, -1.0f, 0.0f);
+            ImGui.endDisabled();
+
+            if (ImGui.isItemHovered() && !suggestion.isComfortable()) {
+                ImGui.setTooltip("Fits, but the content would be stretched by "
+                        + suggestion.distortionPercent() + "% to fill the frames.");
+            }
+            if (pressed) {
+                apply(document.withGrid(grid, document.pixelsPerFrame()), "Frame grid " + grid, null);
+            }
         }
     }
 

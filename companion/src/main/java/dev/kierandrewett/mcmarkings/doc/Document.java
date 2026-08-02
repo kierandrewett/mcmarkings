@@ -39,6 +39,40 @@ public record Document(
         return new Document(name, grid, pixelsPerFrame, TRANSPARENT, List.of());
     }
 
+    /**
+     * The box every visible layer sits inside, or empty when there is nothing.
+     *
+     * <p>Hidden layers are left out: something switched off is not part of what the
+     * document is, and including it would make a frame size suggestion answer for
+     * content nobody can see.
+     *
+     * <p>Not clamped to the canvas. A layer dragged off the edge still counts,
+     * because the usual reason to ask this is to work out what the canvas ought to
+     * be rather than what it currently is.
+     */
+    public java.util.Optional<Layer.Bounds> contentBounds() {
+        int left = Integer.MAX_VALUE;
+        int top = Integer.MAX_VALUE;
+        int right = Integer.MIN_VALUE;
+        int bottom = Integer.MIN_VALUE;
+
+        for (Layer layer : layers) {
+            if (!layer.visible()) {
+                continue;
+            }
+            Layer.Bounds bounds = layer.bounds();
+            left = Math.min(left, bounds.x());
+            top = Math.min(top, bounds.y());
+            right = Math.max(right, bounds.right());
+            bottom = Math.max(bottom, bounds.bottom());
+        }
+
+        if (left == Integer.MAX_VALUE || right <= left || bottom <= top) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(new Layer.Bounds(left, top, right - left, bottom - top));
+    }
+
     public int width() {
         return grid.columns() * pixelsPerFrame;
     }
