@@ -57,12 +57,12 @@ public class WelcomeScreen extends BaseOwoScreen<FlowLayout> {
                 .withStyle(ChatFormatting.YELLOW)));
 
         panel.child(UIComponents.label(Component.literal(
-                "Put road signs and markings on your walls without typing commands.")
+                "Put your own images on walls in game, without typing commands.")
                 .withStyle(ChatFormatting.WHITE)));
 
         panel.child(UIComponents.label(Component.literal(
                 "Point it at a folder of images and you can search them in game, work out how many "
-                        + "item frames each one needs, and place it in a couple of clicks.")
+                        + "item frames each one needs, and place one in a couple of clicks.")
                 .withStyle(ChatFormatting.GRAY)));
 
         panel.child(UIComponents.label(Component.literal(" ")));
@@ -70,7 +70,7 @@ public class WelcomeScreen extends BaseOwoScreen<FlowLayout> {
         panel.child(UIComponents.label(Component.literal("To get started")
                 .withStyle(ChatFormatting.YELLOW)));
         panel.child(UIComponents.label(Component.literal(
-                "1. Choose a folder of PNGs. A clone of a GitHub repository works best, because the "
+                "1. Choose a folder of PNGs. A clone of a git repository works best, because the "
                         + "server fetches the images over the internet.")
                 .withStyle(ChatFormatting.GRAY)));
         panel.child(UIComponents.label(Component.literal(

@@ -1,12 +1,18 @@
 # MCMarkings Companion
 
-A client-side Fabric mod that turns this repository into an in-game browser for
-the [ImageFrame](https://modrinth.com/plugin/imageframe) server plugin.
+A client-side Fabric mod that turns any folder of images into an in-game browser
+for the [ImageFrame](https://modrinth.com/plugin/imageframe) server plugin.
 
-Instead of finding a sign, working out how many item frames it needs, and typing
-a `/imageframe create` command with a hand-built GitHub URL, you search the
-repository in game, click the image, and the mod issues the command with a
-correctly pinned URL and hands you the right number of invisible frames.
+Instead of finding an image, working out how many item frames it needs, and typing
+a `/imageframe create` command with a hand-built URL, you search your images in
+game, click one, and the mod issues the command with a correctly pinned URL and
+hands you the right number of invisible frames.
+
+**It is not about road signs.** This repository happens to hold UK road signs and
+its generator scripts draw them, but the mod knows nothing about that. Point it at
+photographs, pixel art, maps, logos, or anything else in PNG form. Image metadata,
+fonts, the scripts that draw new images and the folder layout are all the
+repository's business, not the mod's.
 
 It is **client-side only**. Nothing is installed on the server. Everything it
 does goes through commands you are already allowed to run.
@@ -45,10 +51,11 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 | --- | --- | --- |
 | `repositories` | empty | Folders the mod reads from, all managed from the GUI |
 | `commandAlias` | `imageframe` | Command root without the slash; set to `frame` if your server rebinds it |
-| `fontSearchPaths` | `~/.local/share/fonts`, `/usr/share/fonts` | Where to look for the Transport typeface |
+| `fontSearchPaths` | per platform | Extra folders to scan for fonts, on top of the ones the system already knows |
 | `exportPixelsPerFrame` | `256` | Export resolution per map frame |
 | `glowingFrames` | `true` | Ask for glowing invisible frames rather than plain |
 | `commandsPerSecond` | `2.0` | Command rate limit |
+| `ignoredDirectories` | `node_modules`, `build`, `target`, `out`, `dist` | Folders never walked when scanning; dot-folders are always skipped |
 
 **One key: `M`.** Rebindable in Minecraft's own controls screen. Everything else
 is reached from the screens themselves, so there is nothing else to memorise.
@@ -65,7 +72,7 @@ that has been moved can be pointed somewhere new without restarting the game.
 **Pinned URLs.** ImageFrame fetches images server-side over HTTP, so every image
 has to be reachable at a URL. The mod always builds
 `raw.githubusercontent.com/<slug>/<commit-sha>/<path>` against a commit, never a
-branch. Branch URLs are cached for around five minutes, so a freshly pushed sign
+branch. Branch URLs are cached for around five minutes, so a freshly pushed image
 would come back as the previous version or a 404.
 
 **Pull and refresh.** ImageFrame only re-fetches when told to. The Pull button
@@ -81,13 +88,15 @@ prefers the smallest grid whose distortion is imperceptible, since a wall of
 frames is expensive to build. A 1x1 grid gets a plain map item; anything larger
 is requested with `combined` so it arrives as one placeable item.
 
-**Generators.** Parameterised signs are JavaScript, run on Rhino, and live in
-[`../generators/`](../generators/README.md) rather than inside this mod, so
-adding a sign type is a commit to the repository rather than a rebuild. Scripts
-get a small drawing API and can composite existing repository PNGs, which is how
-a direction sign gets a real roundel on it.
+**Generators.** Parameterised images are JavaScript, run on Rhino, and live in
+the repository's own `generators/` folder rather than inside this mod, so adding
+a new kind of image is a commit to that repository rather than a rebuild of the
+mod. Scripts get a small drawing API, can use any font installed on the machine,
+and can composite existing repository PNGs. The scripts in
+[`../generators/`](../generators/README.md) draw road signs because that is what
+this repository is for; yours would draw whatever you like.
 
-**Git.** Saving a generated sign writes the PNG, commits only that file, and
+**Git.** Saving a generated image writes the PNG, commits only that file, and
 pushes, so the image has a URL the server can reach. The mod **never reads or
 writes git configuration** at any scope. If a commit fails because identity or
 credentials are missing, it shows you git's own error and stops rather than
@@ -134,7 +143,7 @@ directory.
 **Push before you place.** URLs are pinned to the last commit the mod can see on
 `origin`, not to your local HEAD, because ImageFrame fetches over HTTP from the
 server and a commit sitting unpushed on your machine is a guaranteed 404. If a
-sign you just added does not appear, check you have pushed it.
+image you just added does not appear, check you have pushed it.
 
 ## Layout
 
@@ -175,14 +184,15 @@ without it.
 **Texture components need `blend(true)`.** owo defaults to a no-blend pipeline,
 which draws every transparent PNG in this repository on an opaque black square.
 
-**Transport is not in this repository** and cannot be, for licensing reasons. The
-mod finds it in your system fonts. Without it, generated lettering falls back to
-a generic sans and will not match real signage; the UI says so rather than
-pretending.
+**No font is bundled or required.** Generators name whatever font they want and
+the mod resolves it against everything installed on the machine, matching on
+family, face, PostScript or file name. A font that is not installed does not stop
+a preview: the image renders in a substitute and the mod says which name it could
+not resolve. The settings screen lists what is available.
 
 **Never use `const` inside a loop body in a generator script.** Rhino does not
 re-initialise it, so every iteration keeps the first iteration's value and every
-line of a sign after the first is silently replaced by line one. Use `let`. This
+line after the first is silently replaced by line one. Use `let`. This
 is documented at length, with the failing and working forms, in
 [`../generators/README.md`](../generators/README.md), and guarded by a test.
 
@@ -191,10 +201,10 @@ is documented at length, with the failing and working forms, in
 The build and unit tests cover everything that can be checked offline. These
 need you in game:
 
-1. Open the browser, search for a sign, confirm thumbnails render with
+1. Open the browser, search for an image, confirm thumbnails render with
    transparency rather than on black boxes.
-2. Create a 1x1 sign; confirm a plain map item arrives.
+2. Create a 1x1 image; confirm a plain map item arrives.
 3. Create a larger one; confirm a single combined item arrives, not loose maps.
 4. Get frames and place the image.
 5. Change a PNG, push, then Pull in game and confirm the placed map updates.
-6. Generate a sign, save and publish, and confirm it appears on the wall.
+6. Generate an image, save and publish, and confirm it appears on the wall.

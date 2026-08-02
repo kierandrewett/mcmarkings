@@ -152,7 +152,7 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
     private FlowLayout generatingSection() {
         CompanionConfig config = services.config;
         FlowLayout section = section("Generating and building",
-                "Where generated signs are written, and how detailed they are.");
+                "Where generated images are written, and how detailed they are.");
 
         section.child(textField("Export pixels per frame",
                 "Vanilla maps are 128. ImageFrame renders more detail, so 256 is a good default.",
@@ -163,7 +163,7 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
                         return "Give a whole number greater than zero.";
                     }
                     if (parsed > MAX_PIXELS_PER_FRAME) {
-                        return "Keep it at or below " + MAX_PIXELS_PER_FRAME + ", or a large sign will not fit "
+                        return "Keep it at or below " + MAX_PIXELS_PER_FRAME + ", or a large image will not fit "
                                 + "in memory.";
                     }
                     config.exportPixelsPerFrame = parsed;
@@ -171,7 +171,7 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
                 }));
 
         section.child(textField("Generated images folder",
-                "Inside each repository. Generated signs are written here.",
+                "Inside each repository. Generated images are written here.",
                 config.generatedDirectory,
                 value -> {
                     String problem = relativeFolderProblem(value);
@@ -183,7 +183,7 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
                 }));
 
         section.child(textField("Generator scripts folder",
-                "Inside each repository. The .js files that draw signs are read from here.",
+                "Inside each repository. The .js files that draw images are read from here.",
                 config.generatorDirectory,
                 value -> {
                     String problem = relativeFolderProblem(value);

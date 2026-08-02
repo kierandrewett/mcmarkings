@@ -96,7 +96,8 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
         root.child(UIComponents.label(Component.literal("Choose a repository folder")
                 .withStyle(ChatFormatting.WHITE)));
         root.child(UIComponents.label(Component.literal(
-                "Pick the folder your sign images live in. It is normally a clone of a GitHub repository.")
+                "Pick the folder your images live in. A clone of a git repository works best, because the "
+                        + "server fetches them over the internet.")
                 .withStyle(ChatFormatting.GRAY)));
 
         if (SANDBOX_APP_ID != null) {
@@ -270,7 +271,7 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
         }
 
         verdictPanel.child(UIComponents.label(Component.literal(
-                "Keep looking, or use this folder anyway if you plan to generate signs into it.")
+                "Keep looking, or use this folder anyway if you plan to generate images into it.")
                 .withStyle(ChatFormatting.DARK_GRAY)));
     }
 
