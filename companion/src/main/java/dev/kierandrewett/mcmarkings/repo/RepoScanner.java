@@ -83,6 +83,10 @@ public class RepoScanner implements RepoService {
     /** Entry fields consulted for a catalogue code, in preference order. */
     private static final List<String> REFERENCE_KEYS = List.of("reference", "diagram", "code", "id", "ref");
 
+    /** Entry fields consulted for a licence. Both spellings, since both are written. */
+    private static final List<String> LICENCE_KEYS =
+            List.of("licence", "license", "copyright", "rights");
+
     private static final byte[] PNG_SIGNATURE = {
             (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n',
     };
@@ -253,7 +257,8 @@ public class RepoScanner implements RepoService {
                     scanned.width(),
                     scanned.height(),
                     entry == null ? null : entry.description(),
-                    entry == null ? null : entry.reference()));
+                    entry == null ? null : entry.reference(),
+                    entry == null ? null : entry.licence()));
         }
         images.sort(Comparator.comparing(RepoImage::path));
 
@@ -425,9 +430,11 @@ public class RepoScanner implements RepoService {
         String file = null;
         String description = null;
         String reference = null;
+        String licence = null;
         int fileRank = Integer.MAX_VALUE;
         int descriptionRank = Integer.MAX_VALUE;
         int referenceRank = Integer.MAX_VALUE;
+        int licenceRank = Integer.MAX_VALUE;
 
         json.beginObject();
         while (json.hasNext()) {
@@ -455,13 +462,18 @@ public class RepoScanner implements RepoService {
                 referenceRank = rank;
                 reference = value;
             }
+            rank = LICENCE_KEYS.indexOf(key);
+            if (rank >= 0 && rank < licenceRank) {
+                licenceRank = rank;
+                licence = value;
+            }
         }
         json.endObject();
 
         if (file == null || file.isBlank()) {
             return false;
         }
-        if (description == null && reference == null) {
+        if (description == null && reference == null && licence == null) {
             return false;
         }
 
@@ -469,7 +481,7 @@ public class RepoScanner implements RepoService {
         if (repoPath == null) {
             return false;
         }
-        target.putIfAbsent(repoPath, new Metadata(description, reference));
+        target.putIfAbsent(repoPath, new Metadata(description, reference, licence));
         return true;
     }
 
@@ -621,7 +633,7 @@ public class RepoScanner implements RepoService {
         return 3;
     }
 
-    record Metadata(String description, String reference) {
+    record Metadata(String description, String reference, String licence) {
     }
 
     /** One PNG as the walk found it, before any metadata is known. */

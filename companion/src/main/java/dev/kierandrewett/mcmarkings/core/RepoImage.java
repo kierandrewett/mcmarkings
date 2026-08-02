@@ -16,7 +16,17 @@ public record RepoImage(
         int width,
         int height,
         String description,
-        String reference) {
+        String reference,
+
+        /**
+         * The licence the repository records for this file, or blank.
+         *
+         * <p>Read because a repository of borrowed images has an answer to "may I use
+         * this" and the mod was throwing it away. Both sets here carry one for every
+         * entry, OGL for the road signs and CC0 for the safety ones, and someone
+         * putting an image on a public server has a reason to know which.
+         */
+        String licence) {
 
     public double aspect() {
         return height == 0 ? 1.0 : (double) width / (double) height;

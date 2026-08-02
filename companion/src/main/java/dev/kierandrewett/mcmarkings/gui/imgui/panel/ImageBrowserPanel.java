@@ -502,6 +502,12 @@ public final class ImageBrowserPanel implements Panel {
                         + "You can search for it.");
             }
         }
+
+        // Attribution, where someone would need it: about to put a borrowed image on a
+        // server other people can see. The repository records it and nothing showed it.
+        if (image.licence() != null && !image.licence().isBlank()) {
+            ImGui.textDisabled("Licence: " + image.licence());
+        }
         ImGui.separator();
 
         // Never taller than it is wide, so a tall pane leaves room for the actions

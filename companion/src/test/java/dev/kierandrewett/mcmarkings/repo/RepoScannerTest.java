@@ -530,7 +530,7 @@ class RepoScannerTest {
     }
 
     private static RepoImage image(String path, String name, String description, String reference) {
-        return new RepoImage(path, name, 100, 100, description, reference);
+        return new RepoImage(path, name, 100, 100, description, reference, null);
     }
 
     private static byte[] pngHeader(int width, int height) {
@@ -561,5 +561,38 @@ class RepoScannerTest {
         }
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         ImageIO.write(image, "png", file.toFile());
+    }
+
+    @Test
+    void readsALicenceFromMetadata() throws IOException {
+        // Both sets in this repository record one for every entry, OGL for the road
+        // signs and CC0 for the safety ones, and someone about to put a borrowed image
+        // on a public server has a reason to know which.
+        Path root = Files.createTempDirectory("licence");
+        Files.createDirectories(root.resolve("signs"));
+        writePng(root.resolve("signs/a.png"), 10, 10);
+        Files.writeString(root.resolve("signs/signs.json"), """
+                { "signs": [ { "file": "a.png", "description": "A sign", "licence": "OGL v1.0" } ] }
+                """);
+
+        RepoScanner scanner = new RepoScanner(root, List.of());
+        scanner.rescan();
+
+        assertEquals("OGL v1.0", scanner.byPath("signs/a.png").orElseThrow().licence());
+    }
+
+    @Test
+    void acceptsEitherSpellingOfLicence() throws IOException {
+        Path root = Files.createTempDirectory("license");
+        Files.createDirectories(root.resolve("signs"));
+        writePng(root.resolve("signs/b.png"), 10, 10);
+        Files.writeString(root.resolve("signs/meta.json"), """
+                { "images": [ { "file": "b.png", "license": "CC0" } ] }
+                """);
+
+        RepoScanner scanner = new RepoScanner(root, List.of());
+        scanner.rescan();
+
+        assertEquals("CC0", scanner.byPath("signs/b.png").orElseThrow().licence());
     }
 }
