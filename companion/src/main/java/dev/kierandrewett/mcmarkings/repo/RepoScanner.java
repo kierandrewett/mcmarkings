@@ -502,7 +502,7 @@ public class RepoScanner implements RepoService {
      *
      * @return {@code {width, height}}, or null when the file cannot be read at all
      */
-    static int[] readDimensions(Path file) {
+    public static int[] readDimensions(Path file) {
         byte[] header = new byte[IHDR_HEADER_BYTES];
         int read = 0;
         try (InputStream stream = Files.newInputStream(file)) {

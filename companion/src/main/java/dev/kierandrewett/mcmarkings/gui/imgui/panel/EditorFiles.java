@@ -16,6 +16,7 @@ import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.doc.TemplateStore;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.repo.RepoScanner;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
@@ -29,13 +30,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 
 /**
  * Keeping and placing what the editor makes.
@@ -661,30 +659,18 @@ public final class EditorFiles {
     /**
      * An image's size, without decoding it.
      *
-     * <p>Only the dimensions are wanted, and a composition can reference a lot of
-     * large PNGs. Reading the header rather than the pixels turns this from seconds
-     * into nothing.
+     * <p>Through the scanner's reader, which pulls the dimensions straight out of the
+     * PNG header: twenty-four bytes rather than an inflate, with an ImageIO fallback
+     * for anything that is not a well-formed IHDR. I wrote a second, slower version
+     * of this here first, going through ImageIO for every file. One way to answer a
+     * question is worth more than two, and the faster one already existed.
      */
-    private static BuilderLayout.Size sizeOf(Path path) throws IOException {
+    private static BuilderLayout.Size sizeOf(Path path) {
         if (!Files.isRegularFile(path)) {
             return null;
         }
-        try (ImageInputStream stream = ImageIO.createImageInputStream(path.toFile())) {
-            if (stream == null) {
-                return null;
-            }
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
-            if (!readers.hasNext()) {
-                return null;
-            }
-            ImageReader reader = readers.next();
-            try {
-                reader.setInput(stream);
-                return new BuilderLayout.Size(reader.getWidth(0), reader.getHeight(0));
-            } finally {
-                reader.dispose();
-            }
-        }
+        int[] dimensions = RepoScanner.readDimensions(path);
+        return dimensions == null ? null : new BuilderLayout.Size(dimensions[0], dimensions[1]);
     }
 
     /** A layout's display name: the file name without either of its two extensions. */
