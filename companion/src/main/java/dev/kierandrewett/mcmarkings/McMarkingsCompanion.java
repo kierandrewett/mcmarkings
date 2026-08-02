@@ -125,6 +125,19 @@ public class McMarkingsCompanion implements ClientModInitializer {
             shell.dispose();
             shell = null;
         }
+
+        // After the window, not before. Panels release their own textures as they are
+        // removed, and closing the cache out from under them would leave them evicting
+        // from something already emptied.
+        //
+        // Here rather than at the settings button that reloads, because this is the
+        // method that does the discarding, and a second caller would otherwise have to
+        // know to clean up as well. Nothing frees these once the reference is gone:
+        // the textures, and a decode pool whose threads outlived every reload of the
+        // session because they are daemons and so never complained.
+        if (services != null) {
+            services.thumbnails.close();
+        }
         services = null;
     }
 

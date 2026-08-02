@@ -116,4 +116,25 @@ class RuntimeTextureCacheTest {
         assertTrue(released.contains(previews.getFirst()), "the oldest preview should be the first to go");
         assertFalse(released.contains(previews.getLast()), "the newest preview must survive");
     }
+
+    @Test
+    @DisplayName("closing frees the textures and stops the workers")
+    void closingEndsTheCache() {
+        List<RuntimeTextureCache.Entry> released = new ArrayList<>();
+        RuntimeTextureCache cache = cacheHolding(released, 8);
+
+        RuntimeTextureCache.Entry preview = entry("chosen");
+        cache.retainForTest("preview:signs/chosen.png", preview);
+        cache.retainPreviewForTest("preview:signs/chosen.png", "signs/chosen.png", preview);
+        cache.retainForTest("signs/other.png", entry("other"));
+
+        cache.close();
+
+        // The decode pool was never shut down before this existed. Its threads are
+        // daemons, so nothing ever failed loudly: reloading from settings built a
+        // fresh services object and the old pool's threads stayed for the rest of
+        // the session, half a core's worth each time.
+        assertEquals(2, released.size(), "everything held should be freed, once each");
+        assertTrue(cache.decodePoolIsShutDown(), "the decode workers should have stopped");
+    }
 }

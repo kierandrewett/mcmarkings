@@ -110,6 +110,10 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return retainPreview(key, path, entry);
     }
 
+    boolean decodePoolIsShutDown() {
+        return decodePool.isShutdown();
+    }
+
     synchronized boolean isResident(String key) {
         return resident.containsKey(key);
     }
@@ -293,6 +297,21 @@ public class RuntimeTextureCache implements ThumbnailCache {
         resident.clear();
         previews.values().forEach(this::releaseTexture);
         previews.clear();
+    }
+
+    /**
+     * Done with, as opposed to merely emptied.
+     *
+     * <p>The decode pool was never shut down. Its threads are daemons, so they never
+     * held the game open and nothing ever went wrong loudly, but reloading from
+     * settings builds a fresh services object and the old pool's threads stayed for
+     * the rest of the session. Half a core's worth each time, for a button someone
+     * may press whenever they change a setting.
+     */
+    @Override
+    public void close() {
+        evictAll();
+        decodePool.shutdownNow();
     }
 
     private void releaseTexture(Entry entry) {

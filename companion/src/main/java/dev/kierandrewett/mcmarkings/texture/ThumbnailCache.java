@@ -42,4 +42,13 @@ public interface ThumbnailCache {
     void evict(String key);
 
     void evictAll();
+
+    /**
+     * Frees everything and stops the workers, for a cache being thrown away.
+     *
+     * <p>Separate from {@link #evictAll()} because they are different intentions:
+     * evicting keeps the cache usable, this ends it. A cache whose services have
+     * been discarded has nothing left to decode for.
+     */
+    void close();
 }

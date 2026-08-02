@@ -403,9 +403,8 @@ public final class SettingsPanel implements Panel {
                 // gone. Without this the last fifteen seconds of it would be.
                 services.flushRecoveryNow();
 
-                // The textures belong to the services being discarded, and nothing else
-                // will ever free them once the reference is gone.
-                services.thumbnails.evictAll();
+                // Frees the textures and stops the decode pool, both of which belong
+                // to the services being discarded.
                 McMarkingsCompanion.reset();
 
                 Minecraft.getInstance().setScreen(
