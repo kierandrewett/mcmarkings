@@ -71,13 +71,40 @@ public final class ImGuiFonts {
         }
     }
 
+    /**
+     * Which characters the atlas is built for.
+     *
+     * <p>Dear ImGui's default is Basic Latin and Latin-1, and that is not enough for
+     * what this repository holds. Its sign descriptions contain three thousand nine
+     * hundred en dashes, at U+2013, which is above Latin-1, so every tooltip and
+     * detail pane showing one drew a missing-glyph box instead. The document renderer
+     * had no such trouble, which is why it went unnoticed: what gets published was
+     * always right and only the interface reading it was wrong.
+     *
+     * <p>Latin Extended-A comes with it because this is a British sign set and the
+     * Welsh half needs it. There are Wales variants of most signs here, and the
+     * circumflexed vowels those names use, w and y among them, sit at U+0174 onwards
+     * rather than in Latin-1 with the French and German ones.
+     *
+     * <p>Three ranges rather than everything, because every glyph is atlas space and
+     * the atlas is rebuilt whenever the GUI scale moves.
+     */
+    static short[] glyphRanges() {
+        return new short[] {
+            0x0020, 0x00FF,   // Basic Latin and Latin-1, which was all there was
+            0x0100, 0x017F,   // Latin Extended-A, for Welsh and the rest of Europe
+            0x2000, 0x206F,   // General Punctuation: en and em dashes, quotes, ellipsis
+            0,                // Dear ImGui reads until a zero
+        };
+    }
+
     private static void rebuild(FontRegistry fonts, float pixels) {
         var atlas = ImGui.getIO().getFonts();
         atlas.clear();
 
         Optional<Path> file = fonts.anyReadableFontFile();
         if (file.isPresent()) {
-            atlas.addFontFromFileTTF(file.get().toString(), pixels);
+            atlas.addFontFromFileTTF(file.get().toString(), pixels, glyphRanges());
         } else {
             // Nothing scalable on the machine. The built-in font at least rasterises
             // at the requested size rather than being stretched afterwards.
