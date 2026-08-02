@@ -642,19 +642,9 @@ public final class EditorPanel implements Panel {
         if (icon == null) {
             pressed = ImGui.button(label);
         } else {
-            // A square the height of an ordinary button, so a row of icons lines up
-            // with the words beside them. The icon is drawn over the button rather
-            // than into it: ImGui has no way to give a button a picture, and drawing
-            // after it means the button's own hover and pressed states still show.
-            float side = ImGui.getFrameHeight();
-            float x = ImGui.getCursorScreenPosX();
-            float y = ImGui.getCursorScreenPosY();
-            pressed = ImGui.button("##" + commandId, side, side);
-
-            float inset = Math.max(2.0f, side * 0.14f);
-            ImGuiScreens.drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset,
-                    side - inset * 2.0f,
-                    ImGui.getColorU32(enabled ? ImGuiCol.Text : ImGuiCol.TextDisabled));
+            // The tooltip below is the only reason this is not iconButton: it comes
+            // from the command rather than from words passed in.
+            pressed = ImGuiScreens.bareIconButton(commandId, icon, enabled);
         }
         ImGui.endDisabled();
 

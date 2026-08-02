@@ -317,22 +317,41 @@ public final class ImGuiScreens {
      * actually does.
      */
     public static boolean iconButton(String id, Icon icon, String label, String hint) {
+        boolean pressed = bareIconButton(id, icon, true);
+        if (explaining()) {
+            ImGui.setTooltip(label + (hint == null || hint.isBlank() ? "" : "\n" + hint));
+        }
+        return pressed;
+    }
+
+    /**
+     * The button and the icon on it, with the tooltip left to the caller.
+     *
+     * <p>Two panels drew this and each kept its own copy of the arithmetic. They only
+     * ever differed in where the tooltip came from, which is not a reason to write
+     * the drawing twice: the editor's toolbar takes it from a command and everything
+     * else is given the words. I noticed because tightening the inset meant changing
+     * the same number in both.
+     *
+     * <p>A square the height of an ordinary button, so a row of icons lines up with
+     * the words beside them. The icon goes over the button rather than into it, since
+     * ImGui has no way to give a button a picture, and after it so the button's own
+     * hover and pressed states still show through.
+     *
+     * <p>The inset is a seventh rather than a fifth. The button is padded already,
+     * and at GUI scale 1 it is sixteen pixels across, so a fifth each side spent six
+     * of them on space inside something that was spaced and left the icon under ten.
+     * These were drawn and checked at thirteen.
+     */
+    public static boolean bareIconButton(String id, Icon icon, boolean enabled) {
         float side = ImGui.getFrameHeight();
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         boolean pressed = ImGui.button("##" + id, side, side);
 
-        // A seventh rather than a fifth. The button is already padded, and at GUI
-        // scale 1 it is sixteen pixels across, so a fifth each side spent six of them
-        // on space inside something that was spaced already and left the icon at
-        // under ten. These were drawn and checked at thirteen.
         float inset = Math.max(2.0f, side * 0.14f);
         drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset, side - inset * 2.0f,
-                ImGui.getColorU32(imgui.flag.ImGuiCol.Text));
-
-        if (explaining()) {
-            ImGui.setTooltip(label + (hint == null || hint.isBlank() ? "" : "\n" + hint));
-        }
+                ImGui.getColorU32(enabled ? imgui.flag.ImGuiCol.Text : imgui.flag.ImGuiCol.TextDisabled));
         return pressed;
     }
 

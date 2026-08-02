@@ -173,4 +173,33 @@ class IconTest {
                 "the map resolution view is back to being palette-only, which is where "
                         + "nobody looking at a sign would think to find it");
     }
+
+    /**
+     * One implementation of drawing an icon on a button.
+     *
+     * <p>There were two, differing only in where the tooltip came from: the editor's
+     * toolbar takes it from a command and everything else is handed the words. The
+     * drawing was identical and each kept its own copy of the arithmetic, which
+     * showed up when tightening the inset meant changing the same number twice.
+     */
+    @Test
+    @DisplayName("the icon inset is decided in one place")
+    void iconDrawingIsNotDuplicated() throws java.io.IOException {
+        java.nio.file.Path root = java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui");
+        List<String> copies = new java.util.ArrayList<>();
+
+        try (var files = java.nio.file.Files.walk(root)) {
+            for (java.nio.file.Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+                String source = java.nio.file.Files.readString(file);
+                if (source.contains("drawIcon(") && !file.getFileName().toString().equals("ImGuiScreens.java")) {
+                    copies.add("  " + file.getFileName() + " draws an icon itself");
+                }
+            }
+        }
+
+        assertTrue(copies.isEmpty(), () -> """
+                A panel is drawing an icon onto a button itself. Use                 ImGuiScreens.bareIconButton, or iconButton if the tooltip is words                 rather than a command, so the size and inset stay decided in one place.
+                """ + String.join("\n", copies));
+    }
 }
