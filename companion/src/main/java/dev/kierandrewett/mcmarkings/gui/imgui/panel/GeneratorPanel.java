@@ -335,18 +335,49 @@ public final class GeneratorPanel implements Panel {
             return;
         }
 
-        ImGui.text("Frame size " + grid + "  (" + grid.frameCount() + " frames)");
+        ImGui.text("Frame size " + grid + "  (" + grid.frameCount() + " frames), placed at "
+                + grid.pixelWidth() + "x" + grid.pixelHeight());
+
+        int detail = detailPercent(grid);
+        if (detail > 0 && detail < LOW_DETAIL_PERCENT) {
+            // Not a failure and not a stretch, which is what the existing figure
+            // measures. The sign is the right shape and simply arrives smaller than
+            // it was drawn, and the only place that shows is the wall.
+            Notice.warningWrapped("The legend lands at about " + detail + "% of the size you set. "
+                    + "A larger frame size keeps the detail, or a lower x-height draws it "
+                    + "closer to the size it will be placed at.");
+        }
+
         for (GridSuggestion suggestion : suggestions) {
+            int suggestionDetail = detailPercent(suggestion.grid());
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
+                    + (suggestionDetail > 0 ? "  " + suggestionDetail + "% detail" : "")
                     + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
             if (ImGui.button(label + "##grid-" + suggestion.grid())) {
                 grid = suggestion.grid();
                 gridPinned = true;
                 status.info("Frame size " + grid);
             }
-            ImGui.sameLine();
+            if (ImGui.isItemHovered() && previewImage != null) {
+                ImGui.setTooltip("Drawn at " + previewImage.getWidth() + "x" + previewImage.getHeight()
+                        + ", placed at " + suggestion.grid().pixelWidth() + "x"
+                        + suggestion.grid().pixelHeight() + " across "
+                        + suggestion.grid().frameCount() + " item frames.");
+            }
+            ImGuiScreens.flowTo(label);
         }
         ImGui.newLine();
+    }
+
+    /** Below this, the legend is small enough on the wall to be worth mentioning. */
+    private static final int LOW_DETAIL_PERCENT = 60;
+
+    /** Zero when there is nothing to compare against, which reads as unknown. */
+    private int detailPercent(GridSize candidate) {
+        if (previewImage == null || candidate == null) {
+            return 0;
+        }
+        return candidate.detailPercentFor(previewImage.getWidth());
     }
 
     /**
