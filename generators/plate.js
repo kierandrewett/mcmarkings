@@ -74,6 +74,46 @@ defineGenerator({
 
     size: (params) => layout(lib.estimateMeasurer(), params).size,
 
+    // The same plate as layers, so it can be adjusted by hand and kept as a
+    // template rather than only ever regenerated with different parameters.
+    //
+    // Laid out into the chosen canvas rather than at the natural size and scaled,
+    // because scaling a legend to fit a frame grid would distort the lettering the
+    // whole generator exists to get right.
+    document: (params) => {
+        const l = layout(lib.estimateMeasurer(), params);
+        const m = l.metrics;
+        const canvas = lib.canvasFor(l.size.width, l.size.height);
+
+        const available = canvas.width - m.margin * 2;
+        const x = l.block.align === "left" ? m.margin : m.margin + Math.round((available - l.block.width) / 2);
+        const y = Math.round((canvas.height - l.block.height) / 2);
+
+        return {
+            name: "Plate",
+            grid: canvas.grid,
+            pixelsPerFrame: canvas.pixelsPerFrame,
+            background: "#00000000",
+            layers: [
+                {
+                    kind: "shape",
+                    name: "Plate",
+                    bounds: { x: 0, y: 0, width: canvas.width, height: canvas.height },
+                    fill: l.scheme.background,
+                    cornerRadius: m.radius,
+                    borderColour: l.scheme.border,
+                    borderWidth: m.border,
+                    padding: {
+                        top: m.margin,
+                        right: m.margin,
+                        bottom: m.margin,
+                        left: m.margin,
+                    },
+                },
+            ].concat(lib.textLayers(l.block, x, y, available)),
+        };
+    },
+
     render: (ctx, params) => {
         const l = layout(lib.ctxMeasurer(ctx), params);
         const m = l.metrics;

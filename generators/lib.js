@@ -274,6 +274,75 @@ const warnOverflow = (tag, needed, available) => {
     }
 };
 
+// Chooses a frame grid and canvas for a natural pixel size.
+//
+// A document is expressed as item frames rather than raw pixels, because that is
+// what the person placing it has to build. The grid is picked to sit close to the
+// natural shape, then the layout is done into the resulting canvas rather than
+// being computed at the natural size and scaled, which would distort the legend.
+const canvasFor = (naturalWidth, naturalHeight) => {
+    const aspect = naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
+
+    let best = { columns: 1, rows: 1, error: Infinity };
+    for (let columns = 1; columns <= 8; columns += 1) {
+        for (let rows = 1; rows <= 8; rows += 1) {
+            // Same trade the recommender makes: prefer fewer frames unless the
+            // shape is genuinely wrong, since every frame is placed by hand.
+            const ratio = (columns / rows) / aspect;
+            const distortion = Math.abs(ratio >= 1 ? ratio - 1 : (1 / ratio) - 1);
+            const cost = distortion + (columns * rows) * 0.02;
+            if (cost < best.error) {
+                best = { columns: columns, rows: rows, error: cost };
+            }
+        }
+    }
+
+    // The frame resolution follows the natural size rather than being fixed, so the
+    // canvas is at least as big as the layout that was measured for it. Choosing a
+    // grid and then keeping a fixed resolution would shrink the canvas under a
+    // legend already sized in pixels, and the text would run off the edge.
+    const perFrame = Math.max(128, Math.min(1024, Math.ceil(Math.max(
+        naturalWidth / best.columns,
+        naturalHeight / best.rows))));
+
+    return {
+        grid: { columns: best.columns, rows: best.rows },
+        pixelsPerFrame: perFrame,
+        width: best.columns * perFrame,
+        height: best.rows * perFrame,
+    };
+};
+
+// Turns a laid-out text block into one text layer per line.
+//
+// One layer per line rather than one for the whole block, so a single line can be
+// recoloured, moved or retyped in the editor without touching its neighbours.
+const textLayers = (block, originX, originY, width) => {
+    const layers = [];
+    for (let i = 0; i < block.rows.length; i += 1) {
+        let row = block.rows[i];
+        layers.push({
+            kind: "text",
+            name: row.text || "Line " + (i + 1),
+            bounds: {
+                x: Math.round(originX),
+                y: Math.round(originY + row.y),
+                width: Math.round(width),
+                height: Math.round(row.height),
+            },
+            text: row.text,
+            font: row.opts.font,
+            size: Math.round(row.opts.size),
+            colour: row.opts.colour,
+            horizontalAlign: block.align === "centre" ? "centre" : "left",
+            verticalAlign: "top",
+            tracking: row.opts.tracking || 0,
+            verticalScale: row.opts.scaleY || 1,
+        });
+    }
+    return layers;
+};
+
 module.exports = {
     COLOURS: COLOURS,
     SCHEMES: SCHEMES,
@@ -291,4 +360,6 @@ module.exports = {
     drawPanel: drawPanel,
     parseDestination: parseDestination,
     warnOverflow: warnOverflow,
+    canvasFor: canvasFor,
+    textLayers: textLayers,
 };

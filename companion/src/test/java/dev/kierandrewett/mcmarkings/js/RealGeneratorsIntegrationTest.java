@@ -1,6 +1,9 @@
 package dev.kierandrewett.mcmarkings.js;
 
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.doc.DocumentRenderer;
+import dev.kierandrewett.mcmarkings.doc.Layer;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import org.junit.jupiter.api.Assumptions;
@@ -34,6 +37,7 @@ class RealGeneratorsIntegrationTest {
 
     private static Path repoRoot;
     private static RhinoGeneratorRuntime runtime;
+    private static FontRegistry fonts;
 
     @BeforeAll
     static void loadRealGenerators() throws GeneratorException {
@@ -42,7 +46,7 @@ class RealGeneratorsIntegrationTest {
         Assumptions.assumeTrue(repoRoot != null && Files.isDirectory(repoRoot.resolve("generators")),
                 "generators/ not present, skipping");
 
-        FontRegistry fonts = new FontRegistry(List.of(
+        fonts = new FontRegistry(List.of(
                 System.getProperty("user.home") + "/.local/share/fonts",
                 "/usr/share/fonts"));
 
@@ -175,6 +179,48 @@ class RealGeneratorsIntegrationTest {
             }
         }
         return true;
+    }
+
+    /**
+     * The repository's own plate, opened as layers rather than as a flat image.
+     *
+     * <p>The point of the whole path: a generated image stops being a dead end. If
+     * this produces something that will not render, the editor would open an empty
+     * canvas and nobody would know why, so it is rendered here rather than merely
+     * parsed.
+     */
+    @Test
+    void theRealPlateOpensAsAnEditableDocument() throws Exception {
+        Document document = runtime.document("plate", Map.of(
+                "lines", List.of("30 mph", "speed limit"),
+                "scheme", "blue")).orElseThrow(() -> new AssertionError("plate should describe itself"));
+
+        assertTrue(document.width() > 0 && document.height() > 0);
+        assertTrue(document.layers().size() >= 3, "a panel plus one layer per line, got "
+                + document.layers().size());
+
+        // The legend has to survive as editable text, not be baked into a picture.
+        List<Layer.Text> lines = document.layers().stream()
+                .filter(Layer.Text.class::isInstance)
+                .map(Layer.Text.class::cast)
+                .toList();
+        assertEquals(2, lines.size());
+        assertEquals("30 mph", lines.getFirst().text());
+        assertEquals("speed limit", lines.getLast().text());
+
+        // Every line must sit inside the canvas, or the layout put it off the plate.
+        for (Layer.Text line : lines) {
+            assertTrue(line.bounds().x() >= 0 && line.bounds().y() >= 0,
+                    line.text() + " starts outside the canvas at " + line.bounds());
+            assertTrue(line.bounds().bottom() <= document.height(),
+                    line.text() + " runs off the bottom: " + line.bounds());
+        }
+
+        BufferedImage rendered = new DocumentRenderer(fonts).render(document, path -> {
+            throw new IOException("this document should need no images: " + path);
+        });
+        assertFalse(isBlank(rendered), "the document rendered to nothing");
+        writeGolden(rendered, "real-plate-document.png");
     }
 
     /** Whatever comes out has to map onto a placeable block of item frames. */
