@@ -255,6 +255,22 @@ public final class CompanionServices {
      * without it a slow disk would have every tick starting another writer, which is
      * twenty threads a second all writing the same file.
      */
+    /**
+     * Writes the recovery snapshot immediately, ignoring the interval.
+     *
+     * <p>For the moment before these services are thrown away. Deliberately on the
+     * calling thread and deliberately blocking: the whole point is that it has
+     * finished before whatever comes next, and the only caller is a reload that
+     * already says it pauses.
+     */
+    public void flushRecoveryNow() {
+        try {
+            recovery.flushNow(System.currentTimeMillis());
+        } catch (IOException exception) {
+            McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not write the recovery snapshot", exception);
+        }
+    }
+
     private void flushRecoveryIfDue() {
         if (flushingRecovery || !recovery.hasUnsavedChanges()) {
             return;

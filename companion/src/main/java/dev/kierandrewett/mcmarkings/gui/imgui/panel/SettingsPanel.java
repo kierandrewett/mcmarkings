@@ -65,6 +65,9 @@ public final class SettingsPanel implements Panel {
      */
     private volatile Set<String> presentFontPaths = Set.of();
 
+    /** True while the reload is asking whether unsaved work should be abandoned. */
+    private boolean confirmingReload;
+
     private String note = "";
 
     private boolean noteIsWarning;
@@ -237,8 +240,27 @@ public final class SettingsPanel implements Panel {
         ImGui.textDisabled("MAINTENANCE");
         ImGui.separator();
 
-        if (ImGui.button("Reload everything##settings-reload")) {
-            reloadEverything();
+        if (confirmingReload) {
+            // It says what it costs. Reload throws the services away, and the document
+            // in the editor lives in them, so an unsaved composition goes with it.
+            // A button that quietly destroys an hour of work is not one anyone should
+            // press to pick up a font folder.
+            Notice.warningWrapped("The editor has unsaved changes. Reloading starts a new document, "
+                    + "and this one would only come back through crash recovery.");
+            if (ImGui.button("Reload anyway##settings-reload-confirm")) {
+                confirmingReload = false;
+                reloadEverything();
+            }
+            ImGui.sameLine();
+            if (ImGui.button("Cancel##settings-reload-cancel")) {
+                confirmingReload = false;
+            }
+        } else if (ImGui.button("Reload everything##settings-reload")) {
+            if (services.hasUnsavedEdits()) {
+                confirmingReload = true;
+            } else {
+                reloadEverything();
+            }
         }
         help("Re-reads the config, the repositories and the fonts. Needed after changing font folders.");
 
@@ -286,6 +308,11 @@ public final class SettingsPanel implements Panel {
         Minecraft.getInstance().execute(() -> {
             try {
                 services.config.save();
+
+                // Written before the services holding it are discarded, so even if
+                // someone reloads over unsaved work it is offered back rather than
+                // gone. Without this the last fifteen seconds of it would be.
+                services.flushRecoveryNow();
 
                 // The textures belong to the services being discarded, and nothing else
                 // will ever free them once the reference is gone.
