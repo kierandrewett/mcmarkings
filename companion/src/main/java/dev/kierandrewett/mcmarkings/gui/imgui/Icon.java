@@ -152,6 +152,31 @@ public record Icon(List<float[]> strokes, List<float[]> boxes) {
             List.of(),
             List.of(box(0.16f, 0.26f, 0.68f, 0.48f, false)));
 
+    /**
+     * A loop with an arrowhead, for fetching something again.
+     *
+     * <p>Square rather than round. A circle at thirteen pixels drawn out of straight
+     * segments is a blob, and three sides of a box with a head on the end reads as
+     * "round again" at a size where an actual arc does not.
+     */
+    public static final Icon REFRESH = of(
+            List.of(line(0.24f, 0.34f, 0.76f, 0.34f), line(0.76f, 0.34f, 0.76f, 0.7f),
+                    line(0.76f, 0.7f, 0.32f, 0.7f), line(0.24f, 0.34f, 0.24f, 0.56f),
+                    line(0.32f, 0.7f, 0.46f, 0.58f), line(0.32f, 0.7f, 0.46f, 0.82f)),
+            List.of());
+
+    /** A map item: a filled square inside a border, the way one looks in a frame. */
+    public static final Icon MAP = of(
+            List.of(),
+            List.of(box(0.14f, 0.14f, 0.72f, 0.72f, false), box(0.28f, 0.28f, 0.44f, 0.44f, true)));
+
+    /** A pencil, on the diagonal every editing tool uses. */
+    public static final Icon EDIT = of(
+            List.of(line(0.2f, 0.8f, 0.34f, 0.76f), line(0.2f, 0.8f, 0.24f, 0.66f),
+                    line(0.24f, 0.66f, 0.66f, 0.24f), line(0.34f, 0.76f, 0.76f, 0.34f),
+                    line(0.66f, 0.24f, 0.76f, 0.34f), line(0.6f, 0.3f, 0.7f, 0.4f)),
+            List.of());
+
     /** Bars against a left edge. */
     public static final Icon ALIGN_LEFT = of(
             List.of(line(0.14f, 0.12f, 0.14f, 0.88f)),

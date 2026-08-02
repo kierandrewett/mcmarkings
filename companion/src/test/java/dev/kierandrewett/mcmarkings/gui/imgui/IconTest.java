@@ -95,4 +95,27 @@ class IconTest {
         all().forEach((name, icon) -> assertTrue(
                 !icon.strokes().isEmpty() || !icon.boxes().isEmpty(), name + " draws nothing"));
     }
+
+    /**
+     * Destructive confirmations are words, not pictures.
+     *
+     * <p>The routine actions on a placed map are icons now, because every map carries
+     * that row and a dozen signs was a dozen rows of seven words. The confirmations
+     * are deliberately left alone: an icon is a thing you interpret, and the moment to
+     * be certain rather than quick is the one where something goes.
+     *
+     * <p>Checked in the source, since it is a decision about that panel rather than a
+     * property of the icons.
+     */
+    @Test
+    @DisplayName("the confirm buttons on a placed map are still words")
+    void confirmationsAreNotIcons() throws java.io.IOException {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/PlacedPanel.java"));
+
+        for (String confirm : List.of("\"Forget\"", "\"Keep\"", "\"Delete##server\"", "\"Keep##server\"")) {
+            assertTrue(source.contains("ImGui.button(" + confirm),
+                    "the confirmation " + confirm + " is no longer a plain labelled button");
+        }
+    }
 }

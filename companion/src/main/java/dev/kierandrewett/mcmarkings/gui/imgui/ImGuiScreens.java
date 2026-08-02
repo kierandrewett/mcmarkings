@@ -303,6 +303,41 @@ public final class ImGuiScreens {
     }
 
     /**
+     * A square button with an icon on it.
+     *
+     * <p>Shared from the start rather than after a second panel copies it, which is
+     * the shape of most of what I have merged back together this week.
+     *
+     * <p>The icon is drawn over the button rather than into it, since ImGui has no
+     * way to give a button a picture, and after it so the button's own hover and
+     * pressed states still show through.
+     *
+     * <p>The words that were on the button go into the tooltip, and there is room
+     * there to say more than a button face can: "Refresh" becomes what refreshing
+     * actually does.
+     */
+    public static boolean iconButton(String id, Icon icon, String label, String hint) {
+        float side = ImGui.getFrameHeight();
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        boolean pressed = ImGui.button("##" + id, side, side);
+
+        float inset = Math.max(2.0f, side * 0.2f);
+        drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset, side - inset * 2.0f,
+                ImGui.getColorU32(imgui.flag.ImGuiCol.Text));
+
+        if (explaining()) {
+            ImGui.setTooltip(label + (hint == null || hint.isBlank() ? "" : "\n" + hint));
+        }
+        return pressed;
+    }
+
+    /** The width an icon button takes, including the gap after it. */
+    public static float iconButtonWidth() {
+        return ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingX();
+    }
+
+    /**
      * Whether the control just submitted should explain itself.
      *
      * <p>Hovered or focused, and focused is the half that was missing. ImGui shows a

@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RelativeTime;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.DocumentJson;
+import dev.kierandrewett.mcmarkings.gui.imgui.Icon;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -177,40 +178,39 @@ public final class PlacedPanel implements Panel {
     private void drawRowActions(MapEntry entry) {
         boolean known = services.byId(entry.repositoryId()).isPresent();
 
+        // Icons for the five routine actions. Every placed map carries this row, so a
+        // list of a dozen signs was a dozen rows of seven words. The confirmations
+        // below stay as words on purpose: an icon is a thing you interpret, and the
+        // moment to be certain rather than quick is the one where something goes.
+        //
+        // The tooltip is where the words went, and there is room there to say what the
+        // button face never could.
         ImGui.beginDisabled(refreshing || !known);
-        boolean refresh = ImGui.button("Refresh");
+        boolean refresh = ImGuiScreens.iconButton("placed-refresh-" + entry.imageFrameName(),
+                Icon.REFRESH, "Refresh",
+                known
+                        ? "Re-read the image at its current commit, so the sign on the wall catches up."
+                        : "The repository this came from is not set up here, so there is nothing to read.");
         ImGui.endDisabled();
 
-        // AllowWhenDisabled, or the second half of this tooltip can never be seen:
-        // the button is only disabled when the repository is unknown, which is
-        // precisely the case that message was written for.
-        if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip(known
-                    ? "Re-read the image at its current commit, so the sign on the wall catches up."
-                    : "The repository this came from is not set up here, so there is nothing to read.");
-        }
+        ImGuiScreens.flowTo(ImGuiScreens.iconButtonWidth());
+        boolean getMap = ImGuiScreens.iconButton("placed-map-" + entry.imageFrameName(),
+                Icon.MAP, "Get the map item again",
+                "For when the original was broken or lost. It is the same map, not a copy.");
 
-        ImGuiScreens.flowTo("Get map");
-        boolean getMap = ImGui.button("Get map");
-        if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip("Hands you the map item again, for when the original was "
-                    + "broken or lost. It is the same map, not a copy.");
-        }
+        ImGuiScreens.flowTo(ImGuiScreens.iconButtonWidth());
+        boolean frames = ImGuiScreens.iconButton("placed-frames-" + entry.imageFrameName(),
+                Icon.FRAMES, "Get frames",
+                "Another " + entry.grid().frameCount() + " invisible frames, for placing it again.");
 
-        ImGuiScreens.flowTo("Get frames");
-        boolean frames = ImGui.button("Get frames");
-        if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip("Another " + entry.grid().frameCount() + " invisible frames, for placing it again.");
-        }
+        ImGuiScreens.flowTo(ImGuiScreens.iconButtonWidth());
+        boolean edit = ImGuiScreens.iconButton("placed-edit-" + entry.imageFrameName(),
+                Icon.EDIT, "Edit this sign",
+                "Reopens it in the editor, if its document was saved beside it.");
 
-        ImGuiScreens.flowTo("Edit");
-        boolean edit = ImGui.button("Edit");
-        if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip("Reopen this sign in the editor, if its document was saved beside it.");
-        }
-
-        ImGuiScreens.flowTo("Copy name");
-        boolean copy = ImGui.button("Copy name");
+        ImGuiScreens.flowTo(ImGuiScreens.iconButtonWidth());
+        boolean copy = ImGuiScreens.iconButton("placed-copy-" + entry.imageFrameName(),
+                Icon.DUPLICATE, "Copy the map name", "Puts it on the clipboard.");
 
         ImGuiScreens.flowTo("Forget...");
         if (confirming.equals(entry.imageFrameName())) {
