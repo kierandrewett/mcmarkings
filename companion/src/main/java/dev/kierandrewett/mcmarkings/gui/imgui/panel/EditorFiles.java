@@ -286,8 +286,16 @@ public final class EditorFiles {
         if (history.current().layers().isEmpty()) {
             return "The canvas is empty, so there is nothing to place.";
         }
+        // Named plainly when there is something to name. "Pushes the branch" is
+        // accurate and abstract; "you also have local commits it will send" is the
+        // sentence that stops someone pushing a fortnight of unrelated work by
+        // pressing a button labelled place a sign.
         return "Renders at full size, commits it, pushes the branch, "
-                + "then runs the ImageFrame command";
+                + "then runs the ImageFrame command"
+                + (services.hasUnpushedCommits()
+                        ? "\n\nThis branch has local commits the remote has not seen. "
+                                + "Pushing sends those too."
+                        : "");
     }
 
     private boolean repositoryReady() {

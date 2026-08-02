@@ -134,6 +134,24 @@ public final class CompanionServices {
         return clipboard;
     }
 
+    /**
+     * Whether the checked-out branch has commits the remote has not seen.
+     *
+     * <p>Set by whoever resolves the repository's identity, because it is the same
+     * two git calls and neither belongs on the client thread. Read by the publish
+     * controls, which is the one moment it matters: placing a sign pushes the branch,
+     * so it pushes everything else sitting on it too.
+     */
+    private volatile boolean unpushedCommits;
+
+    public void setUnpushedCommits(boolean unpushed) {
+        this.unpushedCommits = unpushed;
+    }
+
+    public boolean hasUnpushedCommits() {
+        return unpushedCommits;
+    }
+
     /** Called after a successful save or open. */
     public void markSaved(Document document) {
         this.savedDocument = document;

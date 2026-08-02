@@ -757,6 +757,12 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 // fetches these URLs over HTTP, so an unpushed commit is a 404.
                 String head = services.git().pinnableCommit();
 
+                // The same two calls answer whether anything local is unpushed, and
+                // both are already on a worker here. Placing a sign pushes the branch,
+                // so the publish controls need to be able to say so with a straight
+                // face rather than after the fact.
+                services.setUnpushedCommits(!head.equals(services.git().head()));
+
                 // Never shown until now, and the mod commits and pushes to whatever
                 // branch is checked out. Working on one branch while believing you are
                 // on another is how a sign ends up pushed somewhere nobody looks.
