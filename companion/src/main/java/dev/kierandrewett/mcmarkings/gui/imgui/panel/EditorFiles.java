@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.command.Command;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.command.Shortcut;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.doc.BuilderLayout;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.DocumentJson;
 import dev.kierandrewett.mcmarkings.doc.DocumentRenderer;
@@ -22,9 +23,16 @@ import net.minecraft.client.Minecraft;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 /**
  * Keeping and placing what the editor makes.
@@ -80,6 +88,13 @@ public final class EditorFiles {
     private volatile boolean listing;
 
     private volatile String listingProblem;
+
+    /**
+     * Compositions left behind by the old builder, found beside the images it
+     * published. Listed alongside templates because from where someone is sitting
+     * they are the same thing: work they made earlier and want back.
+     */
+    private volatile List<Path> layouts = List.of();
 
     /**
      * True from the moment a file operation starts until it finishes.
@@ -299,6 +314,8 @@ public final class EditorFiles {
             drawTemplateList();
         }
 
+        drawLayoutList();
+
         if (hasUnsavedChanges() && !templates.isEmpty()) {
             ImGui.separator();
             ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
@@ -325,6 +342,110 @@ public final class EditorFiles {
             }
         }
         ImGui.endChild();
+    }
+
+    private void drawLayoutList() {
+        List<Path> found = layouts;
+        if (found.isEmpty()) {
+            return;
+        }
+
+        ImGui.separator();
+        ImGui.textDisabled("From the old builder");
+        for (Path file : found) {
+            String name = nameOf(file);
+            if (ImGui.selectable(name + "##layout-" + file.getFileName())) {
+                ImGui.closeCurrentPopup();
+                openLayout(file, name);
+            }
+        }
+    }
+
+    /**
+     * Finds the old builder's layout files.
+     *
+     * <p>They sit beside the images it published, so the generated folder is the only
+     * place worth looking. On a worker: it is a directory listing.
+     */
+    private List<Path> findBuilderLayouts() {
+        Path directory = services.repo().root().resolve(services.config.generatedDirectory);
+        if (!Files.isDirectory(directory)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.list(directory)) {
+            return files.filter(path -> path.getFileName().toString().endsWith(".layout.json"))
+                    .sorted()
+                    .toList();
+        } catch (IOException | RuntimeException unreadable) {
+            return List.of();
+        }
+    }
+
+    private void openLayout(Path file, String name) {
+        busy = true;
+        status.info("Converting " + name + "...");
+
+        Path root = services.repo().root();
+        int pixelsPerFrame = services.config.exportPixelsPerFrame;
+
+        Thread.ofVirtual().name("mcmarkings-editor-import").start(() -> {
+            try {
+                String json = Files.readString(file, StandardCharsets.UTF_8);
+                BuilderLayout.Result result = BuilderLayout.read(json, name, pixelsPerFrame,
+                        repoPath -> sizeOf(root.resolve(repoPath)));
+
+                Minecraft.getInstance().execute(() -> {
+                    onOpened(result.document());
+
+                    // It is now a document rather than a layout, and saving writes a
+                    // template. Said plainly, because the file it came from stays where
+                    // it is and will keep showing up in this list.
+                    if (result.missing().isEmpty()) {
+                        status.good("Converted " + name + ". Save it to keep it as a template.");
+                    } else {
+                        status.bad(result.missing().size()
+                                + " image(s) are no longer in the repository and were left out.");
+                    }
+                });
+            } catch (IOException | RuntimeException failure) {
+                report("Could not convert " + name, failure);
+            }
+        });
+    }
+
+    /**
+     * An image's size, without decoding it.
+     *
+     * <p>Only the dimensions are wanted, and a composition can reference a lot of
+     * large PNGs. Reading the header rather than the pixels turns this from seconds
+     * into nothing.
+     */
+    private static BuilderLayout.Size sizeOf(Path path) throws IOException {
+        if (!Files.isRegularFile(path)) {
+            return null;
+        }
+        try (ImageInputStream stream = ImageIO.createImageInputStream(path.toFile())) {
+            if (stream == null) {
+                return null;
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
+            if (!readers.hasNext()) {
+                return null;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(stream);
+                return new BuilderLayout.Size(reader.getWidth(0), reader.getHeight(0));
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    /** A layout's display name: the file name without either of its two extensions. */
+    private static String nameOf(Path file) {
+        String name = file.getFileName().toString();
+        return name.endsWith(".layout.json") ? name.substring(0, name.length() - ".layout.json".length()) : name;
     }
 
     // -----------------------------------------------------------------------
@@ -359,6 +480,7 @@ public final class EditorFiles {
         Thread.ofVirtual().name("mcmarkings-editor-templates").start(() -> {
             try {
                 templates = store.list();
+                layouts = findBuilderLayouts();
             } catch (RuntimeException failure) {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] could not list templates", failure);
                 templates = List.of();

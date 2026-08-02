@@ -116,13 +116,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 browser,
                 editor,
                 new ShortcutPanel("Generate",
-                        "Building an image from a script, and laying several out on one canvas, "
-                                + "still live in their own screens.",
-                        List.of(
-                                new Shortcut("Generator", "Build an image from a generator script",
-                                        () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))),
-                                new Shortcut("Builder", "Lay several images out on one canvas",
-                                        () -> Minecraft.getInstance().setScreen(new BuilderScreen(services))))),
+                        "Building an image from a script still lives in its own screen. "
+                                + "Everything it makes can be opened in the editor afterwards.",
+                        List.of(new Shortcut("Generator", "Build an image from a generator script",
+                                () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))))),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
     }
