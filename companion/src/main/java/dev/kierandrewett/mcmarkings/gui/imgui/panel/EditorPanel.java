@@ -110,7 +110,6 @@ public final class EditorPanel implements Panel {
 
     private static final int NAME_BUFFER = 128;
     private static final int TEXT_BUFFER = 4096;
-    private static final int QUERY_BUFFER = 128;
 
     /** Column widths, in text lines, so they follow the game's GUI scale. */
     private static final float LAYERS_MIN_LINES = 12.0f;
@@ -136,7 +135,6 @@ public final class EditorPanel implements Panel {
     private static final int KEY_A = 'A';
     private static final int KEY_D = 'D';
     private static final int KEY_G = 'G';
-    private static final int KEY_P = 'P';
     private static final int KEY_Z = 'Z';
     private static final int KEY_ZERO = '0';
     private static final int KEY_MINUS = '-';
@@ -153,7 +151,6 @@ public final class EditorPanel implements Panel {
     private static final int MOD_ALT = 0x0004;
     private static final int MOD_SUPER = 0x0008;
 
-    private static final String PALETTE_ID = "Commands##editor-palette";
 
     private static final String PADDING_LABEL = "Padding (top, right, bottom, left)";
 
@@ -190,8 +187,7 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("|", null),
             new ToolbarItem("-##zoom-out", "editor.zoom.out"),
             new ToolbarItem("+##zoom-in", "editor.zoom.in"),
-            new ToolbarItem("Fit", "editor.zoom.fit"),
-            new ToolbarItem("Commands", "editor.palette"));
+            new ToolbarItem("Fit", "editor.zoom.fit"));
 
     private final CompanionServices services;
 
@@ -239,13 +235,10 @@ public final class EditorPanel implements Panel {
     private final ImString textBuffer = new ImString("", TEXT_BUFFER);
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
     private final ImString documentNameBuffer = new ImString("", NAME_BUFFER);
-    private final ImString paletteQuery = new ImString("", QUERY_BUFFER);
 
     /** Which layer the name and text buffers were last filled from. */
     private String buffersFor;
 
-    private boolean paletteRequested;
-    private boolean paletteFocusPending;
 
     /** Reused rather than allocated per frame; only ever touched while drawing. */
     private final int[] pair = new int[2];
@@ -299,7 +292,8 @@ public final class EditorPanel implements Panel {
         return "Editor";
     }
 
-    /** Everything the editor can do, for whatever wants to offer it. */
+    /** Everything the editor can do, for the window's palette to search. */
+    @Override
     public CommandRegistry commands() {
         return commands;
     }
@@ -346,7 +340,6 @@ public final class EditorPanel implements Panel {
             // skipping this on any frame would close whatever is open.
             picker.drawPicker();
             files.drawPopups();
-            drawPalette();
         }
     }
 
@@ -1699,10 +1692,6 @@ public final class EditorPanel implements Panel {
         commands.register(Command.of("editor.snap", "Toggle snapping").category("View")
                 .hint("Hold Alt to suspend it for one drag")
                 .does(() -> snapEnabled = !snapEnabled));
-        commands.register(Command.of("editor.palette", "Command palette").category("View")
-                .hint("Search everything the editor can do")
-                .shortcut(Shortcut.control(KEY_P))
-                .does(() -> paletteRequested = true));
     }
 
     private void nudge(int deltaX, int deltaY) {
@@ -1800,57 +1789,6 @@ public final class EditorPanel implements Panel {
         }
         recorded = current;
         services.recovery.record(current, services.activeRepositoryId());
-    }
-
-    // -----------------------------------------------------------------------
-    // Command palette
-    // -----------------------------------------------------------------------
-
-    private void drawPalette() {
-        if (paletteRequested) {
-            paletteRequested = false;
-            paletteQuery.set("");
-            paletteFocusPending = true;
-            ImGui.openPopup(PALETTE_ID);
-        }
-        if (!ImGui.beginPopup(PALETTE_ID)) {
-            return;
-        }
-
-        Command chosen = null;
-        try {
-            if (paletteFocusPending) {
-                ImGui.setKeyboardFocusHere();
-                paletteFocusPending = false;
-            }
-            ImGui.setNextItemWidth(unit() * 22.0f);
-            ImGui.inputTextWithHint("##palette-query", "Search commands", paletteQuery);
-
-            for (Command command : commands.search(paletteQuery.get(), 12)) {
-                String shortcut = command.shortcut() == null ? "" : "   " + command.shortcut().display();
-                String label = command.category() + ": " + command.label() + shortcut;
-                if (!command.isEnabled()) {
-                    // Shown rather than hidden, so the palette teaches what exists and
-                    // a missing entry always means a wrong search rather than a state.
-                    ImGui.textDisabled(label);
-                    continue;
-                }
-                if (ImGui.selectable(label)) {
-                    chosen = command;
-                }
-            }
-            if (chosen != null) {
-                ImGui.closeCurrentPopup();
-            }
-        } finally {
-            ImGui.endPopup();
-        }
-
-        // Run outside the popup: a command that opens another popup, or that throws,
-        // must not do it while this one is still on the stack.
-        if (chosen != null) {
-            chosen.run();
-        }
     }
 
     // -----------------------------------------------------------------------

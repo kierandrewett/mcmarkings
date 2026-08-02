@@ -20,6 +20,10 @@ import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.repo.GitException;
 import dev.kierandrewett.mcmarkings.repo.PullResult;
 import dev.kierandrewett.mcmarkings.repo.RawUrls;
+import dev.kierandrewett.mcmarkings.command.Command;
+import dev.kierandrewett.mcmarkings.command.CommandRegistry;
+import dev.kierandrewett.mcmarkings.command.Shortcut;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.CommandPalette;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiTabBarFlags;
@@ -32,6 +36,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -70,6 +75,23 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
     /** A tab asked for by name, selected on the next frame and then forgotten. */
     private String pendingTab;
+
+    private static final int KEY_P = 'P';
+
+    /** GLFW modifier bits, which the key event carries verbatim. */
+    private static final int MOD_SHIFT = 0x0001;
+
+    private static final int MOD_CONTROL = 0x0002;
+
+    private static final int MOD_ALT = 0x0004;
+
+    /** Command on a Mac, where it is what Control is everywhere else. */
+    private static final int MOD_SUPER = 0x0008;
+
+    /** The window's own actions, as opposed to whatever the visible tab offers. */
+    private final CommandRegistry commands = new CommandRegistry();
+
+    private final CommandPalette palette = new CommandPalette("Commands##shell-palette", this::commandScope);
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
 
     private final ImageBrowserPanel browser;
@@ -123,6 +145,59 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 new GeneratorPanel(services, () -> pendingTab = "Editor"),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
+
+        registerCommands();
+    }
+
+    /**
+     * The window's own actions.
+     *
+     * <p>Jumping to a tab is here rather than in each panel because it is about the
+     * window rather than about any one of them, and because typing "settings" should
+     * get you there from wherever you are. That is the whole point of the palette:
+     * knowing a thing exists is easy, remembering which tab it lives behind is what
+     * sends people back to the mouse.
+     */
+    private void registerCommands() {
+        commands.register(Command.of("shell.palette", "Command palette").category("Window")
+                .hint("Search everything this window and the visible tab can do")
+                .shortcut(Shortcut.control(KEY_P))
+                .does(palette::open));
+
+        for (Panel panel : panels) {
+            String title = panel.title();
+            commands.register(Command.of("shell.tab." + title.toLowerCase(Locale.ROOT), "Go to " + title)
+                    .category("Window")
+                    .hint("Show the " + title + " tab")
+                    .enabledWhen(services::hasConfiguredRepositories)
+                    .does(() -> pendingTab = title));
+        }
+
+        commands.register(Command.of("shell.pull", "Pull").category("Repository")
+                .hint("Fetch the latest images for the active repository")
+                .enabledWhen(() -> !pulling && services.hasRepositories())
+                .does(this::pull));
+
+        commands.register(Command.of("shell.rescan", "Rescan").category("Repository")
+                .hint("Read the repository folder again, after changing files outside the game")
+                .enabledWhen(() -> !services.isLoading() && services.hasRepositories())
+                .does(this::rescan));
+
+        commands.register(Command.of("shell.close", "Close the window").category("Window")
+                .hint("Back to the game")
+                .does(this::onClose));
+    }
+
+    /**
+     * What the palette searches this frame: the window, then the visible tab.
+     *
+     * <p>Read per frame rather than assembled once, because which tab is visible is
+     * the whole point and a panel's registry can gain commands after it is built.
+     */
+    private List<CommandRegistry> commandScope() {
+        return activePanel == null
+                ? List.of(commands)
+                : java.util.Arrays.asList(commands, activePanel.commands());
     }
 
     @Override
@@ -170,6 +245,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
         // Only once ImGui has said it does not want the key, and only for the tab on
         // screen. Otherwise typing into a text box fires editor shortcuts.
+        int modifiers = event.modifiers();
+        if (commands.handleKey(event.key(), (modifiers & (MOD_CONTROL | MOD_SUPER)) != 0,
+                (modifiers & MOD_SHIFT) != 0, (modifiers & MOD_ALT) != 0)) {
+            return true;
+        }
         if (activePanel == editor && editor.handleKey(event.key(), event.modifiers())) {
             return true;
         }
@@ -224,6 +304,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
 
         status.draw();
+        palette.draw();
     }
 
     private void drawTopBar() {
@@ -247,6 +328,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
         if (rescanPressed) {
             rescan();
+        }
+
+        ImGui.sameLine();
+        if (ImGui.button("Commands")) {
+            palette.open();
+        }
+        if (ImGui.isItemHovered()) {
+            // A palette nobody can find is a palette nobody uses, and the shortcut is
+            // only obvious to people who already expected it to be there.
+            ImGui.setTooltip("Search everything this window and the visible tab can do (Ctrl+P)");
         }
 
         ImGui.sameLine();

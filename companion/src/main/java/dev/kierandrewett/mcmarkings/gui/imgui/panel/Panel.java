@@ -38,4 +38,15 @@ public interface Panel {
      */
     default void onRemoved() {
     }
+
+    /**
+     * The panel's own actions, for the window's command palette to search.
+     *
+     * <p>Null when it has none, which is most of them. Returning the live registry
+     * rather than a copy is deliberate: what a command does and whether it is
+     * available both depend on state that changes between frames.
+     */
+    default dev.kierandrewett.mcmarkings.command.CommandRegistry commands() {
+        return null;
+    }
 }
