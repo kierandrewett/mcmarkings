@@ -594,8 +594,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         int wallHeight = grid.rows() * GridSize.MAP_PIXELS;
         ImGui.textDisabled(wallWidth + " x " + wallHeight + " on the wall");
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Every item frame shows a 128 pixel map, so this is the detail "
-                    + "the sign really has however large the source image is.");
+            ImGui.setTooltip("Every item frame shows a " + GridSize.MAP_PIXELS + " pixel map, so this "
+                    + "is the detail the sign really has however large the source image is.");
         }
         for (GridSuggestion suggestion : suggestions) {
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"

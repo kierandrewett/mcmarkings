@@ -1989,7 +1989,10 @@ public final class EditorPanel implements Panel {
         for (Direction direction : directions) {
             commands.register(Command.of("editor.nudge." + direction.id(), "Nudge " + direction.label())
                     .category("Layer")
-                    .hint("Move the selection by one pixel")
+                    // Derived, like the large nudge's label beside it. A sentence that
+                    // hardcodes what a constant owns is true until someone changes the
+                    // constant, and then it is a lie nobody thinks to check.
+                    .hint("Move the selection by " + NUDGE_SMALL + " pixel")
                     .shortcut(Shortcut.of(direction.keyCode()))
                     .enabledWhen(this::hasSelection)
                     .does(() -> nudge(direction.deltaX() * NUDGE_SMALL, direction.deltaY() * NUDGE_SMALL)));

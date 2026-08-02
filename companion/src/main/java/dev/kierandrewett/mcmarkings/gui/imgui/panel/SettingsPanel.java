@@ -1,6 +1,7 @@
 package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 
 import dev.kierandrewett.mcmarkings.CompanionServices;
+import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
@@ -167,8 +168,8 @@ public final class SettingsPanel implements Panel {
         ImGui.setNextItemWidth(fieldWidth());
         ImGui.inputInt("Pixels per frame##settings-pixels", pixelsPerFrame);
         boolean pixelsDone = ImGui.isItemDeactivatedAfterEdit();
-        help("Detail per item frame. A map shows 128, so more than that only helps "
-                + "if you look at the sign up close.");
+        help("Detail per item frame. A map shows " + GridSize.MAP_PIXELS + ", so more than that "
+                + "buys a better downsample rather than a sharper sign.");
         if (pixelsDone) {
             int value = (int) clamp(pixelsPerFrame.get(), MINIMUM_PIXELS, MAXIMUM_PIXELS);
             pixelsPerFrame.set(value);
