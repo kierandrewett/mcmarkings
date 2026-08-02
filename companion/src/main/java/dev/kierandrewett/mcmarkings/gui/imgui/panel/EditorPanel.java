@@ -1512,7 +1512,7 @@ public final class EditorPanel implements Panel {
         pair[1] = bounds.y();
         if (field("Position (x, y)", () -> ImGui.dragInt2("##position", pair))) {
             apply(document.replace(layer.withBounds(bounds.movedTo(pair[0], pair[1]))),
-                    "Move layer", "bounds:" + layer.id());
+                    "Move layer", "position:" + layer.id());
         }
 
         pair[0] = bounds.width();
@@ -1520,7 +1520,11 @@ public final class EditorPanel implements Panel {
         if (field("Size (w, h)", () -> ImGui.dragInt2("##size", pair, 1.0f, 1, Integer.MAX_VALUE))) {
             Layer.Bounds resized = new Layer.Bounds(bounds.x(), bounds.y(),
                     Math.max(1, pair[0]), Math.max(1, pair[1]));
-            apply(document.replace(layer.withBounds(resized)), "Resize layer", "bounds:" + layer.id());
+            // Its own key. Sharing one with Position merged a move and a resize into a
+            // single undo when they happened within the coalescing window, and the
+            // entry kept the first one's label, so undo offered to move something you
+            // had just resized.
+            apply(document.replace(layer.withBounds(resized)), "Resize layer", "size:" + layer.id());
         }
     }
 
