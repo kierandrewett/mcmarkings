@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * <p>Transport is Crown copyright and is not redistributable, so it is deliberately
  * absent from this repository. It has to be found on the user's own machine, which
  * means the lookup has to cope with whatever the files are called: on a Linux box
- * they are usually {@code ~/.local/share/fonts/Transport Heavy.ttf} and
+ * the file names are typically {@code Transport Heavy.ttf} and
  * {@code Transport Medium.ttf}, but the internal names disagree with each other
  * (Heavy reports family "Transport Heavy", Medium reports family "Transport" with
  * face name "Transport Medium"). Matching therefore runs against filenames, family

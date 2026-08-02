@@ -21,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,6 +43,15 @@ import java.util.stream.Stream;
 public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
 
     private static final int MAX_LISTED = 300;
+
+    /**
+     * The sandbox's own application id, or null when not sandboxed.
+     *
+     * <p>Flatpak sets FLATPAK_ID inside the sandbox, so the advice can name the
+     * actual launcher rather than assuming one. Null on Windows, macOS, and any
+     * unsandboxed Linux install, where none of this applies.
+     */
+    private static final String SANDBOX_APP_ID = System.getenv("FLATPAK_ID");
 
     private final Screen parent;
     private final Consumer<Path> onChosen;
@@ -88,6 +98,21 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
         root.child(UIComponents.label(Component.literal(
                 "Pick the folder your sign images live in. It is normally a clone of a GitHub repository.")
                 .withStyle(ChatFormatting.GRAY)));
+
+        if (SANDBOX_APP_ID != null) {
+            // Worth saying up front, but only where it is true. In a sandbox the home
+            // folder lists only what has been granted, so an otherwise correct setup
+            // looks like an empty disk and the folder someone wants is not there to
+            // click. The application id comes from the sandbox itself rather than
+            // being assumed, since this is not specific to any one launcher.
+            root.child(UIComponents.label(Component.literal(
+                    "This launcher is sandboxed, so only folders you have granted are visible here.")
+                    .withStyle(ChatFormatting.GOLD)));
+            root.child(UIComponents.label(Component.literal(
+                    "Grant one outside the sandbox with:  flatpak override --user "
+                            + "--filesystem=/path/to/folder " + SANDBOX_APP_ID)
+                    .withStyle(ChatFormatting.DARK_GRAY)));
+        }
 
         pathLabel = UIComponents.label(Component.literal(current.toString()).withStyle(ChatFormatting.YELLOW));
         root.child(pathLabel);
@@ -147,11 +172,28 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
         Path parentDirectory = current.getParent();
         if (parentDirectory != null) {
             listing.child(entryRow("..", parentDirectory, ChatFormatting.AQUA));
+        } else {
+            // At the top there is nowhere further up, and on Windows "the top" is a
+            // drive rather than one filesystem root, so the other drives have to be
+            // offered here or they are unreachable.
+            for (Path root : FileSystems.getDefault().getRootDirectories()) {
+                if (!root.equals(current)) {
+                    listing.child(entryRow(root.toString(), root, ChatFormatting.AQUA));
+                }
+            }
         }
 
         for (Path child : childDirectories(current)) {
             Path name = child.getFileName();
-            listing.child(entryRow(name == null ? child.toString() : name.toString(), child, ChatFormatting.WHITE));
+            String label = name == null ? child.toString() : name.toString();
+
+            // Marking the repositories saves walking into folders one at a time to
+            // find out which is the one. A single stat per row, so it stays cheap.
+            boolean repository = Files.exists(child.resolve(".git"));
+            listing.child(entryRow(
+                    repository ? label + "   (git repository)" : label,
+                    child,
+                    repository ? ChatFormatting.GREEN : ChatFormatting.WHITE));
         }
 
         if (listing.children().isEmpty()) {
@@ -196,8 +238,13 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
     }
 
     /**
-     * Says what this folder is before it is committed to, so a wrong choice is
-     * obvious here rather than as an empty browser later.
+     * One neutral line about the folder currently open.
+     *
+     * <p>Deliberately quiet. This runs on every step of the walk down to the folder
+     * someone wants, and the folders passed through on the way are not candidates
+     * and not mistakes. Reporting "not a git repository" at each one reads as a
+     * repeated error for doing nothing wrong. The caveats that actually matter are
+     * saved for {@link #choose()}, where they are about to mean something.
      */
     private void showVerdict(RepositoryCheck check) {
         verdictPanel.clearChildren();
@@ -209,21 +256,28 @@ public class DirectoryPickerScreen extends BaseOwoScreen<FlowLayout> {
             return;
         }
 
-        String summary = check.imageCount() > 0
-                ? check.imageCount() + (check.imageCount() >= 500 ? "+" : "") + " image(s) found"
-                : "No images found";
-        verdictPanel.child(UIComponents.label(Component.literal(summary)
-                .withStyle(check.imageCount() > 0 ? ChatFormatting.GREEN : ChatFormatting.YELLOW)));
-
-        if (check.hasRemote()) {
-            verdictPanel.child(UIComponents.label(Component.literal("Remote: " + check.remoteSlug())
-                    .withStyle(ChatFormatting.GREEN)));
+        if (check.isGitRepository() && check.imageCount() > 0) {
+            String remote = check.hasRemote() ? ", " + check.remoteSlug() : "";
+            verdictPanel.child(UIComponents.label(Component.literal(
+                    "This looks right: " + countText(check) + remote).withStyle(ChatFormatting.GREEN)));
+            return;
         }
 
-        for (String note : check.notes()) {
-            verdictPanel.child(UIComponents.label(Component.literal(note).withStyle(ChatFormatting.GRAY)));
+        if (check.imageCount() > 0) {
+            verdictPanel.child(UIComponents.label(Component.literal(
+                    countText(check) + " here, but no git repository").withStyle(ChatFormatting.YELLOW)));
+            return;
         }
+
+        verdictPanel.child(UIComponents.label(Component.literal(
+                "Keep looking, or use this folder anyway if you plan to generate signs into it.")
+                .withStyle(ChatFormatting.DARK_GRAY)));
     }
+
+    private static String countText(RepositoryCheck check) {
+        return check.imageCount() + (check.imageCount() >= 500 ? "+" : "") + " image(s)";
+    }
+
 
     /**
      * A folder with no images or no remote is still accepted. It is a legitimate

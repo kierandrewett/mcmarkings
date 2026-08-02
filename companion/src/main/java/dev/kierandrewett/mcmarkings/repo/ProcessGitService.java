@@ -44,6 +44,10 @@ public class ProcessGitService implements GitService {
      */
     private static final boolean SANDBOXED = Files.exists(Path.of("/.flatpak-info"));
 
+    /** The sandbox's own application id, so advice can name it rather than guess. */
+    private static final String SANDBOX_APP_ID =
+            System.getenv().getOrDefault("FLATPAK_ID", "<your-launcher-id>");
+
     private final Path root;
 
     private volatile boolean repoVerified;
@@ -170,7 +174,7 @@ public class ProcessGitService implements GitService {
                 ? "This client is sandboxed, so git has to run on the host through flatpak-spawn. "
                         + "Grant it with:\n"
                         + "  flatpak override --user --talk-name=org.freedesktop.Flatpak "
-                        + "org.prismlauncher.PrismLauncher\n"
+                        + SANDBOX_APP_ID + "\n"
                         + "and make sure git is installed on the host."
                 : "Install git and make sure it is on the PATH.";
         throw new GitException(operation, -1,

@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -33,9 +34,39 @@ public class CompanionConfig {
     public String commandAlias = "imageframe";
 
     /** Directories searched for the Transport typeface, which is not in the repo. */
-    public List<String> fontSearchPaths = new ArrayList<>(List.of(
-            System.getProperty("user.home") + "/.local/share/fonts",
-            "/usr/share/fonts"));
+    public List<String> fontSearchPaths = new ArrayList<>(defaultFontSearchPaths());
+
+    /**
+     * Where installed fonts live, per platform.
+     *
+     * <p>Paths are built through {@link Path} rather than by joining strings, so the
+     * separator is right everywhere. Directories that do not exist are harmless: the
+     * font registry skips them.
+     */
+    public static List<String> defaultFontSearchPaths() {
+        Path home = Path.of(System.getProperty("user.home", "."));
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+
+        if (os.contains("win")) {
+            String windows = System.getenv().getOrDefault("WINDIR", "C:\\Windows");
+            return List.of(
+                    Path.of(windows, "Fonts").toString(),
+                    home.resolve(Path.of("AppData", "Local", "Microsoft", "Windows", "Fonts")).toString());
+        }
+
+        if (os.contains("mac") || os.contains("darwin")) {
+            return List.of(
+                    home.resolve(Path.of("Library", "Fonts")).toString(),
+                    Path.of("/Library/Fonts").toString(),
+                    Path.of("/System/Library/Fonts").toString());
+        }
+
+        return List.of(
+                home.resolve(Path.of(".local", "share", "fonts")).toString(),
+                home.resolve(".fonts").toString(),
+                Path.of("/usr/share/fonts").toString(),
+                Path.of("/usr/local/share/fonts").toString());
+    }
 
     /**
      * Export resolution per map frame. Vanilla maps are 128px, but ImageFrameClient
