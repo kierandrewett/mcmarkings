@@ -43,6 +43,15 @@ public final class ImageFrameCommands {
                 + " " + Math.max(1, amount);
     }
 
+    /**
+     * Not offered anywhere, on purpose.
+     *
+     * <p>Every other command here is reachable from the interface. This one is not,
+     * because I do not know precisely what ImageFrame does with it, and a button
+     * whose label is a guess about somebody else's plugin is worse than no button.
+     * Kept rather than deleted because the command name is the part that took
+     * finding, and wiring it up is easy once its behaviour is known.
+     */
     public static String select(String alias) {
         return alias + " select";
     }
