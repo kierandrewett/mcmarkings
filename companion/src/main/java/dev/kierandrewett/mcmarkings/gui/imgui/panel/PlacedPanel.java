@@ -190,29 +190,29 @@ public final class PlacedPanel implements Panel {
                     : "The repository this came from is not set up here, so there is nothing to read.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Get map");
         boolean getMap = ImGui.button("Get map");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Hands you the map item again, for when the original was "
                     + "broken or lost. It is the same map, not a copy.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Get frames");
         boolean frames = ImGui.button("Get frames");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Another " + entry.grid().frameCount() + " invisible frames, for placing it again.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Edit");
         boolean edit = ImGui.button("Edit");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Reopen this sign in the editor, if its document was saved beside it.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Copy name");
         boolean copy = ImGui.button("Copy name");
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Forget...");
         if (confirming.equals(entry.imageFrameName())) {
             // Says what it does not do. "Forget" next to a map on a wall reads like it
             // might take the map down, and it does not: this list is a client-side note.
@@ -272,7 +272,7 @@ public final class PlacedPanel implements Panel {
      */
     private void drawServerDelete(MapEntry entry) {
         if (!confirmingServerDelete.equals(entry.imageFrameName())) {
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Delete...");
             if (ImGui.button("Delete...")) {
                 confirmingServerDelete = entry.imageFrameName();
                 confirming = "";

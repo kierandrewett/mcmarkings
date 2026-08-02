@@ -134,6 +134,32 @@ public final class ImGuiScreens {
         }
     }
 
+    /**
+     * Keeps the next control on this row while there is room, and starts a new one
+     * when there is not.
+     *
+     * <p>ImGui does not wrap a run of {@code sameLine} calls, so a row of controls on
+     * a narrow window runs off the edge and the last of them cannot be reached at all.
+     * The editor's toolbar hit that first and solved it privately; the placed list has
+     * seven buttons a row and the two at the end are the ones that remove things.
+     *
+     * <p>Width is estimated from the label and the frame height, deliberately
+     * generously, so it wraps a little early rather than a little late.
+     */
+    public static void flowTo(String label) {
+        ImGui.sameLine();
+        float width = ImGui.calcTextSizeX(visibleLabel(label)) + ImGui.getFrameHeight();
+        if (ImGui.getCursorPosX() + width > ImGui.getContentRegionMaxX()) {
+            ImGui.newLine();
+        }
+    }
+
+    /** Everything after "##" is ImGui's id, not text, so it does not take any width. */
+    public static String visibleLabel(String label) {
+        int marker = label.indexOf("##");
+        return marker < 0 ? label : label.substring(0, marker);
+    }
+
     public static void applyMinecraftTheme() {
         if (themed) {
             return;

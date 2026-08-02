@@ -181,7 +181,7 @@ public final class RepositoriesPanel implements Panel {
             confirmingRemoval = "";
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Rescan");
         if (ImGui.button("Rescan")) {
             // Walks the folder, so it is explicitly the async one.
             services.reloadAsync(workspace.id());
@@ -190,7 +190,7 @@ public final class RepositoriesPanel implements Panel {
             ImGui.setTooltip("Read the folder again, after adding or changing images outside the game.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Moved...");
         if (ImGui.button("Moved...")) {
             picker.open("Where is " + entry.displayName() + " now?", entry.root(),
                     directory -> relocate(workspace, directory));
@@ -199,7 +199,7 @@ public final class RepositoriesPanel implements Panel {
             ImGui.setTooltip("Point this repository at a new folder, keeping its name.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Remove...");
         if (confirmingRemoval.equals(workspace.id())) {
             // Inline rather than a modal, and it says what it does not do. Removing a
             // repository from a list sounds like it might delete the folder.

@@ -1,5 +1,6 @@
 package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.Insets;
@@ -162,7 +163,7 @@ class EditorPanelTest {
     @Test
     @DisplayName("a toolbar label is measured without its ImGui id")
     void labelsAreMeasuredWithoutTheirId() {
-        assertEquals("L", EditorPanel.visibleLabel("L##align-left"));
-        assertSame("Undo", EditorPanel.visibleLabel("Undo"), "an id-free label should not be copied");
+        assertEquals("L", ImGuiScreens.visibleLabel("L##align-left"));
+        assertSame("Undo", ImGuiScreens.visibleLabel("Undo"), "an id-free label should not be copied");
     }
 }

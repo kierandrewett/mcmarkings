@@ -504,7 +504,7 @@ public final class EditorPanel implements Panel {
         boolean first = true;
         for (ToolbarItem item : TOOLBAR) {
             if (!first) {
-                flowTo(item.label());
+                ImGuiScreens.flowTo(item.label());
             }
             first = false;
 
@@ -515,7 +515,7 @@ public final class EditorPanel implements Panel {
             commandButton(item.label(), item.commandId());
         }
 
-        flowTo("Snap");
+        ImGuiScreens.flowTo("Snap");
         if (ImGui.checkbox("Snap", snapEnabled)) {
             snapEnabled = !snapEnabled;
         }
@@ -535,19 +535,8 @@ public final class EditorPanel implements Panel {
      * is estimated from the label and the frame height, deliberately generously, so
      * it wraps a little early rather than a little late.
      */
-    private void flowTo(String label) {
-        ImGui.sameLine();
-        float width = ImGui.calcTextSizeX(visibleLabel(label)) + ImGui.getFrameHeight();
-        if (ImGui.getCursorPosX() + width > ImGui.getContentRegionMaxX()) {
-            ImGui.newLine();
-        }
-    }
 
     /** Everything after "##" is ImGui's id, not text, so it does not take any width. */
-    static String visibleLabel(String label) {
-        int marker = label.indexOf("##");
-        return marker < 0 ? label : label.substring(0, marker);
-    }
 
     /**
      * A button that runs a command.
