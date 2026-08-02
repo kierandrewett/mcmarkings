@@ -91,8 +91,15 @@ public final class ImGuiScreens {
         }
     }
 
-    /** Cell size of the transparency chequerboard, in screen pixels. */
-    public static final float CHEQUER_SIZE = 8.0f;
+    /**
+     * Cell size of the transparency chequerboard, in screen pixels.
+     *
+     * <p>Larger than it was, to buy back some of what the new tones cost. The two
+     * tones are far enough apart now to be seen through dark artwork, and at eight
+     * pixels that much contrast reads as a shimmer behind a grid of thumbnails.
+     * Fewer, bigger cells say the same thing more quietly, and cost fewer quads.
+     */
+    public static final float CHEQUER_SIZE = 12.0f;
 
     /** Past this it is more draw calls than it is worth. */
     private static final long MAX_CHEQUER_CELLS = 4096;
@@ -115,7 +122,9 @@ public final class ImGuiScreens {
             return;
         }
 
-        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(0.16f, 0.16f, 0.17f, 1.0f));
+        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(
+                Theme.red(Theme.CHEQUER_DARK), Theme.green(Theme.CHEQUER_DARK),
+                Theme.blue(Theme.CHEQUER_DARK), 1.0f));
 
         int columns = (int) Math.ceil((right - left) / CHEQUER_SIZE);
         int rows = (int) Math.ceil((bottom - top) / CHEQUER_SIZE);
@@ -123,7 +132,9 @@ public final class ImGuiScreens {
             return;
         }
 
-        int light = ImGui.getColorU32(0.22f, 0.22f, 0.23f, 1.0f);
+        int light = ImGui.getColorU32(
+                Theme.red(Theme.CHEQUER_LIGHT), Theme.green(Theme.CHEQUER_LIGHT),
+                Theme.blue(Theme.CHEQUER_LIGHT), 1.0f);
         for (int row = 0; row < rows; row++) {
             for (int column = row % 2; column < columns; column += 2) {
                 float cellX = left + column * CHEQUER_SIZE;

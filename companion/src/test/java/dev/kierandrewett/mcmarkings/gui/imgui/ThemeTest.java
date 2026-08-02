@@ -236,7 +236,11 @@ class ThemeTest {
                 continue;
             }
             String name = field.getName();
-            if (DECORATIVE.contains(name) || source.contains("Theme." + name + ",")) {
+            // Either shape of use counts: an argument in the middle of a call, or the
+            // last one. The comma alone was the assertReadable shape and nothing else,
+            // so a colour checked any other way read as unchecked.
+            boolean used = source.contains("Theme." + name + ",") || source.contains("Theme." + name + ")");
+            if (DECORATIVE.contains(name) || used) {
                 continue;
             }
             unclassified.add(name);
@@ -289,5 +293,41 @@ class ThemeTest {
                 () -> String.format("0.55 now passes at %.2f:1, so this note is stale", ratio));
         assertTrue(Theme.DISABLED_ALPHA >= 0.60f,
                 "fading below 0.60 puts disabled labels under " + Theme.MINIMUM_TEXT_CONTRAST + ":1");
+    }
+
+    /**
+     * The chequerboard has to be seen through the artwork on top of it.
+     *
+     * <p>Both tones were near-black, a shade apart, which sat quietly in a dark
+     * interface and made a tenth of this repository invisible. Measured over the
+     * images actually present: 29 of 361 sampled came in under 3:1 against both
+     * tones and the worst was 1.01:1. They are the ones drawn dark on transparency,
+     * so a black sign and a see-through one looked identical, which is the one thing
+     * a chequerboard exists to tell apart.
+     *
+     * <p>Artwork here runs the whole range, so both ends are checked. A pair that
+     * serves only dark art fails white arrows, and the obvious fix of raising the
+     * dark tone into a mid grey is worse than either: it collides with the many
+     * mid-toned signs, and measured three times the failures.
+     */
+    @Test
+    @DisplayName("artwork at either end of the range is visible against the chequerboard")
+    void artworkIsVisibleOnTheChequerboard() {
+        for (int artwork : new int[] {0xFF000000, 0xFF1A1A1A, 0xFFFFFFFF, 0xFFEEEEEE}) {
+            double best = Math.max(
+                    Theme.contrastRatio(artwork, Theme.CHEQUER_DARK),
+                    Theme.contrastRatio(artwork, Theme.CHEQUER_LIGHT));
+            assertTrue(best >= Theme.MINIMUM_MUTED_CONTRAST,
+                    () -> String.format("artwork %06X is %.2f:1 against the nearer tone, needs %.1f:1",
+                            artwork & 0xFFFFFF, best, Theme.MINIMUM_MUTED_CONTRAST));
+        }
+    }
+
+    @Test
+    @DisplayName("the board reads as a board rather than as a flat colour")
+    void theTwoTonesAreTellableApart() {
+        double between = Theme.contrastRatio(Theme.CHEQUER_DARK, Theme.CHEQUER_LIGHT);
+        assertTrue(between >= Theme.MINIMUM_MUTED_CONTRAST,
+                () -> String.format("the two tones are %.2f:1 apart, which reads as one colour", between));
     }
 }

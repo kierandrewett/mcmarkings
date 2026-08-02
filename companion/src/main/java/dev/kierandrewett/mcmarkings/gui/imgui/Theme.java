@@ -42,6 +42,28 @@ public final class Theme {
      */
     public static final float DISABLED_ALPHA = 0.60f;
 
+    /**
+     * The transparency chequerboard.
+     *
+     * <p>Both tones used to be near-black, a shade apart, which made the board sit
+     * quietly in a dark interface and made a tenth of this repository invisible.
+     * Measured across the images actually here: 29 of 361 sampled signs came in
+     * under 3:1 against both tones, and the worst was 1.01:1, which is not low
+     * contrast so much as no contrast. They are the ones drawn dark on transparency,
+     * so traffic signal heads, crossing symbols and silhouettes: a black sign and a
+     * see-through one looked identical, which is the exact thing a chequerboard
+     * exists to tell apart.
+     *
+     * <p>A dark tone and a genuinely light one, because raising the dark one instead
+     * makes it worse: mid greys collide with the many mid-toned signs, and 0.30/0.70
+     * measured three times as many failures as this pair. The board is louder than
+     * it was and that is the cost. An image nobody can see is a functional failure
+     * and a busy backdrop is a matter of taste.
+     */
+    public static final int CHEQUER_DARK = 0xFF2E2E30;
+
+    public static final int CHEQUER_LIGHT = 0xFFBFBFBF;
+
     /** Panels sit over the game, so they are dark and mostly opaque. */
     public static final int WINDOW_BACKGROUND = 0xF00F0F0F;
 
