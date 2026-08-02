@@ -403,8 +403,7 @@ public final class PlacedPanel implements Panel {
                         // A sign published by a newer build can hold a layer kind this
                         // one does not know. Opening it short and saying nothing would
                         // invite a save that makes the loss permanent.
-                        status.bad(entry.imageFrameName() + " did not open whole: "
-                                + ImGuiScreens.truncate(result.warnings().getFirst(), 60)
+                        status.bad(result.describe(entry.imageFrameName(), 60)
                                 + ". Placing it again would make that permanent.");
                     }
                     showEditor.run();

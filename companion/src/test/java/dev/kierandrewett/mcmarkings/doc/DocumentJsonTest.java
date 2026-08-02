@@ -535,4 +535,34 @@ class DocumentJsonTest {
             previousFragment = fragment;
         }
     }
+
+    /**
+     * The count is the fix. Two call sites had drifted apart and the one that named
+     * only the first problem was the one shown when opening a placed map, which is
+     * exactly where the number matters: whether one layer is missing or four decides
+     * whether someone places it again.
+     */
+    @Test
+    void countsTheProblemsItIsNotShowing() {
+        String one = DocumentJson.describeWarnings("Give Way", List.of("unknown layer kind: arc"), 70);
+        assertTrue(one.contains("unknown layer kind: arc"), one);
+        assertFalse(one.contains("more"), "a single problem should not be counted at: " + one);
+
+        String several = DocumentJson.describeWarnings("Give Way",
+                List.of("unknown layer kind: arc", "bad colour", "bad colour", "missing bounds"), 70);
+        assertTrue(several.contains("(+3 more)"), several);
+    }
+
+    @Test
+    void shortensALongProblemRatherThanFillingTheStatusLine() {
+        String described = DocumentJson.describeWarnings("Sign", List.of("x".repeat(200)), 70);
+        assertTrue(described.endsWith("..."), described);
+        assertTrue(described.length() < 120, "status lines have to fit: " + described.length());
+    }
+
+    @Test
+    void saysNothingWhenNothingWentWrong() {
+        assertEquals("", DocumentJson.describeWarnings("Sign", List.of(), 70));
+        assertEquals("", DocumentJson.describeWarnings("Sign", null, 70));
+    }
 }

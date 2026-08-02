@@ -782,14 +782,12 @@ public final class EditorFiles {
             return false;
         }
 
-        String first = ImGuiScreens.truncate(warnings.getFirst(), 70);
-        String more = warnings.size() > 1 ? " (+" + (warnings.size() - 1) + " more)" : "";
-
         // Kept, not just counted. Which layers a document lost is the whole question,
         // and a number is only enough to worry someone.
         statusDetail = List.copyOf(warnings);
 
-        status.bad(name + " did not open whole: " + first + more + ". Saving would make that permanent.");
+        status.bad(DocumentJson.describeWarnings(name, warnings, 70)
+                + ". Saving would make that permanent.");
         statusDetailFor = status.message();
         return true;
     }

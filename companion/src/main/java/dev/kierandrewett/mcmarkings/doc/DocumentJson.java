@@ -129,10 +129,42 @@ public final class DocumentJson {
     }
 
     /** A document that was read, plus everything the reader had to ignore to get it. */
+    /**
+     * The static form, for callers holding warnings without a result to hand.
+     *
+     * <p>The alternative was a {@code Result} with a null document built only to
+     * borrow this, which is a worse shape than one extra method.
+     */
+    public static String describeWarnings(String name, List<String> warnings, int limit) {
+        if (warnings == null || warnings.isEmpty()) {
+            return "";
+        }
+        String first = warnings.getFirst();
+        String shortened = first.length() > limit ? first.substring(0, limit) + "..." : first;
+        String more = warnings.size() > 1 ? " (+" + (warnings.size() - 1) + " more)" : "";
+        return name + " did not open whole: " + shortened + more;
+    }
+
     public record Result(Document document, List<String> warnings) {
 
         public Result {
             warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
+
+        /**
+         * What to tell someone when a document did not come back whole, or blank.
+         *
+         * <p>Here rather than at each call site because there are two and they had
+         * drifted: one named the first problem and counted the rest, the other showed
+         * one and silently dropped the others. A count is the difference between "a
+         * layer is missing" and "four are", and someone deciding whether to save over
+         * the file needs the second.
+         *
+         * <p>The consequence is the caller's, because it genuinely differs: saving
+         * writes the short version back, placing publishes it.
+         */
+        public String describe(String name, int limit) {
+            return describeWarnings(name, warnings, limit);
         }
 
         public boolean clean() {
