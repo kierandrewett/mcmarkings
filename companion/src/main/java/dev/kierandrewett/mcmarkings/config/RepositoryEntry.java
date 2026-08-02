@@ -104,4 +104,20 @@ public record RepositoryEntry(
     public RepositoryEntry withBranch(String newBranch) {
         return new RepositoryEntry(id, name, path, newBranch, slugOverride, rawUrlTemplate);
     }
+
+    /**
+     * Overrides for repositories whose remote cannot be read.
+     *
+     * <p>Both existed in the config and in the URL resolver from the start, and the
+     * resolver's own error messages tell people to set them, but nothing could. On a
+     * self-hosted forge with an unusual remote that left the only instruction the mod
+     * gives impossible to follow without hand-editing a JSON file.
+     */
+    public RepositoryEntry withSlugOverride(String newSlug) {
+        return new RepositoryEntry(id, name, path, branch, newSlug, rawUrlTemplate);
+    }
+
+    public RepositoryEntry withRawUrlTemplate(String newTemplate) {
+        return new RepositoryEntry(id, name, path, branch, slugOverride, newTemplate);
+    }
 }

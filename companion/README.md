@@ -54,7 +54,7 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `repositories` | empty | Folders the mod reads from, all managed from the GUI |
+| `repositories` | empty | Folders the mod reads from, all managed from the GUI, including the two per-repository URL overrides below |
 | `commandAlias` | `imageframe` | Command root without the slash; set to `frame` if your server rebinds it |
 | `fontSearchPaths` | per platform | Extra folders to scan for fonts, on top of the ones the system already knows |
 | `exportPixelsPerFrame` | `256` | Export resolution per map frame |
@@ -149,6 +149,13 @@ client has previously turned into a map, issues an `/imageframe refresh` with a
 newly pinned URL. That mapping lives in a small registry file, because the
 repository knows nothing about ImageFrame map names and the server knows nothing
 about the repository.
+
+**Forges other than GitHub.** The URL is worked out from the origin remote, and
+GitHub, GitLab and Gitea or Forgejo are recognised. When a remote cannot be read
+well enough, the **Repositories** tab has a folded-away *URLs* section per
+repository with two overrides: a slug (`owner/repo`) and a raw URL template
+taking `{slug}`, `{commit}`, `{path}` and `{host}`. Setting either reopens that
+repository so it takes effect at once. Most repositories never need them.
 
 **Frame grids.** Maps are 128px squares, so an image's shape decides how many
 frames it wants. The recommender scores every grid up to 8x8 by aspect error and

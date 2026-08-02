@@ -29,11 +29,20 @@ public final class RepositoriesPanel implements Panel {
 
     private static final int NAME_BUFFER = 128;
 
+    private static final int URL_BUFFER = 512;
+
     private final CompanionServices services;
 
     private final DirectoryPicker picker = new DirectoryPicker("repositories-picker");
 
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
+
+    private final ImString slugBuffer = new ImString("", URL_BUFFER);
+
+    private final ImString templateBuffer = new ImString("", URL_BUFFER);
+
+    /** Whose overrides the buffers currently hold, so they are seeded once per row. */
+    private String editingUrls = "";
 
     /** Which row is being renamed, by id. Empty when none is. */
     private String renaming = "";
@@ -141,6 +150,7 @@ public final class RepositoriesPanel implements Panel {
         }
 
         drawRowActions(workspace, entry);
+        drawUrlOverrides(workspace, entry);
 
         ImGui.popID();
         ImGui.separator();
@@ -208,6 +218,67 @@ public final class RepositoriesPanel implements Panel {
             confirmingRemoval = workspace.id();
             renaming = "";
         }
+    }
+
+    /**
+     * Where the raw file URLs come from, for repositories the remote cannot describe.
+     *
+     * <p>The URL resolver has always had these two settings and has always told
+     * people to set them when it cannot work a repository out: "set a slug override",
+     * "set a raw URL template". Nothing in the interface could, so on a self-hosted
+     * forge with an unusual remote the only instruction the mod gives was impossible
+     * to follow without hand-editing the config.
+     *
+     * <p>Folded away, because most repositories never need either and a field nobody
+     * should touch is worth hiding rather than explaining twice.
+     */
+    private void drawUrlOverrides(Workspace workspace, RepositoryEntry entry) {
+        if (!ImGui.treeNode("URLs##overrides")) {
+            return;
+        }
+
+        try {
+            ImGui.textWrapped("Only needed when the mod cannot work out where this "
+                    + "repository's files are served from. Leave both blank to read it from the remote.");
+
+            if (!editingUrls.equals(workspace.id())) {
+                editingUrls = workspace.id();
+                slugBuffer.set(entry.slugOverride());
+                templateBuffer.set(entry.rawUrlTemplate());
+            }
+
+            ImGui.setNextItemWidth(ImGui.getFontSize() * 18.0f);
+            ImGui.inputTextWithHint("##slug", "owner/repo", slugBuffer);
+            boolean slugDone = ImGui.isItemDeactivatedAfterEdit();
+            ImGui.textDisabled("Slug");
+
+            ImGui.setNextItemWidth(-1.0f);
+            ImGui.inputTextWithHint("##template", "https://host/{slug}/raw/{commit}/{path}", templateBuffer);
+            boolean templateDone = ImGui.isItemDeactivatedAfterEdit();
+            ImGui.textDisabled("Raw URL template. {slug} {commit} {path} {host}");
+
+            if (slugDone) {
+                apply(workspace, entry.withSlugOverride(slugBuffer.get().trim()));
+            }
+            if (templateDone) {
+                apply(workspace, entry.withRawUrlTemplate(templateBuffer.get().trim()));
+            }
+        } finally {
+            ImGui.treePop();
+        }
+    }
+
+    /**
+     * Saves an override and reopens the repository.
+     *
+     * <p>The workspace holds the entry it was opened with, so a change to either of
+     * these does nothing until it is read again. Reopening is the difference between
+     * a setting that works and one that appears not to.
+     */
+    private void apply(Workspace workspace, RepositoryEntry updated) {
+        services.config.replaceRepository(updated);
+        services.saveConfig();
+        services.reloadAsync(workspace.id());
     }
 
     private void addRepository(Path directory) {
