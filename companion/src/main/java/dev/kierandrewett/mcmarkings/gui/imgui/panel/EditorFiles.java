@@ -57,6 +57,9 @@ public final class EditorFiles {
 
     private static final int NAME_BUFFER = 128;
 
+    /** Below this many templates, a search box is furniture rather than help. */
+    private static final int SEARCH_THRESHOLD = 8;
+
     private static final int KEY_N = 'N';
 
     private static final int KEY_O = 'O';
@@ -79,6 +82,8 @@ public final class EditorFiles {
     private final PublishFlow publish;
 
     private final ImString nameBuffer = new ImString("", NAME_BUFFER);
+
+    private final ImString templateQuery = new ImString("", NAME_BUFFER);
 
     /**
      * Written from a worker and read every frame, hence volatile. The list itself is
@@ -335,11 +340,23 @@ public final class EditorFiles {
     }
 
     private void drawTemplateList() {
+        List<TemplateStore.Entry> found = matchingTemplates();
+
+        // Only once there are enough to be worth searching. A search box above four
+        // items is furniture.
+        if (templates.size() >= SEARCH_THRESHOLD) {
+            ImGui.setNextItemWidth(ImGui.getFontSize() * 22.0f);
+            ImGui.inputTextWithHint("##editor-open-query", "Search templates", templateQuery);
+        }
+
         float rowHeight = ImGui.getFrameHeightWithSpacing();
-        float height = Math.min(rowHeight * 10.0f, rowHeight * Math.max(1, templates.size()));
+        float height = Math.min(rowHeight * 10.0f, rowHeight * Math.max(1, found.size()));
 
         if (ImGui.beginChild("##editor-open-list", ImGui.getFontSize() * 22.0f, height, true)) {
-            for (TemplateStore.Entry entry : templates) {
+            if (found.isEmpty()) {
+                ImGui.textDisabled("Nothing matches that.");
+            }
+            for (TemplateStore.Entry entry : found) {
                 if (ImGui.selectable(entry.name() + "##template-" + entry.file().getFileName())) {
                     ImGui.closeCurrentPopup();
                     open(entry);
@@ -347,6 +364,16 @@ public final class EditorFiles {
             }
         }
         ImGui.endChild();
+    }
+
+    private List<TemplateStore.Entry> matchingTemplates() {
+        String text = templateQuery.get().trim().toLowerCase(Locale.ROOT);
+        if (text.isEmpty()) {
+            return templates;
+        }
+        return templates.stream()
+                .filter(entry -> entry.name().toLowerCase(Locale.ROOT).contains(text))
+                .toList();
     }
 
     private void drawLayoutList() {
@@ -471,6 +498,7 @@ public final class EditorFiles {
 
     private void beginOpen() {
         openTemplatePopup = true;
+        templateQuery.set("");
         listingProblem = null;
         refreshTemplates();
     }

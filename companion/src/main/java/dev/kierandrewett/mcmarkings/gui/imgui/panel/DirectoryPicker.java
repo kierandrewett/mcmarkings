@@ -43,8 +43,29 @@ public final class DirectoryPicker {
 
     private static final int PATH_BUFFER = 512;
 
-    /** What one directory listing came back with. Replaced wholesale, never mutated. */
-    private record Listing(Path directory, List<Entry> entries, String problem) {
+    /**
+     * How many subfolders are read from one directory.
+     *
+     * <p>There are places on a real machine with tens of thousands of entries in
+     * them: a package store, a cache, a node_modules. Reading all of them means a
+     * stat per entry and two more to see whether it is a repository, so a folder
+     * like that would take a minute to open and then submit thirty thousand rows on
+     * every frame. Nobody is finding their project by scrolling that anyway, and the
+     * path box above it goes anywhere directly.
+     */
+    private static final int MAX_ENTRIES = 1000;
+
+    /** A screenful. Beyond this, filtering is the only way anyone is finding it. */
+    private static final int MAX_SHOWN = 100;
+
+    /**
+     * What one directory listing came back with. Replaced wholesale, never mutated.
+     *
+     * <p>{@code truncated} is whether the folder had more than was read, so the
+     * interface can say so rather than quietly showing part of a folder as if it
+     * were all of it.
+     */
+    private record Listing(Path directory, List<Entry> entries, String problem, boolean truncated) {
     }
 
     /**
@@ -57,6 +78,8 @@ public final class DirectoryPicker {
     private final String id;
 
     private final ImString typedPath = new ImString("", PATH_BUFFER);
+
+    private final ImString filter = new ImString("", PATH_BUFFER);
 
     private Consumer<Path> onChosen;
 
@@ -159,6 +182,9 @@ public final class DirectoryPicker {
                 navigateTo(root);
             }
         }
+
+        ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
+        ImGui.inputTextWithHint("##" + id + "-filter", "Filter this folder", filter);
     }
 
     private void drawList() {
@@ -180,18 +206,47 @@ public final class DirectoryPicker {
         } else if (current.entries().isEmpty()) {
             ImGui.textDisabled("No folders in here.");
         } else {
-            for (Entry entry : current.entries()) {
-                if (ImGui.selectable(entry.name() + "##" + id + "-" + entry.name())) {
-                    navigateTo(entry.path());
-                }
-                if (entry.repository()) {
-                    ImGui.sameLine();
-                    ImGui.textDisabled("git");
-                }
-            }
+            drawEntries(current);
         }
 
         ImGui.endChild();
+    }
+
+    private void drawEntries(Listing current) {
+        String text = filter.get().trim().toLowerCase(Locale.ROOT);
+        int shown = 0;
+        int matched = 0;
+
+        for (Entry entry : current.entries()) {
+            if (!text.isEmpty() && !entry.name().toLowerCase(Locale.ROOT).contains(text)) {
+                continue;
+            }
+            matched++;
+            if (shown >= MAX_SHOWN) {
+                continue;
+            }
+            shown++;
+
+            if (ImGui.selectable(entry.name() + "##" + id + "-" + entry.name())) {
+                navigateTo(entry.path());
+            }
+            if (entry.repository()) {
+                ImGui.sameLine();
+                ImGui.textDisabled("git");
+            }
+        }
+
+        if (matched == 0) {
+            ImGui.textDisabled("Nothing in here matches that.");
+        } else if (matched > shown) {
+            ImGui.textDisabled((matched - shown) + " more; type above to narrow it down");
+        }
+        if (current.truncated()) {
+            // Said plainly. Showing part of a folder as if it were all of it is how
+            // someone concludes their project is not there and gives up.
+            ImGui.textDisabled("This folder has more than " + MAX_ENTRIES
+                    + " subfolders; type the path above to go straight there.");
+        }
     }
 
     private void drawActions() {
@@ -226,7 +281,7 @@ public final class DirectoryPicker {
         try {
             navigateTo(Path.of(text));
         } catch (InvalidPathException invalid) {
-            listing = new Listing(here, List.of(), "That is not a usable path on this system.");
+            listing = new Listing(here, List.of(), "That is not a usable path on this system.", false);
         }
     }
 
@@ -241,6 +296,7 @@ public final class DirectoryPicker {
         Path target = directory.toAbsolutePath().normalize();
         here = target;
         typedPath.set(target.toString());
+        filter.set("");
         loading = true;
 
         Thread.ofVirtual().name("mcmarkings-directory-picker").start(() -> {
@@ -248,7 +304,7 @@ public final class DirectoryPicker {
                 listing = read(target);
             } catch (RuntimeException failure) {
                 McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not read " + target, failure);
-                listing = new Listing(target, List.of(), "Could not read this folder.");
+                listing = new Listing(target, List.of(), "Could not read this folder.", false);
             } finally {
                 loading = false;
             }
@@ -257,24 +313,30 @@ public final class DirectoryPicker {
 
     private static Listing read(Path directory) {
         if (!Files.isDirectory(directory)) {
-            return new Listing(directory, List.of(), "There is no folder at that path.");
+            return new Listing(directory, List.of(), "There is no folder at that path.", false);
         }
 
         List<Entry> entries = new ArrayList<>();
+        boolean truncated = false;
+
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
             for (Path child : stream) {
                 if (!Files.isDirectory(child) || isHidden(child)) {
                     continue;
                 }
+                if (entries.size() >= MAX_ENTRIES) {
+                    truncated = true;
+                    break;
+                }
                 String name = String.valueOf(child.getFileName());
                 entries.add(new Entry(child, name, looksLikeRepository(child)));
             }
         } catch (IOException | RuntimeException denied) {
-            return new Listing(directory, List.of(), "This folder cannot be opened from here.");
+            return new Listing(directory, List.of(), "This folder cannot be opened from here.", false);
         }
 
         entries.sort(Comparator.comparing(entry -> entry.name().toLowerCase(Locale.ROOT)));
-        return new Listing(directory, List.copyOf(entries), null);
+        return new Listing(directory, List.copyOf(entries), null, truncated);
     }
 
     /**
