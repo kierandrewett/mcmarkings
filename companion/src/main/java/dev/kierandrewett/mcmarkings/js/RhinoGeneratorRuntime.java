@@ -1,6 +1,8 @@
 package dev.kierandrewett.mcmarkings.js;
 
-import dev.kierandrewett.mcmarkings.config.CompanionConfig;
+import com.google.gson.Gson;
+import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.doc.DocumentJson;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import org.mozilla.javascript.ClassShutter;
 import org.mozilla.javascript.Context;
@@ -73,6 +75,8 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
     private static final String LIBRARY_NAME = "lib";
 
     private static final Object DEADLINE_KEY = new Object();
+
+    private static final Gson GSON = new Gson();
 
     private final Path repoRoot;
 
@@ -176,6 +180,54 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
     /** Absolute path scripts are read from, worth showing in the UI when nothing loads. */
     public Path generatorDirectory() {
         return generatorDirectory;
+    }
+
+    /**
+     * Runs a generator's {@code document(params)}, if it has one.
+     *
+     * <p>The returned object is turned into JSON and handed to the template codec
+     * rather than being converted directly. That codec already knows every field
+     * alias, default and failure mode, and a second converter would be two sets of
+     * rules to keep in step and two places for them to disagree.
+     */
+    @Override
+    public Optional<Document> document(String generatorId, Map<String, Object> params) throws GeneratorException {
+        Snapshot current = snapshot;
+        Loaded generator = current.byId().get(generatorId);
+        if (generator == null) {
+            throw new GeneratorException(
+                    "no generator with id \"" + generatorId + "\", loaded: " + current.byId().keySet());
+        }
+        if (generator.documentFunction() == null) {
+            return Optional.empty();
+        }
+
+        synchronized (generator) {
+            Context cx = contexts.enterContext();
+            try {
+                cx.putThreadLocal(DEADLINE_KEY, System.nanoTime() + timeoutMillis * 1_000_000L);
+                Scriptable scope = generator.scope();
+                Scriptable jsParams = buildParams(cx, scope, generator.def(), params);
+
+                Object returned = generator.documentFunction()
+                        .call(cx, scope, scope, new Object[] {jsParams});
+                if (returned == null || Undefined.isUndefined(returned)) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(DocumentJson.read(GSON.toJson(ScriptJson.of(returned))));
+            } catch (ScriptTimeoutError timeout) {
+                throw new GeneratorException(generator.source() + ": " + timeout.getMessage());
+            } catch (RhinoException exception) {
+                throw new GeneratorException(generator.source() + ": " + exception.details());
+            } catch (IOException exception) {
+                throw new GeneratorException(
+                        generator.source() + ": document() did not describe a valid document: "
+                                + exception.getMessage());
+            } finally {
+                Context.exit();
+            }
+        }
     }
 
     @Override
@@ -366,9 +418,13 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
 
         Function size = requiredFunction(source, definition, "size");
         Function render = requiredFunction(source, definition, "render");
+        // Optional: a script that can describe itself as layers becomes editable
+        // rather than only regenerable. Absent is the normal case.
+        Function documentFunction = optionalFunction(definition, "document");
         List<ParamDef> params = params(source, definition);
 
-        return new Loaded(new GeneratorDef(id, title, description, params), size, render, scope, source);
+        return new Loaded(new GeneratorDef(id, title, description, params), size, render,
+                documentFunction, scope, source);
     }
 
     private void evaluate(Context cx, Scriptable scope, Path script, String source) throws GeneratorException {
@@ -474,6 +530,12 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
             throw new GeneratorException(source + ": definition is missing \"" + key + "\"");
         }
         return JsValues.text(value).trim();
+    }
+
+    /** Null when the script does not define it, which is not an error. */
+    private static Function optionalFunction(Scriptable object, String key) {
+        Object value = JsValues.property(object, key);
+        return value instanceof Function function ? function : null;
     }
 
     private static Function requiredFunction(String source, Scriptable object, String key)
@@ -658,14 +720,18 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
 
         private final Function render;
 
+        /** Null unless the script describes itself as layers. */
+        private final Function documentFunction;
+
         private final Scriptable scope;
 
         private final String source;
 
-        private Loaded(GeneratorDef def, Function size, Function render, Scriptable scope, String source) {
+        private Loaded(GeneratorDef def, Function size, Function render, Function documentFunction, Scriptable scope, String source) {
             this.def = def;
             this.size = size;
             this.render = render;
+            this.documentFunction = documentFunction;
             this.scope = scope;
             this.source = source;
         }
@@ -680,6 +746,10 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
 
         private Function render() {
             return render;
+        }
+
+        private Function documentFunction() {
+            return documentFunction;
         }
 
         private Scriptable scope() {
