@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -482,6 +483,16 @@ public final class ImageBrowserPanel implements Panel {
 
         float unit = unit();
         ImGui.textWrapped(image.displayName());
+
+        // Read from the repository's metadata, searched against, and never shown until
+        // now. The displayed name comes from the file name, so for these signs the
+        // description is the same words properly written: real punctuation and the
+        // official wording. Only shown when it says something the name does not, or
+        // every entry would carry the same sentence twice.
+        if (saysSomethingNew(image.description(), image.displayName())) {
+            ImGui.textWrapped(image.description());
+        }
+
         ImGui.textDisabled(ImGuiScreens.truncate(image.path(), 72));
         ImGui.text(image.width() + " x " + image.height() + " px");
         if (image.reference() != null && !image.reference().isBlank()) {
@@ -580,6 +591,36 @@ public final class ImageBrowserPanel implements Panel {
      * are made for drawn cells only, which after culling is a screenful rather than
      * the whole repository.
      */
+    /**
+     * Whether a description is worth showing next to a name.
+     *
+     * <p>True when it uses a word the name does not. Comparing the two as whole
+     * strings was the obvious rule and it is wrong in a way this repository shows
+     * immediately: names here carry suffixes the description lacks, so "wait here
+     * until green light shows variant 1" against "Wait here until green light shows"
+     * differs, and the line it earns says strictly less than the line above it.
+     *
+     * <p>Short words are ignored, since "a" and "of" appearing in one and not the
+     * other is not new information.
+     */
+    private static boolean saysSomethingNew(String description, String name) {
+        if (description == null || description.isBlank()) {
+            return false;
+        }
+
+        java.util.Set<String> known = new java.util.HashSet<>(words(name));
+        return words(description).stream().anyMatch(word -> !known.contains(word));
+    }
+
+    private static List<String> words(String text) {
+        if (text == null) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+"))
+                .filter(word -> word.length() > 2)
+                .toList();
+    }
+
     private TextureHandle thumbnail(RepoImage image) {
         TextureHandle handle = services.thumbnails.peek(image).orElse(null);
         if (handle != null) {
