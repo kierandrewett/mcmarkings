@@ -179,8 +179,18 @@ public class RepoScanner implements RepoService {
             }
         }
 
-        // Rank first, then path, so a repeated search returns the same order.
-        hits.sort(Comparator.comparingInt(Scored::rank).thenComparing(scored -> scored.image().path()));
+        // Rank, then the shorter name, then path.
+        //
+        // Length is a relevance signal here rather than a tidiness one. Within a rank
+        // every hit is equally good by the rank's own reckoning, so something has to
+        // choose, and the alphabet chose badly: searching "30" put a caravan site 300
+        // yards ahead above the 30 roundel because "camping" sorts before "max". The
+        // plainest name for a thing is nearly always the shortest one in this set.
+        //
+        // Path last so a repeated search still returns the same order.
+        hits.sort(Comparator.comparingInt(Scored::rank)
+                .thenComparingInt(scored -> scored.image().name().length())
+                .thenComparing(scored -> scored.image().path()));
 
         List<RepoImage> results = new ArrayList<>(Math.min(limit, hits.size()));
         for (Scored hit : hits) {
@@ -652,10 +662,43 @@ public class RepoScanner implements RepoService {
         if (name.startsWith(query) || spaced.startsWith(query) || reference.startsWith(query)) {
             return 1;
         }
-        if (name.contains(query) || spaced.contains(query)) {
+        if (containsWholeWord(spaced, query)) {
             return 2;
         }
-        return 3;
+        if (name.contains(query) || spaced.contains(query)) {
+            return 3;
+        }
+        return 4;
+    }
+
+    /**
+     * Whether the query appears as a word rather than inside one.
+     *
+     * <p>Searching this repository for "30" was the case that made this necessary.
+     * The 30 roundel is max_speed_30_mph, and it did not come back at all: "30" is
+     * equally a substring of the ISO codes e030 and w030 and of every 300 yards
+     * sign, so a laser warning and a caravan site scored exactly as well as the
+     * speed limit, and the alphabet decided the rest.
+     *
+     * <p>Words are separated on the spaced form of the name, so an underscore counts
+     * as a boundary. Digits and letters both count as word characters, which is what
+     * keeps "30" out of "e030" while still finding it in "max speed 30 mph".
+     */
+    private static boolean containsWholeWord(String haystack, String needle) {
+        int from = 0;
+        while (true) {
+            int at = haystack.indexOf(needle, from);
+            if (at < 0) {
+                return false;
+            }
+            boolean startsClean = at == 0 || !Character.isLetterOrDigit(haystack.charAt(at - 1));
+            int after = at + needle.length();
+            boolean endsClean = after == haystack.length() || !Character.isLetterOrDigit(haystack.charAt(after));
+            if (startsClean && endsClean) {
+                return true;
+            }
+            from = at + 1;
+        }
     }
 
     record Metadata(String description, String reference, String licence, String category,
