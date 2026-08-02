@@ -115,9 +115,57 @@ class CaptionLabelTest {
         assertTrue(start > 0, "drawCaption has gone");
         String body = source.substring(start, source.indexOf("\n    }", start));
 
-        assertTrue(body.contains("image.shortName()"),
-                "the caption is not using shortName, so the grid is captioned with prose again");
+        assertTrue(body.contains("image.captionFor("),
+                "the caption is not going through captionFor, so it cannot say why a cell matched");
         assertTrue(!body.contains("image.displayName()"),
-                "the caption is back on the description, which does not fit a cell");
+                "the caption is back on the description unconditionally, which does not fit a cell");
+    }
+
+    /**
+     * With nothing searched for, the caption is still the short name.
+     *
+     * <p>The rule only bends when a cell would otherwise be a mystery. Making the
+     * caption follow the query in general would mean it changed on every keystroke,
+     * which is its own kind of noise.
+     */
+    @Test
+    @DisplayName("browsing without a search still gets the short name")
+    void anEmptySearchIsStillTheShortName() {
+        for (RepoImage image : images.subList(0, Math.min(50, images.size()))) {
+            assertEquals(image.shortName(), image.captionFor(""));
+            assertEquals(image.shortName(), image.captionFor(null));
+            assertEquals(image.shortName(), image.captionFor("   "));
+        }
+    }
+
+    /**
+     * The case this exists for. Searching the regulation these signs come from
+     * matches every one of them through its description and nothing through its
+     * name, so without this the whole grid answers a question it will not show.
+     */
+    @Test
+    @DisplayName("a cell matched only by its description says so in its caption")
+    void aDescriptionMatchExplainsItself() {
+        List<RepoImage> hits = images.stream()
+                .filter(image -> image.searchKey().contains("tsrgd"))
+                .limit(20)
+                .toList();
+        assertTrue(hits.size() >= 5, "this repository no longer has the metadata this checks");
+
+        long explained = hits.stream()
+                .filter(image -> image.captionFor("tsrgd").toLowerCase(java.util.Locale.ROOT)
+                        .contains("tsrgd")
+                        || !image.shortName().equals(image.captionFor("tsrgd")))
+                .count();
+        assertEquals(hits.size(), explained,
+                "cells matched only by description still caption themselves with their file name");
+    }
+
+    @Test
+    @DisplayName("a name match is left alone rather than swapped for prose")
+    void aNameMatchKeepsItsShortCaption() {
+        RepoImage stop = images.stream().filter(image -> image.name().equals("stop")).findFirst()
+                .orElseThrow(() -> new AssertionError("no sign called stop"));
+        assertEquals(stop.shortName(), stop.captionFor("stop"));
     }
 }

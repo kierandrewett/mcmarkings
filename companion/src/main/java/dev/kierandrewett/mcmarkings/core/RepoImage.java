@@ -85,6 +85,35 @@ public record RepoImage(
         return name.replace('_', ' ');
     }
 
+    /**
+     * What a grid cell should say, given what was searched for.
+     *
+     * <p>Normally the short name, which is what a caption is for. When the search
+     * matched the description and the name has nothing of it, the description
+     * instead, because a cell that cannot say why it is in the results is worse than
+     * a long caption.
+     *
+     * <p>Searching this set for "mandatory" returns nine cells out of twelve reading
+     * "wear a mask", "use handrail" and the like, with nothing on screen connecting
+     * them to what was typed. Searching "tsrgd", which is the regulation these signs
+     * come from and appears only in descriptions, matches everything and explains
+     * none of it. Both look like the search is broken rather than working.
+     *
+     * <p>Only when it would otherwise be a mystery. A caption that changed on every
+     * keystroke would be its own kind of noise.
+     */
+    public String captionFor(String query) {
+        if (query == null || query.isBlank()) {
+            return shortName();
+        }
+        String wanted = query.trim().toLowerCase(Locale.ROOT);
+        if (shortName().toLowerCase(Locale.ROOT).contains(wanted)) {
+            return shortName();
+        }
+        String described = displayName();
+        return described.toLowerCase(Locale.ROOT).contains(wanted) ? described : shortName();
+    }
+
     /** Lowercase haystack used by the browser search box. */
     public String searchKey() {
         StringBuilder builder = new StringBuilder(path).append(' ').append(name);

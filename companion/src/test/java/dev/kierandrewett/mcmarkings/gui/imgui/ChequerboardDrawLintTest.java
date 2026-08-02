@@ -48,7 +48,7 @@ class ChequerboardDrawLintTest {
             "Theme.red(Theme.CAPTION_BACKING)",
 
             // Drawn on that band, not on the board.
-            "ImGuiScreens.truncate(image.shortName()",
+            "ImGuiScreens.truncate(image.captionFor(",
 
             // Both borders sit on the chequerboard rather than the panel, where
             // near-black reads at about 11:1 against a light square. The cell one is
