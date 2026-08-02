@@ -183,7 +183,7 @@ public final class GeneratorPanel implements Panel {
             if (ImGui.selectable(ImGuiScreens.truncate(generator.title(), 28) + "##" + generator.id(), active)) {
                 select(generator);
             }
-            if (ImGui.isItemHovered() && generator.description() != null) {
+            if (ImGuiScreens.explaining() && generator.description() != null) {
                 ImGui.setTooltip(generator.description());
             }
         }
@@ -209,7 +209,7 @@ public final class GeneratorPanel implements Panel {
         ImGui.textDisabled("Looked in:");
         ImGui.sameLine();
         ImGui.text(services.config.generatorDirectory + "/");
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip(services.repo().root().resolve(services.config.generatorDirectory).toString()
                     + "\n\nChange the folder in Settings.");
         }
@@ -363,7 +363,7 @@ public final class GeneratorPanel implements Panel {
                 gridPinned = true;
                 status.info("Frame size " + grid);
             }
-            if (ImGui.isItemHovered() && previewImage != null) {
+            if (ImGuiScreens.explaining() && previewImage != null) {
                 ImGui.setTooltip("The sign keeps its shape and sits in the middle of "
                         + suggestion.grid().frameCount() + " item frames, covering "
                         + coverage + "% of them.\nThe rest is transparent, so on a wall "
@@ -406,7 +406,7 @@ public final class GeneratorPanel implements Panel {
 
         ImGui.beginDisabled(busy || previewImage == null || grid == null);
         boolean publishPressed = ImGui.button("Save & publish");
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
                     + "then creates the map."
                     + services.pushState().note());
@@ -417,7 +417,7 @@ public final class GeneratorPanel implements Panel {
         ImGui.beginDisabled(grid == null);
         boolean framesPressed = ImGui.button("Get frames");
         ImGui.endDisabled();
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip(grid == null
                     ? "Generate a preview first, so the sign has a size to fit."
                     : "Gives you the item frames this sign needs, ready to place on a wall.");
@@ -466,7 +466,7 @@ public final class GeneratorPanel implements Panel {
         boolean pressed = ImGui.button("Open in editor");
         ImGui.endDisabled();
 
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Puts this in the editor as layers you can move, restyle and save.");
         }
         if (pressed) {

@@ -396,7 +396,7 @@ public final class ImageBrowserPanel implements Panel {
                     choose(image);
                 }
             }
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip(image.displayName() + "\n" + image.path()
                         + "\n" + image.width() + " x " + image.height() + " px");
             }
@@ -545,7 +545,7 @@ public final class ImageBrowserPanel implements Panel {
         String catalogue = metadataLine(image);
         if (!catalogue.isEmpty()) {
             ImGui.textDisabled(fitToPane(catalogue));
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip("Group, catalogue code and licence, as this repository "
                         + "records them.\nThe group and the code can be searched for.");
             }
@@ -559,7 +559,7 @@ public final class ImageBrowserPanel implements Panel {
                 Minecraft.getInstance().keyboardHandler.setClipboard(image.source());
                 copiedSourceFor = image.path();
             }
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip(ImGuiScreens.truncate(image.source(), 90));
             }
             if (image.path().equals(copiedSourceFor)) {

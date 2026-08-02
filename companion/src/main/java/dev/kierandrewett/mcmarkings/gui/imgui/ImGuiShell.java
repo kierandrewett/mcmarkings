@@ -396,7 +396,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(pulling || !services.hasRepositories());
         boolean pullPressed = ImGui.button("Pull");
         ImGui.endDisabled();
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Fetches the repository, then refreshes every placed map whose image moved."
                     + (pulling ? "\n\nAlready pulling." : "")
                     + (services.hasRepositories() ? "" : "\n\nThere is no repository to pull."));
@@ -406,7 +406,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(services.isLoading() || !services.hasRepositories());
         boolean rescanPressed = ImGui.button("Rescan");
         ImGui.endDisabled();
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Reads the folder again, after adding or changing images outside the game."
                     + (services.isLoading() ? "\n\nAlready reading the folder." : "")
                     + (services.hasRepositories() ? "" : "\n\nThere is no repository to read."));
@@ -423,7 +423,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (ImGui.button("Commands")) {
             palette.open();
         }
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             // A palette nobody can find is a palette nobody uses, and the shortcut is
             // only obvious to people who already expected it to be there.
             // The binding, not a copy of it. A tooltip naming a key it does not read
@@ -460,7 +460,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (services.hasUnsavedEdits()) {
             ImGuiScreens.flowTo("unsaved");
             Notice.warning("unsaved");
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 // Checked rather than written from memory: closing keeps the window, a
                 // crash is covered by the snapshot, and reloading asks before
                 // discarding and writes the snapshot on the way out.
@@ -473,7 +473,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (queued > 0) {
             ImGuiScreens.flowTo(queued + " command(s) queued");
             ImGui.textDisabled(queued + " command(s) queued");
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip("Sent a few a second so the server does not drop them. "
                         + "Closing this window does not stop them.");
             }
@@ -533,7 +533,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                         && !current) {
                     switchTo(workspace);
                 }
-                if (ImGui.isItemHovered()) {
+                if (ImGuiScreens.explaining()) {
                     // Says what needs attention, not just that something does. The
                     // reason was worked out when the folder was opened and was only
                     // ever shown on another tab, so the marker here was a dead end.
@@ -650,7 +650,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (!placedAs.isEmpty()) {
             String names = String.join(", ", placedAs);
             ImGui.textDisabled("Already placed as " + ImGuiScreens.truncate(names, 48));
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip(names + "\n\nCreating it again refreshes that map "
                         + "rather than making a second one.");
             }
@@ -664,7 +664,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         int wallWidth = grid.columns() * GridSize.MAP_PIXELS;
         int wallHeight = grid.rows() * GridSize.MAP_PIXELS;
         ImGui.textDisabled(wallWidth + " x " + wallHeight + " on the wall");
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Every item frame shows a " + GridSize.MAP_PIXELS + " pixel map, so this "
                     + "is the detail the sign really has however large the source image is.");
         }
@@ -685,21 +685,21 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         ImGui.beginDisabled(!pinnable);
         boolean create = ImGui.button("Create map", -1.0f, 0.0f);
         ImGui.endDisabled();
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Places this on the wall you are looking at." + pinnableReason());
         }
 
         boolean frames = ImGui.button("Get frames", -1.0f, 0.0f);
 
         boolean toEditor = ImGui.button("Add to editor", -1.0f, 0.0f);
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Puts this on the editor's canvas, centred, and takes you there.");
         }
 
         ImGui.beginDisabled(!pinnable);
         boolean copy = ImGui.button("Copy command", -1.0f, 0.0f);
         ImGui.endDisabled();
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Puts the ImageFrame command on the clipboard, to run yourself."
                     + pinnableReason());
         }

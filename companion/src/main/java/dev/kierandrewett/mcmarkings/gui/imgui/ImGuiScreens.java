@@ -303,6 +303,23 @@ public final class ImGuiScreens {
     }
 
     /**
+     * Whether the control just submitted should explain itself.
+     *
+     * <p>Hovered or focused, and focused is the half that was missing. ImGui shows a
+     * tooltip on hover, which is a mouse, and every explanation in this mod was
+     * therefore addressed to people using one. Someone moving through a panel by
+     * keyboard reached a control with a ring round it and no way to find out what it
+     * did short of pressing it.
+     *
+     * <p>Disabled controls are included on purpose. ImGui suppresses hover on them,
+     * and a greyed-out control is exactly when somebody wants to know why.
+     */
+    public static boolean explaining() {
+        return ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)
+                || ImGui.isItemFocused();
+    }
+
+    /**
      * Keeps the next control on this row while there is room, and starts a new one
      * when there is not.
      *

@@ -184,7 +184,7 @@ public final class PlacedPanel implements Panel {
         // AllowWhenDisabled, or the second half of this tooltip can never be seen:
         // the button is only disabled when the repository is unknown, which is
         // precisely the case that message was written for.
-        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip(known
                     ? "Re-read the image at its current commit, so the sign on the wall catches up."
                     : "The repository this came from is not set up here, so there is nothing to read.");
@@ -192,20 +192,20 @@ public final class PlacedPanel implements Panel {
 
         ImGuiScreens.flowTo("Get map");
         boolean getMap = ImGui.button("Get map");
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Hands you the map item again, for when the original was "
                     + "broken or lost. It is the same map, not a copy.");
         }
 
         ImGuiScreens.flowTo("Get frames");
         boolean frames = ImGui.button("Get frames");
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Another " + entry.grid().frameCount() + " invisible frames, for placing it again.");
         }
 
         ImGuiScreens.flowTo("Edit");
         boolean edit = ImGui.button("Edit");
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Reopen this sign in the editor, if its document was saved beside it.");
         }
 
@@ -277,7 +277,7 @@ public final class PlacedPanel implements Panel {
                 confirmingServerDelete = entry.imageFrameName();
                 confirming = "";
             }
-            if (ImGui.isItemHovered()) {
+            if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip("Remove the map from the server, not just from this list.");
             }
             return;

@@ -111,7 +111,7 @@ public final class RepositoriesPanel implements Panel {
         if (ImGui.button("Add a repository##repositories-add")) {
             picker.open("Choose a repository folder", suggestedStart(), this::addRepository);
         }
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Folders already tracked by git are marked in the list.");
         }
     }
@@ -125,7 +125,7 @@ public final class RepositoriesPanel implements Panel {
         if (ImGui.radioButton("##active", active) && !active) {
             services.setActive(workspace.id());
         }
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip(active ? "This is the repository everything reads from."
                     : "Work from this one instead.");
         }
@@ -186,7 +186,7 @@ public final class RepositoriesPanel implements Panel {
             // Walks the folder, so it is explicitly the async one.
             services.reloadAsync(workspace.id());
         }
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Read the folder again, after adding or changing images outside the game.");
         }
 
@@ -195,7 +195,7 @@ public final class RepositoriesPanel implements Panel {
             picker.open("Where is " + entry.displayName() + " now?", entry.root(),
                     directory -> relocate(workspace, directory));
         }
-        if (ImGui.isItemHovered()) {
+        if (ImGuiScreens.explaining()) {
             ImGui.setTooltip("Point this repository at a new folder, keeping its name.");
         }
 

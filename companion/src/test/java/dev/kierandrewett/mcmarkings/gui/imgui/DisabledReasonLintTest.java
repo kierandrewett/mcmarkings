@@ -31,8 +31,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * item, so the obvious way to write the tooltip produces one that appears only when
  * it is not needed. That is not a visible mistake: the tooltip exists, it reads
  * correctly, and it is simply never on screen in the state it was written for. The
- * check is for {@code AllowWhenDisabled} rather than for a tooltip, because the
- * tooltip on its own proves nothing.
+ * check is for the flag rather than for a tooltip, because the tooltip on its own
+ * proves nothing.
+ *
+ * <p>{@code ImGuiScreens.explaining()} is the way to write it now. It carries that
+ * flag and answers to keyboard focus as well, so it satisfies this check and is the
+ * better of the two.
  *
  * <p>A lint rather than a note, since the note is what drifted.
  */
@@ -88,11 +92,11 @@ class DisabledReasonLintTest {
         }
 
         assertTrue(offences.isEmpty(), () -> """
-                A control is greyed out with no way to find out why. Add a tooltip \
-                guarded by isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled), since \
-                plain isItemHovered is false while an item is disabled and the \
-                tooltip would never appear. If the reason is already visible beside \
-                the control, add its label to ALLOWED with the reason.
+                A control is greyed out with no way to find out why. Guard its \
+                tooltip with ImGuiScreens.explaining(), since plain isItemHovered is \
+                false while an item is disabled and the tooltip would never appear. \
+                If the reason is already visible beside the control, add its label to \
+                ALLOWED with the reason.
                 """ + String.join("\n", offences));
     }
 
@@ -113,7 +117,12 @@ class DisabledReasonLintTest {
             int end = Math.min(lines.size(), index + 1 + LINES_AFTER_CLOSE);
             String region = String.join("\n", lines.subList(start, end));
 
-            if (!INTERACTIVE.matcher(region).find() || region.contains("AllowWhenDisabled")) {
+            // Either the flag directly, or the helper that carries it. The helper also
+            // answers to keyboard focus, which the flag alone does not, so it is the
+            // better of the two and this check should not push anyone back to the flag.
+            boolean explains = region.contains("AllowWhenDisabled")
+                    || region.contains("ImGuiScreens.explaining()");
+            if (!INTERACTIVE.matcher(region).find() || explains) {
                 continue;
             }
 
