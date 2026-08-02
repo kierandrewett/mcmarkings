@@ -671,8 +671,22 @@ public final class ImGuiScreens {
             set(text, Level.GOOD);
         }
 
+        /**
+         * Something failed, with a word about it when there is one worth adding.
+         *
+         * <p>Here rather than at the call sites. Thirty one places in this mod report
+         * a failure and two of them knew to say that a stale jar means restarting the
+         * game, which is the failure people have actually hit. Adding the same call
+         * to the other twenty nine is how the duplicates I have spent this week
+         * merging got made in the first place, so the reporting does it.
+         *
+         * <p>Silent for ordinary failures. Most of them are not this one, and an
+         * explanation invented for them would be worse than the message they came
+         * with.
+         */
         public void bad(String text) {
-            set(text, Level.BAD);
+            String advice = dev.kierandrewett.mcmarkings.core.Diagnosis.adviceFor(text);
+            set(advice.isEmpty() ? text : text + "  " + advice, Level.BAD);
         }
 
         public void set(String text, Level newLevel) {

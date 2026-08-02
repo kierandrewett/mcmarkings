@@ -22,9 +22,20 @@ public final class Notice {
     private Notice() {
     }
 
-    /** Something failed. The text must say what, without relying on being red. */
+    /**
+     * Something failed. The text must say what, without relying on being red.
+     *
+     * <p>Adds the note about a stale jar when the failure looks like one, the same as
+     * the status line does, so it does not matter which of the two a given screen
+     * happens to report through.
+     */
     public static void error(String text) {
-        coloured(Theme.ERROR, text);
+        coloured(Theme.ERROR, withAdvice(text));
+    }
+
+    private static String withAdvice(String text) {
+        String advice = dev.kierandrewett.mcmarkings.core.Diagnosis.adviceFor(text);
+        return advice.isEmpty() ? text : text + "  " + advice;
     }
 
     /** Worth knowing, not a failure. The text must read as a caution on its own. */
@@ -43,7 +54,7 @@ public final class Notice {
 
     /** Wrapping variants, for anything long enough to reach the edge of a panel. */
     public static void errorWrapped(String text) {
-        wrapped(Theme.ERROR, text);
+        wrapped(Theme.ERROR, withAdvice(text));
     }
 
     public static void warningWrapped(String text) {

@@ -19,6 +19,14 @@ import java.util.Locale;
  */
 public final class Diagnosis {
 
+    /**
+     * How far down a cause chain to look.
+     *
+     * <p>Deeper than anything real. A wrapped exception here is two or three deep and
+     * the number is only there so a chain that loops cannot walk forever.
+     */
+    private static final int MAX_CAUSE_DEPTH = 32;
+
     private Diagnosis() {
     }
 
@@ -29,14 +37,18 @@ public final class Diagnosis {
      * invented for them would be worse than the message they came with.
      */
     public static String adviceFor(Throwable failure) {
-        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+        // Bounded rather than watched for a self-reference. That only catches a cause
+        // pointing straight at itself, and a chain going round in a longer circle
+        // walks forever: the check I wrote first passed its test by hanging, which a
+        // build turns into a timeout rather than a failure and is the worst way for a
+        // diagnostic to go wrong.
+        Throwable cause = failure;
+        for (int depth = 0; cause != null && depth < MAX_CAUSE_DEPTH; depth++) {
             if (looksLikeAStaleJar(cause)) {
                 return "The mod's files changed while the game was running, so it has "
                         + "half of one version loaded and half of another. Restart Minecraft.";
             }
-            if (cause == cause.getCause()) {
-                break;
-            }
+            cause = cause.getCause();
         }
         return "";
     }
