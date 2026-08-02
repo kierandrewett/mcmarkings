@@ -205,7 +205,11 @@ public final class EditorFiles {
                 .does(this::promptForName));
 
         commands.register(Command.of("editor.file.publish", "Place as a map").category("File")
-                .hint("Render at full size, commit it, and run the ImageFrame command")
+                // Says push, because it does. A plain git push sends the whole branch,
+                // so placing one sign also sends every other local commit, and that is
+                // not something to discover afterwards.
+                .hint("Renders at full size, commits it, pushes the branch, "
+                        + "then runs the ImageFrame command")
                 .enabledWhen(() -> canWrite() && !history.current().layers().isEmpty())
                 .does(this::placeAsMap));
     }

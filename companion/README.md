@@ -170,9 +170,16 @@ editor. That is the difference between a generator being a starting point and
 being a dead end: without it, a result that is nearly right can only be fixed by
 editing the script.
 
-**Git.** Placing an image writes the PNG, commits only that file, and
-pushes, so the image has a URL the server can reach. The mod **never reads or
-writes git configuration** at any scope. If a commit fails because identity or
+**Git.** Placing an image writes the PNG, commits **only that file**, and then
+pushes the branch. The commit is narrow on purpose, because the working tree may
+hold edits you are midway through and staging those would be theft. The push is
+not narrow and cannot be: `git push` sends the branch, so placing one sign also
+sends every other local commit you have. The interface says so wherever it can
+be pressed, because it is not something to discover afterwards.
+
+Pushing at all is necessary: the server fetches the image over HTTP, so it has to
+exist at a URL before a map can be made from it. The mod **never reads or writes
+git configuration** at any scope. If a commit fails because identity or
 credentials are missing, it shows you git's own error and stops rather than
 quietly patching your setup.
 

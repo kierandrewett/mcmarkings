@@ -301,7 +301,12 @@ public final class GeneratorPanel implements Panel {
     private void drawActions() {
         boolean busy = publish.running();
         ImGui.beginDisabled(busy || previewImage == null || grid == null);
-        if (ImGui.button("Save & publish")) {
+        boolean publishPressed = ImGui.button("Save & publish");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
+                    + "then creates the map.\nA push sends every local commit, not just this one.");
+        }
+        if (publishPressed) {
             publish.publish(new PublishFlow.Request(name.get(), previewImage, grid, null), null);
         }
         ImGui.endDisabled();
