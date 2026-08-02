@@ -221,12 +221,11 @@ class GridRecommenderTest {
     @Test
     @DisplayName("where the server does the fitting, the grid matches the shape")
     void theServerFittedPathMatchesTheShape() {
-        // The sign that prompted the change. Two frames when the mod pads it, three
-        // when something else decides: at 3.60:1 a 3x1 is 19.9% off, which slips under
-        // the twenty per cent this rule has always allowed. I guessed four writing
-        // this and the numbers say three.
+        // Two frames when the mod pads it, four when something else decides. The
+        // shape rule spends up to four and takes the closest it can get for them, and
+        // at 3.60:1 that is 4x1.
         assertEquals(new GridSize(2, 1), GridRecommender.best(1601, 445));
-        assertEquals(new GridSize(3, 1), GridRecommender.bestMatchingShape(1601, 445));
+        assertEquals(new GridSize(4, 1), GridRecommender.bestMatchingShape(1601, 445));
 
         // An exact fit is taken outright, which is the whole point of this rule.
         assertEquals(new GridSize(4, 1), GridRecommender.bestMatchingShape(2048, 512));
@@ -292,6 +291,31 @@ class GridRecommenderTest {
             List<GridSuggestion> shaped = GridRecommender.topMatchingShape(size[0], size[1], 3);
             assertEquals(GridRecommender.bestMatchingShape(size[0], size[1]), shaped.getFirst().grid(),
                     size[0] + "x" + size[1] + " offers a different shape-matched grid than it recommends");
+        }
+    }
+
+    /**
+     * The case that showed the shape rule had no budget.
+     *
+     * <p>An 826x1024 sign, a portrait rectangle, came back recommending 3x4. Twelve
+     * item frames, placed by hand, for one sign. The rule took the first grid whose
+     * shape was close enough and never asked what it cost: 1x1 misses the threshold
+     * by four hundredths and 2x3 by one, so the first that cleared it was 3x4.
+     *
+     * <p>Reported as "at max this could be 1x2". One frame is the honest answer and
+     * is what it gives now.
+     */
+    @Test
+    @DisplayName("matching the shape does not buy a wall to do it")
+    void shapeMatchingHasABudget() {
+        assertEquals(new GridSize(1, 1), GridRecommender.bestMatchingShape(826, 1024));
+
+        for (int[] size : new int[][] {{826, 1024}, {1601, 445}, {2048, 512}, {450, 170},
+                {601, 1024}, {1024, 733}, {1024, 1024}}) {
+            GridSize grid = GridRecommender.bestMatchingShape(size[0], size[1]);
+            assertTrue(grid.frameCount() <= GridRecommender.SHAPE_FRAME_BUDGET,
+                    size[0] + "x" + size[1] + " wants " + grid + ", which is "
+                            + grid.frameCount() + " frames to place by hand");
         }
     }
 }

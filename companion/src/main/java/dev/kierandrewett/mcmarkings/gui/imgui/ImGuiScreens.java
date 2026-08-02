@@ -322,7 +322,11 @@ public final class ImGuiScreens {
         float y = ImGui.getCursorScreenPosY();
         boolean pressed = ImGui.button("##" + id, side, side);
 
-        float inset = Math.max(2.0f, side * 0.2f);
+        // A seventh rather than a fifth. The button is already padded, and at GUI
+        // scale 1 it is sixteen pixels across, so a fifth each side spent six of them
+        // on space inside something that was spaced already and left the icon at
+        // under ten. These were drawn and checked at thirteen.
+        float inset = Math.max(2.0f, side * 0.14f);
         drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset, side - inset * 2.0f,
                 ImGui.getColorU32(imgui.flag.ImGuiCol.Text));
 

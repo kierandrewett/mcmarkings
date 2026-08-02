@@ -55,6 +55,20 @@ public final class GridRecommender {
      */
     public static final double MINIMUM_COVERAGE = 0.45;
 
+    /**
+     * How many frames matching the image's shape may cost.
+     *
+     * <p>Four, because four is a wall two blocks by two and beyond that somebody is
+     * building rather than placing. Reported after a portrait sign came back
+     * recommending twelve: the rule took the first grid whose shape was close enough
+     * and never asked what it cost, so a shape that only fits well at 3x4 got 3x4.
+     *
+     * <p>Within the budget the closest shape still wins, so a 4:1 banner takes its
+     * 4x1 and a square takes its 1x1. It is only the images that fit nothing small
+     * that now settle for the best of a small grid instead of buying a bigger one.
+     */
+    public static final int SHAPE_FRAME_BUDGET = 4;
+
     /** Fallback ceiling when nothing reaches {@link #ACCEPTABLE}. */
     public static final int DEFAULT_MAX_FRAMES = 16;
 
@@ -83,14 +97,16 @@ public final class GridRecommender {
     public static GridSize bestMatchingShape(int imageWidth, int imageHeight) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
 
-        for (GridSuggestion suggestion : frontier) {
-            if (suggestion.distortion() <= ACCEPTABLE) {
-                return suggestion.grid();
-            }
-        }
-
+        // The best shape this many frames can buy, rather than the first shape close
+        // enough at any price. Chasing the aspect with no budget is how an 826x1024
+        // sign was recommended twelve frames: 1x1 misses the threshold by four
+        // hundredths, 2x3 misses it by one, and 3x4 clears it at twelve frames. The
+        // sign is a portrait rectangle and one frame is the honest answer.
+        //
+        // Frames are placed by hand, one at a time, on a wall. That is the cost that
+        // matters and the shape is what gets optimised inside it.
         return frontier.stream()
-                .filter(suggestion -> suggestion.grid().frameCount() <= DEFAULT_MAX_FRAMES)
+                .filter(suggestion -> suggestion.grid().frameCount() <= SHAPE_FRAME_BUDGET)
                 .min(Comparator.comparingDouble(GridSuggestion::distortion))
                 .map(GridSuggestion::grid)
                 .orElseGet(() -> frontier.getFirst().grid());
@@ -194,6 +210,19 @@ public final class GridRecommender {
     private static List<GridSuggestion> offered(int imageWidth, int imageHeight, int count,
             boolean matchShape) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
+
+        // The shape rule spends a budget and takes the best shape inside it, so the
+        // list has to start at the same place rather than at the first grid that
+        // clears a threshold. Otherwise the button it lands on is not the first one
+        // offered, which is the mismatch this pairing exists to prevent.
+        if (matchShape) {
+            GridSize recommended = bestMatchingShape(imageWidth, imageHeight);
+            List<GridSuggestion> from = frontier.stream()
+                    .dropWhile(suggestion -> !suggestion.grid().equals(recommended))
+                    .toList();
+            List<GridSuggestion> usable = from.isEmpty() ? frontier : from;
+            return List.copyOf(usable.subList(0, Math.min(count, usable.size())));
+        }
 
         // Starts where best() would stop, so the first button offered is the one it
         // recommends and the rest are the larger grids someone might want instead.

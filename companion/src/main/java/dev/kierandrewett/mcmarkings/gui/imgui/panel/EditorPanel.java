@@ -651,7 +651,7 @@ public final class EditorPanel implements Panel {
             float y = ImGui.getCursorScreenPosY();
             pressed = ImGui.button("##" + commandId, side, side);
 
-            float inset = Math.max(2.0f, side * 0.2f);
+            float inset = Math.max(2.0f, side * 0.14f);
             ImGuiScreens.drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset,
                     side - inset * 2.0f,
                     ImGui.getColorU32(enabled ? ImGuiCol.Text : ImGuiCol.TextDisabled));
