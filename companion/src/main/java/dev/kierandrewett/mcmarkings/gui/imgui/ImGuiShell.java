@@ -83,6 +83,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     /** Map names already made from the selected image, or empty. */
     private List<String> placedAs = List.of();
 
+    /** The registry generation {@link #placedAs} was worked out from. */
+    private int placedGeneration = -1;
+
     private static final int KEY_P = 'P';
 
     /** GLFW modifier bits, which the key event carries verbatim. */
@@ -605,7 +608,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
      * anywhere an image needs choosing.
      */
     private void drawImageActions(RepoImage image) {
-        if (!image.equals(actionImage)) {
+        // Recomputed when the image changes or when the registry has, which covers
+        // placing from here, and also deleting or forgetting a map on the Placed tab
+        // and coming back to an image that is still selected.
+        if (!image.equals(actionImage) || placedGeneration != services.registry.generation()) {
             actionImage = image;
             grid = GridRecommender.best(image.width(), image.height());
             suggestions = GridRecommender.top(image.width(), image.height(), 3);
@@ -705,9 +711,6 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 System.currentTimeMillis()));
         saveRegistry();
 
-        // Placing does not change the selection, so without this the image you just
-        // put on a wall still reads as never placed until you click away and back.
-        refreshPlacedAs(image);
 
         status.good((exists ? "Refreshing " : "Creating ") + name + " at " + grid);
     }
@@ -720,6 +723,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
      * second for something that changes when you click or place is waste.
      */
     private void refreshPlacedAs(RepoImage image) {
+        placedGeneration = services.registry.generation();
         placedAs = services.registry.byRepoPath(image.path()).stream()
                 .map(MapEntry::imageFrameName)
                 .toList();

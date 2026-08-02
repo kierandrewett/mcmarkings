@@ -47,6 +47,21 @@ public interface MapRegistry {
 
     void remove(String imageFrameName);
 
+    /**
+     * Bumped whenever the contents change, so a cached answer can tell.
+     *
+     * <p>Anything derived from this registry is worked out once and read every frame,
+     * and the trigger that recomputes it is rarely the only thing that changes it.
+     * The browser learned that the hard way: it cached which maps come from an image
+     * and refreshed on selection, so deleting one from another tab left the answer
+     * wrong until you happened to click away and back.
+     *
+     * <p>A counter rather than listeners, because the only question anyone asks is
+     * "has this changed since I looked", and comparing two numbers is cheap enough to
+     * do while drawing.
+     */
+    int generation();
+
     void load() throws IOException;
 
     void save() throws IOException;

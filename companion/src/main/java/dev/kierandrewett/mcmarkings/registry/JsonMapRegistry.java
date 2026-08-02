@@ -117,12 +117,21 @@ public class JsonMapRegistry implements MapRegistry {
         return List.copyOf(snapshot);
     }
 
+    /** Bumped on every change; see {@link MapRegistry#generation()}. */
+    private volatile int generation;
+
+    @Override
+    public int generation() {
+        return generation;
+    }
+
     @Override
     public void put(MapEntry entry) {
         if (entry == null || entry.imageFrameName() == null || entry.imageFrameName().isBlank()) {
             throw new IllegalArgumentException("a map entry needs an ImageFrame name");
         }
         entries.put(entry.imageFrameName(), entry);
+        generation++;
     }
 
     @Override
@@ -130,7 +139,10 @@ public class JsonMapRegistry implements MapRegistry {
         if (imageFrameName == null) {
             return;
         }
+        // Bumped even when nothing was there, which costs a recompute nobody needed
+        // and avoids a stale answer if the key ever stops matching exactly.
         entries.remove(imageFrameName);
+        generation++;
     }
 
     @Override

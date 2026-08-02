@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -234,5 +235,21 @@ class JsonMapRegistryTest {
         JsonMapRegistry reloaded = new JsonMapRegistry(file);
         reloaded.load();
         assertFalse(reloaded.all().isEmpty());
+    }
+
+    @Test
+    void generationTracksChanges() throws IOException {
+        // What lets a cached answer tell it has gone stale. The browser caches which
+        // maps come from an image; without this it only noticed changes it made
+        // itself, and a delete from another tab left it wrong.
+        JsonMapRegistry registry = new JsonMapRegistry(Path.of("build", "generation.json"));
+        int start = registry.generation();
+
+        registry.put(new MapEntry("a", "repo", "a.png", new GridSize(1, 1), "sha", 1L));
+        int afterPut = registry.generation();
+        assertNotEquals(start, afterPut, "adding a map did not register as a change");
+
+        registry.remove("a");
+        assertNotEquals(afterPut, registry.generation(), "removing one did not either");
     }
 }
