@@ -126,11 +126,22 @@ public final class FontRegistry {
      */
     private static final List<String> NOT_A_BODY_FACE = List.of(
             "italic", "oblique", "bold", "black", "heavy", "light", "thin", "medium",
-            "semibold", "demi", "condensed", "narrow", "extended", "mono");
+            "semibold", "demi", "condensed", "narrow", "extended");
 
-    private static boolean isBodyFace(Path path) {
+    /**
+     * Monospace is rejected when it was not asked for, and kept when it was.
+     *
+     * <p>The fault this came from was "dejavusans" matching "DejaVu Sans Mono for
+     * Powerline", so a family asked for by name must not pick up a monospace cousin.
+     * But a family whose name is itself monospace, Monocraft being the one actually
+     * wanted here, has to survive the same filter.
+     */
+    private static boolean isBodyFace(Path path, String wantedFamily) {
         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
         if (!name.endsWith(".ttf")) {
+            return false;
+        }
+        if (name.contains("mono") && !wantedFamily.contains("mono")) {
             return false;
         }
         return NOT_A_BODY_FACE.stream().noneMatch(name::contains);
@@ -138,14 +149,19 @@ public final class FontRegistry {
 
     public synchronized Optional<Path> anyReadableFontFile() {
         ensureScanned();
-        for (String preferred : List.of("dejavusans", "liberationsans", "notosans", "arial",
-                "helvetica", "roboto", "segoeui", "cantarell", "ubuntu")) {
+        // Monocraft first, because it is the Minecraft look as an actual scalable
+        // font. Minecraft's own is a bitmap in ascii.png and unicode pages, which
+        // addFontFromFileTTF cannot load, so this is the way to have it without
+        // writing an atlas builder. Absent on a machine that has not installed it,
+        // and then the ordinary sans faces follow as before.
+        for (String preferred : List.of("monocraft", "dejavusans", "liberationsans", "notosans",
+                "arial", "helvetica", "roboto", "segoeui", "cantarell", "ubuntu")) {
             // The plain face first. Failing that, any face of this family at all, which
             // is still a better answer than the next family down.
             Optional<Path> plain = fileByName.entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(preferred))
                     .map(Map.Entry::getValue)
-                    .filter(FontRegistry::isBodyFace)
+                    .filter(path -> isBodyFace(path, preferred))
                     .sorted(java.util.Comparator.comparingInt(path -> path.toString().length()))
                     .findFirst();
             if (plain.isPresent()) {
@@ -153,7 +169,7 @@ public final class FontRegistry {
             }
         }
         return fileByName.values().stream()
-                .filter(FontRegistry::isBodyFace)
+                .filter(path -> isBodyFace(path, ""))
                 .sorted(java.util.Comparator.comparingInt(path -> path.toString().length()))
                 .findFirst();
     }

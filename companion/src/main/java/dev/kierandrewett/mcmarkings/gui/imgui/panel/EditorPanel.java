@@ -972,9 +972,12 @@ public final class EditorPanel implements Panel {
             updateCursorHint(document, originX, originY);
         }
 
-        // Right-drag pans. It has to work anywhere on the canvas, including on top of
-        // a layer, so it is checked before anything that selects.
-        if (active && ImGui.isMouseDown(ImGuiMouseButton.Right)) {
+        // Right-drag or middle-drag pans. Both, because the middle button is what
+        // every other canvas tool uses and reaching for it and having nothing happen
+        // is a small stop every single time. It has to work anywhere on the canvas,
+        // including on top of a layer, so it is checked before anything that selects.
+        if (active && (ImGui.isMouseDown(ImGuiMouseButton.Right)
+                || ImGui.isMouseDown(ImGuiMouseButton.Middle))) {
             panX = clampPan(panX + ImGui.getIO().getMouseDeltaX(),
                     document.width() * zoom, ImGui.getItemRectSizeX());
             panY = clampPan(panY + ImGui.getIO().getMouseDeltaY(),
@@ -1108,11 +1111,16 @@ public final class EditorPanel implements Panel {
     }
 
     /**
-     * Resizes from the handle that was grabbed.
+     * Resizes from the handle that was grabbed, snapping the edges being pulled.
      *
-     * <p>Deliberately unsnapped. {@link Snapping} moves an origin and preserves a
-     * size, which is the wrong shape for an edge drag, and half a snap would feel
-     * worse than none.
+     * <p>This used to be deliberately unsnapped, on the grounds that {@link Snapping}
+     * moves an origin and keeps a size, which is the wrong shape for an edge drag.
+     * That was true of {@code snap} and it was the wrong conclusion: the answer is an
+     * edge snap, not no snap. Lining a plate up with the sign under it meant nudging
+     * by hand until it looked right, which is exactly the job snapping exists to do.
+     *
+     * <p>Only the grabbed edges move. Pulling the right handle cannot change where
+     * the left edge sits, however close a guide runs to it.
      */
     private void applyResize(Document document, int deltaX, int deltaY) {
         Layer.Bounds start = drag.startBounds().get(drag.primaryId());
@@ -1120,9 +1128,35 @@ public final class EditorPanel implements Panel {
         if (start == null || layer == null) {
             return;
         }
-        guides = List.of();
-        history.push(document.replace(layer.withBounds(resized(start, drag.handle(), deltaX, deltaY))),
+
+        Layer.Bounds proposed = resized(start, drag.handle(), deltaX, deltaY);
+        Handle handle = drag.handle();
+        boolean snapping = snapEnabled && !ImGui.getIO().getKeyAlt();
+
+        Snapping.Result snapped = Snapping.snapResize(proposed, document, drag.primaryId(),
+                Snapping.toleranceForZoom(zoom, SNAP_SCREEN_PIXELS), snapping,
+                movesLeftEdge(handle), movesRightEdge(handle),
+                movesTopEdge(handle), movesBottomEdge(handle));
+        guides = snapped.guides();
+
+        history.push(document.replace(layer.withBounds(snapped.bounds())),
                 "Resize layer", "resize:" + drag.primaryId());
+    }
+
+    private static boolean movesLeftEdge(Handle handle) {
+        return handle == Handle.LEFT || handle == Handle.TOP_LEFT || handle == Handle.BOTTOM_LEFT;
+    }
+
+    private static boolean movesRightEdge(Handle handle) {
+        return handle == Handle.RIGHT || handle == Handle.TOP_RIGHT || handle == Handle.BOTTOM_RIGHT;
+    }
+
+    private static boolean movesTopEdge(Handle handle) {
+        return handle == Handle.TOP || handle == Handle.TOP_LEFT || handle == Handle.TOP_RIGHT;
+    }
+
+    private static boolean movesBottomEdge(Handle handle) {
+        return handle == Handle.BOTTOM || handle == Handle.BOTTOM_LEFT || handle == Handle.BOTTOM_RIGHT;
     }
 
     private void finishDrag(Document document, float originX, float originY) {
@@ -2053,11 +2087,20 @@ public final class EditorPanel implements Panel {
      * that is exactly where a forgotten {@code settle} hides, and a forgotten one
      * silently welds two edits into a single undo.
      */
+    /**
+     * A labelled control, label first.
+     *
+     * <p>It used to draw the control and then the label underneath, which reads as
+     * the label belonging to the control below it rather than the one above. Down a
+     * column of them every field appears to be named after its neighbour: the box
+     * holding the position sits under a label saying Name, and the one holding the
+     * size sits under Position.
+     */
     private boolean field(String label, BooleanSupplier control) {
+        ImGui.textDisabled(label);
         ImGui.setNextItemWidth(-1.0f);
         boolean changed = control.getAsBoolean();
         settle();
-        ImGui.textDisabled(label);
         return changed;
     }
 

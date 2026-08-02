@@ -62,21 +62,8 @@ public final class Snapping {
             return new Result(proposed, List.of());
         }
 
-        List<Integer> verticalLines = verticalLines(document);
-        List<Integer> horizontalLines = horizontalLines(document);
-
-        for (Layer layer : document.layers()) {
-            if (layer.id().equals(ignoreId) || !layer.visible()) {
-                continue;
-            }
-            Layer.Bounds other = layer.bounds();
-            verticalLines.add(other.x());
-            verticalLines.add(other.centreX());
-            verticalLines.add(other.right());
-            horizontalLines.add(other.y());
-            horizontalLines.add(other.centreY());
-            horizontalLines.add(other.bottom());
-        }
+        List<Integer> verticalLines = candidateLines(document, ignoreId, true);
+        List<Integer> horizontalLines = candidateLines(document, ignoreId, false);
 
         List<Guide> guides = new ArrayList<>(2);
         int x = resolve(proposed.x(), proposed.width(), verticalLines, tolerance, true, guides);
@@ -127,6 +114,104 @@ public final class Snapping {
             guides.add(new Guide(vertical, bestLine, bestEdge));
         }
         return bestOrigin;
+    }
+
+    /**
+     * Every line a drag can land on, along one axis.
+     *
+     * <p>Shared by moving and resizing so the two cannot drift apart. A resize that
+     * snapped to a different set of lines than a move would feel like two different
+     * tools, and the answer to "why did it stick there" would depend on which one you
+     * happened to be using.
+     */
+    private static List<Integer> candidateLines(Document document, String ignoreId, boolean vertical) {
+        List<Integer> lines = vertical ? verticalLines(document) : horizontalLines(document);
+        for (Layer layer : document.layers()) {
+            if (layer.id().equals(ignoreId) || !layer.visible()) {
+                continue;
+            }
+            Layer.Bounds other = layer.bounds();
+            if (vertical) {
+                lines.add(other.x());
+                lines.add(other.centreX());
+                lines.add(other.right());
+            } else {
+                lines.add(other.y());
+                lines.add(other.centreY());
+                lines.add(other.bottom());
+            }
+        }
+        return lines;
+    }
+
+    /**
+     * Snaps the edges a resize is actually moving, leaving the others alone.
+     *
+     * <p>{@link #snap} moves an origin and keeps the size, which is the right shape
+     * for a drag and the wrong one for pulling an edge: applied to a resize it would
+     * slide the whole layer sideways instead of stretching it. That is why resizing
+     * went unsnapped, and unsnapped is why lining a plate up with the sign under it
+     * meant nudging by hand until it looked right.
+     *
+     * <p>Only the grabbed edges move. Pulling the right handle cannot change where
+     * the left edge is, however close a guide runs to it, because that would move the
+     * layer while you were sizing it.
+     *
+     * <p>A minimum of one pixel each way, since a snap that collapses a layer to
+     * nothing loses it: there is then no handle left to pull it back out by.
+     */
+    public static Result snapResize(Layer.Bounds proposed, Document document, String ignoreId,
+            int tolerance, boolean enabled, boolean movingLeft, boolean movingRight,
+            boolean movingTop, boolean movingBottom) {
+        if (!enabled || tolerance <= 0) {
+            return new Result(proposed, List.of());
+        }
+
+        List<Integer> verticalLines = candidateLines(document, ignoreId, true);
+        List<Integer> horizontalLines = candidateLines(document, ignoreId, false);
+        List<Guide> guides = new ArrayList<>(2);
+
+        int left = proposed.x();
+        int right = proposed.right();
+        int top = proposed.y();
+        int bottom = proposed.bottom();
+
+        if (movingLeft) {
+            left = snapEdge(left, verticalLines, tolerance, true, Edge.START, guides);
+        }
+        if (movingRight) {
+            right = snapEdge(right, verticalLines, tolerance, true, Edge.END, guides);
+        }
+        if (movingTop) {
+            top = snapEdge(top, horizontalLines, tolerance, false, Edge.START, guides);
+        }
+        if (movingBottom) {
+            bottom = snapEdge(bottom, horizontalLines, tolerance, false, Edge.END, guides);
+        }
+
+        return new Result(
+                new Layer.Bounds(left, top, Math.max(1, right - left), Math.max(1, bottom - top)),
+                List.copyOf(guides));
+    }
+
+    /** The nearest candidate to one edge, or the edge unchanged. */
+    private static int snapEdge(int position, List<Integer> lines, int tolerance,
+            boolean vertical, Edge edge, List<Guide> guides) {
+        int best = position;
+        int bestDistance = tolerance + 1;
+
+        for (int line : lines) {
+            int distance = Math.abs(line - position);
+            if (distance <= tolerance && distance < bestDistance) {
+                bestDistance = distance;
+                best = line;
+            }
+        }
+
+        if (best != position || bestDistance <= tolerance) {
+            guides.add(new Guide(vertical, best, edge));
+        }
+        return best;
     }
 
     /** Canvas edges, canvas centre, and every frame boundary. */
