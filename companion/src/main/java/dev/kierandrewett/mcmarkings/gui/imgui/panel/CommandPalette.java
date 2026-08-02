@@ -81,7 +81,8 @@ public final class CommandPalette {
             ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
             ImGui.inputTextWithHint("##" + id + "-query", "Search commands", query);
 
-            for (Command command : results()) {
+            Results results = results();
+            for (Command command : results.shown()) {
                 String shortcut = command.shortcut() == null ? "" : "   " + command.shortcut().display();
                 String label = command.category() + ": " + command.label() + shortcut;
 
@@ -100,6 +101,16 @@ public final class CommandPalette {
                 }
             }
 
+            if (results.shown().isEmpty()) {
+                ImGui.textDisabled("Nothing matches that.");
+            } else if (results.total() > results.shown().size()) {
+                // Said, because every other list in here says it. A palette that
+                // quietly shows fourteen of thirty teaches people it does not have
+                // what they are looking for.
+                ImGui.textDisabled((results.total() - results.shown().size())
+                        + " more; keep typing to narrow it down");
+            }
+
             if (chosen != null) {
                 ImGui.closeCurrentPopup();
             }
@@ -114,28 +125,74 @@ public final class CommandPalette {
         }
     }
 
+    /** What matched, and how much of it is being shown. */
+    private record Results(List<Command> shown, int total) {
+    }
+
     /**
-     * Merges the registries in scope, in the order given.
+     * Merges the registries in scope.
      *
      * <p>Each is searched separately rather than concatenated first, so the window's
      * own actions keep their place ahead of the tab's rather than being interleaved
      * by whatever the ranking happens to prefer.
+     *
+     * <p>Taken a round at a time once there are more matches than fit. Filling the
+     * list from the window first and stopping is the obvious way and it is wrong: the
+     * window has ten commands with shortcuts on most of them, so a short query could
+     * fill every slot and the visible tab's commands would not appear at all. A
+     * palette that hides the commands of the thing you are looking at is worse than
+     * no palette, because it answers "no" to a question it never actually asked.
      */
-    private List<Command> results() {
-        List<Command> found = new ArrayList<>();
+    private Results results() {
+        List<List<Command>> perRegistry = new ArrayList<>();
         String text = query.get();
+        int total = 0;
 
         for (CommandRegistry registry : scope.get()) {
             if (registry == null) {
                 continue;
             }
-            for (Command command : registry.search(text, RESULT_LIMIT)) {
-                if (found.size() >= RESULT_LIMIT) {
-                    return found;
+            // Each is bounded so a large registry cannot make this expensive, which
+            // does mean the total is a count of what was looked at rather than of
+            // everything that could ever match. Close enough to say "there are more".
+            List<Command> matches = registry.search(text, RESULT_LIMIT * 2);
+            perRegistry.add(matches);
+            total += matches.size();
+        }
+
+        return new Results(interleave(perRegistry, RESULT_LIMIT), total);
+    }
+
+    /**
+     * Takes one from each list in turn until the limit is reached.
+     *
+     * <p>Package-private and static so it can be tested. The allocation is the part
+     * with a decision in it, and it is invisible in a running palette: the failure
+     * looks like a command simply not existing.
+     *
+     * <p>A list that runs out is skipped rather than ending the round, so one
+     * registry with two commands does not stop a longer one from filling the rest.
+     */
+    static List<Command> interleave(List<List<Command>> perRegistry, int limit) {
+        List<Command> shown = new ArrayList<>();
+
+        for (int round = 0; shown.size() < limit; round++) {
+            boolean anyLeft = false;
+            for (List<Command> matches : perRegistry) {
+                if (round >= matches.size()) {
+                    continue;
                 }
-                found.add(command);
+                anyLeft = true;
+                shown.add(matches.get(round));
+                if (shown.size() >= limit) {
+                    break;
+                }
+            }
+            if (!anyLeft) {
+                break;
             }
         }
-        return found;
+
+        return shown;
     }
 }
