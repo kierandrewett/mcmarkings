@@ -16,13 +16,31 @@ import java.util.Optional;
  * than two hundred, and the stack is bounded so a long session cannot quietly eat
  * memory holding every state a document has ever been in.
  *
- * <p>Documents are immutable records, so entries share structure and holding a
- * hundred of them is far cheaper than it sounds.
+ * <p>Documents are immutable records, so entries share structure and holding five
+ * hundred of them costs about a quarter of a megabyte, which is measured rather than
+ * assumed in {@code HistoryCostTest}.
  */
 public final class History {
 
-    /** Enough to cover a long working session without being worth measuring. */
-    public static final int DEFAULT_LIMIT = 100;
+    /**
+     * How far back undo reaches.
+     *
+     * <p>A hundred, with a comment saying it was not worth measuring. It was worth
+     * measuring. Entries share structure, so a fifty layer document with five hundred
+     * steps behind it holds about two hundred and thirty kilobytes, against a hundred
+     * and fifteen for a hundred steps: five times the history for twice the memory,
+     * because an edit touches one layer and the other forty nine are the same objects
+     * in every entry.
+     *
+     * <p>A hundred discrete actions is an hour of composing, and coalescing means
+     * they are a hundred real actions rather than a hundred mouse movements. Running
+     * out of undo after an hour is exactly the kind of thing that makes somebody stop
+     * trusting a tool and start saving copies by hand.
+     *
+     * <p>Five hundred, then, which is a quarter of a megabyte next to textures
+     * measured in megabytes.
+     */
+    public static final int DEFAULT_LIMIT = 500;
 
     /**
      * How long two edits can be apart and still merge.
