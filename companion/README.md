@@ -338,3 +338,35 @@ need you in game:
     that it stops saying so once you have placed something.
 13. Move the config file aside and confirm the first-run panel appears in the
     window rather than as a separate screen.
+
+### Since the interface was reworked
+
+These are the parts that changed after somebody used the mod for an afternoon and
+said what was wrong with it. They are worth their own pass, because most of them
+are the sort of thing that is obvious in front of you and invisible from here.
+
+14. Drag a layer around the canvas. It should keep up with the cursor rather than
+    trailing it. The render used to wait 160ms after every change, which during a
+    drag meant about six updates a second.
+15. Resize a layer by a handle near another layer's edge, and confirm it snaps
+    and shows a guide. Only the edge you are pulling should move.
+16. Hold **Alt** with one layer selected. The gaps to whatever is under the
+    cursor, or to the canvas, should be drawn and numbered. Alt during a drag
+    still suspends snapping.
+17. Middle-drag the canvas and confirm it pans, the same as right-drag.
+18. Confirm the toolbar and the placed list are icons, that hovering each says
+    what it does and its shortcut, and that the confirmations for Forget and
+    Delete are still words.
+19. Confirm the interface is in Monocraft, which now ships with the mod, and that
+    it is a readable size rather than twice the size it should be.
+20. In **Generate**, confirm the preview shows the sign inside the frames it is
+    going onto, with the frame divisions drawn and the margin as a chequerboard.
+21. Publish a sign whose shape does not match its grid, place it, and confirm it
+    keeps its proportions with transparent space around it rather than being
+    stretched to fill the frames.
+22. Place an image from **Browse** whose shape does not match any small grid, and
+    confirm it is not squashed. This is the one path the mod does not fit itself:
+    it hands ImageFrame a URL and a grid, so the grid is chosen to match the
+    image's shape and what the server does with it should not show.
+23. Replace the mod's jar while the game is running. The window should say so and
+    keep saying so, rather than failing later with a class it cannot load.
