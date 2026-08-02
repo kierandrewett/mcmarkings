@@ -239,6 +239,14 @@ public final class GeneratorPanel implements Panel {
         }
         ImGui.textDisabled("Map name");
 
+        // The same disclosure the editor's document name got. Publishing lowercases
+        // this and replaces anything outside a small set, and the field is labelled
+        // "Map name", which makes it read like the name you will get.
+        String placed = ImageFrameCommands.sanitiseName(name.get());
+        if (!placed.equals(name.get())) {
+            ImGui.textDisabled("Placed as " + placed);
+        }
+
         drawActions();
     }
 
