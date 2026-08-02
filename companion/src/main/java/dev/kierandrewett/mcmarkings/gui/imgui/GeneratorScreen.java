@@ -38,9 +38,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The generator form: pick a script, fill in its parameters, watch the sign
  * redraw, then publish it.
  *
- * <p>This exists in ImGui rather than owo because of one widget. A road sign is
- * mostly a stack of text lines, and a real multiline text box with a caret is
- * what makes that bearable to type; Minecraft's own toolkit has nothing like it.
+ * <p>This exists in ImGui rather than owo because of one widget. Generated images
+ * are commonly a stack of text lines, and a real multiline text box with a caret
+ * is what makes that bearable to type; Minecraft's own toolkit has nothing like
+ * it.
  *
  * <p>The form is built entirely from {@link ParamDef}, so a generator can add a
  * field by editing its script and reloading, with no Java change.

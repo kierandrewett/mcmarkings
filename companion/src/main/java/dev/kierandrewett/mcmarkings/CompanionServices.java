@@ -137,6 +137,12 @@ public final class CompanionServices {
         return current().repo().root();
     }
 
+    /** How the active repository's raw file URLs are built, and which forge serves them. */
+    public dev.kierandrewett.mcmarkings.repo.RawUrls.Target rawUrls()
+            throws dev.kierandrewett.mcmarkings.repo.GitException {
+        return current().rawUrls();
+    }
+
     public String activeRepositoryId() {
         return active().map(Workspace::id).orElse("");
     }

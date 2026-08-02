@@ -88,7 +88,33 @@ class ProcessGitServiceTest {
         assertEquals(40, git.head().length());
         assertFalse(git.currentBranch().isBlank());
         assertEquals("example-owner/example-repo", git.remoteSlug());
+        assertEquals("git@github.com:example-owner/example-repo.git", git.remoteUrl());
         assertTrue(git.isClean());
+    }
+
+    @Test
+    void refusesToGuessAtAnOriginThatIsNotThere(@TempDir Path directory) throws Exception {
+        assumeTrue(gitAvailable(), "git is not on PATH");
+        Path repository = newRepository(directory, "no-remote");
+        assumeTrue(commit(repository, "first"), "no git identity available for a test commit");
+
+        ProcessGitService git = new ProcessGitService(repository);
+
+        assertThrows(GitException.class, git::remoteUrl);
+        assertThrows(GitException.class, git::remoteSlug);
+    }
+
+    @Test
+    void remoteSlugFailureNeverQuotesTheRemoteBack(@TempDir Path directory) throws Exception {
+        assumeTrue(gitAvailable(), "git is not on PATH");
+        Path repository = newRepository(directory, "unparseable");
+        assumeTrue(commit(repository, "first"), "no git identity available for a test commit");
+        // A remote with a token in it and no owner/repo to find.
+        run(repository, "remote", "add", "origin", "https://ghp_exampletokenvalue@git.example.com/");
+
+        GitException exception = assertThrows(GitException.class, new ProcessGitService(repository)::remoteSlug);
+
+        assertFalse(exception.output().contains("ghp_exampletokenvalue"), exception.output());
     }
 
     @Test

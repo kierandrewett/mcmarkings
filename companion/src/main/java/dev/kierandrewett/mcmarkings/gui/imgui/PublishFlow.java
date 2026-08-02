@@ -30,8 +30,8 @@ import java.util.function.Consumer;
  * back through {@link Minecraft#execute}.
  *
  * <p>The URL is pinned to the commit the push produced rather than to the branch,
- * because raw.githubusercontent caches branch URLs for minutes and ImageFrame
- * would fetch the previous image or a 404.
+ * because forges cache branch raw URLs for minutes and ImageFrame would fetch the
+ * previous image or a 404.
  */
 public final class PublishFlow {
 
@@ -109,18 +109,15 @@ public final class PublishFlow {
                 files.add(layoutPath);
             }
 
-            // Resolved before the push so a bad remote fails before anything is
-            // committed, rather than leaving a commit with no usable URL.
-            // A per-repository override wins; otherwise ask the clone for its origin.
-            String override = services.current().entry().slugOverride();
-            String slug = override == null || override.isBlank()
-                    ? services.git().remoteSlug()
-                    : override;
+            // Resolved before the push so a bad remote or an unusable template fails
+            // before anything is committed, rather than leaving a commit with no
+            // usable URL.
+            RawUrls.Target target = services.rawUrls();
 
             String commitSha = services.git().commitAndPush(files, "feat(generated): add " + name);
 
             String repoPath = directory.isEmpty() ? name + ".png" : directory + "/" + name + ".png";
-            String url = RawUrls.pinned(slug, commitSha, repoPath);
+            String url = target.pinned(commitSha, repoPath);
 
             rescanQuietly();
 

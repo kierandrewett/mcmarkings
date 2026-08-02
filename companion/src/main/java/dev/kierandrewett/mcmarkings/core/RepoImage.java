@@ -6,7 +6,7 @@ import java.util.Locale;
  * One PNG in the backing repository.
  *
  * <p>{@code path} is always repo-relative with forward slashes, because it is
- * also the path component of the URL handed to ImageFrame.
+ * also the path component of the raw file URL handed to ImageFrame.
  * {@code description} and {@code reference} come from whatever JSON sidecar in the
  * repository describes this image, and are null when nothing does.
  */

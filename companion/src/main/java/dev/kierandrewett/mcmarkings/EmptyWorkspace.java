@@ -92,6 +92,11 @@ final class EmptyWorkspace {
         }
 
         @Override
+        public String remoteUrl() throws GitException {
+            throw refuse("remote");
+        }
+
+        @Override
         public boolean isClean() throws GitException {
             throw refuse("status");
         }

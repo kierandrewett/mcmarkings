@@ -146,7 +146,7 @@ public final class GitFiles {
      * Minimal INI walk over .git/config looking for origin's url. Good enough for a
      * file git itself wrote, and not a general purpose config parser.
      */
-    private Optional<String> remoteUrl() {
+    public Optional<String> remoteUrl() {
         List<String> lines;
         try {
             lines = Files.readAllLines(commonDir.resolve("config"), StandardCharsets.UTF_8);

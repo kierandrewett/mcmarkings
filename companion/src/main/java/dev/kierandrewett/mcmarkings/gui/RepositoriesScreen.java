@@ -186,7 +186,7 @@ public class RepositoriesScreen extends BaseOwoScreen<FlowLayout> {
                 "Point MCMarkings at a folder of PNGs and you can search them in game and put them on a wall.")
                 .withStyle(ChatFormatting.GRAY)));
         panel.child(UIComponents.label(Component.literal(
-                "A clone of a GitHub repository works best, because the server fetches the images over "
+                "A clone of a git repository works best, because the server fetches the images over "
                         + "the internet.")
                 .withStyle(ChatFormatting.GRAY)));
         panel.child(UIComponents.button(Component.literal("Add your first repository"),
@@ -310,7 +310,7 @@ public class RepositoriesScreen extends BaseOwoScreen<FlowLayout> {
 
             String resolved = slug;
             Minecraft.getInstance().execute(() -> target.text(resolved.isBlank()
-                    ? Component.literal("no GitHub remote").withStyle(ChatFormatting.GOLD)
+                    ? Component.literal("no remote").withStyle(ChatFormatting.GOLD)
                     : Component.literal(resolved).withStyle(ChatFormatting.GRAY)));
         });
     }

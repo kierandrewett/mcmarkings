@@ -94,17 +94,28 @@ public class ProcessGitService implements GitService {
 
     @Override
     public String remoteSlug() throws GitException {
-        Optional<String> fromFiles = files().flatMap(GitFiles::remoteSlug);
+        String slug = parseSlug(remoteUrl());
+        if (slug == null) {
+            // Never quotes the URL back. It can hold an access token, and this
+            // message is shown on screen.
+            throw new GitException("remote get-url origin", -1,
+                    "could not read owner/repo from the origin remote");
+        }
+        return slug;
+    }
+
+    @Override
+    public String remoteUrl() throws GitException {
+        Optional<String> fromFiles = files().flatMap(GitFiles::remoteUrl);
         if (fromFiles.isPresent()) {
             return fromFiles.get();
         }
         ensureRepository();
         String url = firstLine(exec(LOCAL_TIMEOUT, "remote", "get-url", "origin"));
-        String slug = parseSlug(url);
-        if (slug == null) {
-            throw new GitException("remote get-url origin", -1, "could not read owner/repo from remote url: " + url);
+        if (url.isBlank()) {
+            throw new GitException("remote get-url origin", -1, "this repository has no origin remote");
         }
-        return slug;
+        return url;
     }
 
     @Override
@@ -249,8 +260,8 @@ public class ProcessGitService implements GitService {
     /**
      * Pulls "owner/repo" out of a remote URL.
      *
-     * <p>Handles both forms GitHub hands out: {@code https://github.com/owner/repo.git}
-     * and the scp-like {@code git@github.com:owner/repo.git}, with or without the
+     * <p>Handles both forms every forge hands out: {@code https://host/owner/repo.git}
+     * and the scp-like {@code git@host:owner/repo.git}, with or without the
      * {@code .git} suffix.
      *
      * @return the slug, or null when the URL has no owner and repo in it

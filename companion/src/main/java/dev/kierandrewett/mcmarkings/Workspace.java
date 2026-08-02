@@ -2,7 +2,9 @@ package dev.kierandrewett.mcmarkings;
 
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.js.GeneratorRuntime;
+import dev.kierandrewett.mcmarkings.repo.GitException;
 import dev.kierandrewett.mcmarkings.repo.GitService;
+import dev.kierandrewett.mcmarkings.repo.RawUrls;
 import dev.kierandrewett.mcmarkings.repo.RepoService;
 
 /**
@@ -51,6 +53,27 @@ public final class Workspace {
 
     public GeneratorRuntime generators() {
         return generators;
+    }
+
+    /**
+     * How raw file URLs are built for this repository, and which forge they point at.
+     *
+     * <p>Resolved per call rather than cached. A remote can be added or repointed
+     * while the game is running, and working it out is a couple of file reads.
+     */
+    public RawUrls.Target rawUrls() throws GitException {
+        // A repository that spells out both the slug and the template needs nothing
+        // from the remote, so do not demand one it may not have.
+        boolean needsRemote = entry.slugOverride().isBlank() || entry.rawUrlTemplate().isBlank();
+        String remote = needsRemote ? git.remoteUrl() : "";
+
+        try {
+            return RawUrls.resolve(remote, entry.slugOverride(), entry.rawUrlTemplate());
+        } catch (IllegalArgumentException exception) {
+            // Callers already handle a repository that cannot produce URLs; a second
+            // failure type on the same path would just be one more thing to forget.
+            throw new GitException("raw url", -1, exception.getMessage());
+        }
     }
 
     public String warning() {

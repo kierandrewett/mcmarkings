@@ -62,6 +62,8 @@ class EmptyWorkspaceTest {
                 GitCall.of("pinnableCommit", () -> workspace.git().pinnableCommit()),
                 GitCall.of("currentBranch", () -> workspace.git().currentBranch()),
                 GitCall.of("remoteSlug", () -> workspace.git().remoteSlug()),
+                GitCall.of("remoteUrl", () -> workspace.git().remoteUrl()),
+                GitCall.of("rawUrls", workspace::rawUrls),
                 GitCall.of("isClean", () -> workspace.git().isClean()),
                 GitCall.of("pull", () -> workspace.git().pull()),
                 GitCall.of("commitAndPush", () -> workspace.git().commitAndPush(List.of(Path.of("a.png")), "m")))) {

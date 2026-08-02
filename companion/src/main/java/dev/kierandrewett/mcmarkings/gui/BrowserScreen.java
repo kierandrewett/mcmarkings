@@ -54,8 +54,8 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
     private RepoImage selected;
     private GridSize selectedGrid;
 
-    /** Resolved once on open; both are subprocess calls and neither changes mid-session. */
-    private String repoSlug;
+    /** Resolved once on open; both read the clone and neither changes mid-session. */
+    private RawUrls.Target rawUrls;
     private String headSha;
 
     public BrowserScreen(CompanionServices services) {
@@ -122,18 +122,18 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
     private void resolveRepoIdentity() {
         Thread.ofVirtual().start(() -> {
             try {
-                // A per-repository override wins; otherwise ask the clone for its origin.
-            String override = services.current().entry().slugOverride();
-            String slug = override == null || override.isBlank()
-                    ? services.git().remoteSlug()
-                    : override;
+                // Which forge serves this repository, and at which host. Named on the
+                // status line so a wrong guess is diagnosable without reading the code.
+                RawUrls.Target target = services.rawUrls();
                 // The last commit known to be on the remote, not HEAD: the server
                 // fetches these URLs over HTTP, so an unpushed commit is a 404.
                 String head = services.git().pinnableCommit();
                 Minecraft.getInstance().execute(() -> {
-                    repoSlug = slug;
+                    rawUrls = target;
                     headSha = head;
-                    status(services.repo().images().size() + " images, at " + shortSha(head), ChatFormatting.GRAY);
+                    status(services.repo().images().size() + " images, at " + shortSha(head)
+                                    + " via " + target.describe(),
+                            target.guessed() ? ChatFormatting.YELLOW : ChatFormatting.GRAY);
                 });
             } catch (GitException exception) {
                 Minecraft.getInstance().execute(() ->
@@ -261,7 +261,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         }
 
         String name = ImageFrameCommands.sanitiseName(selected.name());
-        String url = RawUrls.pinned(repoSlug, headSha, selected.path());
+        String url = rawUrls.pinned(headSha, selected.path());
 
         services.commands.send(ImageFrameCommands.create(
                 services.config.commandAlias, name, url, selectedGrid));
@@ -289,7 +289,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         }
         String command = "/" + ImageFrameCommands.create(services.config.commandAlias,
                 ImageFrameCommands.sanitiseName(selected.name()),
-                RawUrls.pinned(repoSlug, headSha, selected.path()),
+                rawUrls.pinned(headSha, selected.path()),
                 selectedGrid);
         Minecraft.getInstance().keyboardHandler.setClipboard(command);
         status("Copied to clipboard", ChatFormatting.GREEN);
@@ -312,7 +312,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
                         .flatMap(path -> services.registry.byRepoPath(path).stream())
                         .map(entry -> ImageFrameCommands.refresh(services.config.commandAlias,
                                 entry.imageFrameName(),
-                                RawUrls.pinned(repoSlug, result.newHead(), entry.repoPath())))
+                                rawUrls.pinned(result.newHead(), entry.repoPath())))
                         .toList();
 
                 Minecraft.getInstance().execute(() -> {
@@ -341,7 +341,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
             status("Select an image first", ChatFormatting.RED);
             return false;
         }
-        if (repoSlug == null || headSha == null) {
+        if (rawUrls == null || headSha == null) {
             status("Repository identity not resolved yet", ChatFormatting.RED);
             return false;
         }

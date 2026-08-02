@@ -68,9 +68,10 @@ public record RepositoryCheck(
 
         if (!isRepository) {
             notes.add("Not a git repository. You can still browse images, but placing them needs a "
-                    + "repository with a GitHub remote, because the server fetches them over HTTP.");
+                    + "repository with a remote, because the server fetches them over HTTP.");
         } else if (!hasRemote) {
-            notes.add("No origin remote. Images cannot be placed until this repository has one on GitHub.");
+            notes.add("No origin remote. Images cannot be placed until this repository has one "
+                    + "on a forge that serves raw files over HTTP.");
         }
         if (images == 0) {
             notes.add("No PNGs found yet. That is fine if you plan to generate signs into it.");

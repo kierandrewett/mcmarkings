@@ -26,8 +26,17 @@ public interface GitService {
     /** Checked-out branch name. */
     String currentBranch() throws GitException;
 
-    /** "owner/repo" parsed from origin, for building raw.githubusercontent URLs. */
+    /** "owner/repo" parsed from origin, for the slug half of a raw file URL. */
     String remoteSlug() throws GitException;
+
+    /**
+     * The origin remote's URL, verbatim.
+     *
+     * <p>Needed as well as the slug because which forge serves the raw file, and at
+     * which host, is only knowable from the URL. Callers must not put the result on
+     * screen or into a command: a remote can carry an access token.
+     */
+    String remoteUrl() throws GitException;
 
     /** True when the working tree has no uncommitted changes. */
     boolean isClean() throws GitException;
