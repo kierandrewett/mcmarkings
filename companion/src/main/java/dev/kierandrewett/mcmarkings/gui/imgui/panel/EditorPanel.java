@@ -237,6 +237,8 @@ public final class EditorPanel implements Panel {
     private int pendingZoomSteps;
     private boolean fitRequested;
 
+    private boolean helpRequested;
+
     /** A box to bring into view once the canvas region's size is known. */
     private Layer.Bounds pendingCentre;
 
@@ -375,6 +377,7 @@ public final class EditorPanel implements Panel {
             // skipping this on any frame would close whatever is open.
             picker.drawPicker();
             files.drawPopups();
+            drawHelp();
         }
     }
 
@@ -1180,6 +1183,49 @@ public final class EditorPanel implements Panel {
         ImGuiScreens.child("##editor-layer-list", 0.0f, 0.0f, this::drawLayerList);
     }
 
+    /**
+     * What the mouse does, which nothing else says.
+     *
+     * <p>Six behaviours here are ImGui conventions or canvas gestures rather than
+     * commands, so none of them appear in the palette and none has a button: scroll
+     * to zoom, right-drag to pan, drag a box to select several, hold control to add
+     * to a selection, double-click a layer to rename it, drag a row to reorder. All
+     * of them work and all of them are invisible, and someone who never finds
+     * multi-select will move twenty layers one at a time.
+     *
+     * <p>A popup rather than a permanent line, because it is read once and then never
+     * again, and a row of instructions across the top of a tool you use all day is
+     * worse than a menu entry you can find twice.
+     */
+    private void drawHelp() {
+        if (helpRequested) {
+            helpRequested = false;
+            ImGui.openPopup("Canvas controls###editor-help");
+        }
+        if (!ImGui.beginPopup("Canvas controls###editor-help")) {
+            return;
+        }
+        try {
+            ImGui.textDisabled("ON THE CANVAS");
+            ImGui.bulletText("Drag a layer to move it, or its handles to resize.");
+            ImGui.bulletText("Drag empty space to select everything inside the box.");
+            ImGui.bulletText("Hold control while clicking to add or remove one.");
+            ImGui.bulletText("Scroll to zoom, right-drag to pan.");
+            ImGui.bulletText("Hold alt while dragging to suspend snapping.");
+
+            ImGui.spacing();
+            ImGui.textDisabled("IN THE LAYER LIST");
+            ImGui.bulletText("Double-click a name to rename it.");
+            ImGui.bulletText("Drag a row to move it through the stack.");
+            ImGui.bulletText("Hold control while clicking to add to the selection.");
+
+            ImGui.spacing();
+            ImGui.textDisabled("Everything else is in the command palette.");
+        } finally {
+            ImGui.endPopup();
+        }
+    }
+
     private void drawLayerList() {
         Document document = history.current();
         if (document.layers().isEmpty()) {
@@ -1347,7 +1393,9 @@ public final class EditorPanel implements Panel {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(displayName(layer) + "\n" + kindOf(layer) + ", " + describe(layer.bounds()));
+            ImGui.setTooltip(displayName(layer) + "\n" + kindOf(layer) + ", " + describe(layer.bounds())
+                    + "\n\nDouble-click to rename. Hold control to add to the selection."
+                    + "\nDrag a row to move it through the stack.");
         }
 
         // Dragging a row past its own height swaps it with its neighbour. Inverted,
@@ -2171,6 +2219,10 @@ public final class EditorPanel implements Panel {
                 .hint(() -> "What the wall actually shows: " + GridSize.MAP_PIXELS + " pixels per frame, "
                         + "not the " + history.current().pixelsPerFrame() + " this renders at")
                 .does(() -> pendingMapResolution = true));
+
+        commands.register(Command.of("editor.help", "Canvas controls").category("View")
+                .hint("What the mouse does on the canvas and in the layer list")
+                .does(() -> helpRequested = true));
 
         commands.register(Command.of("editor.snap", "Toggle snapping").category("View")
                 .hint("Hold Alt to suspend it for one drag")

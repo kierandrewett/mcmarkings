@@ -122,6 +122,11 @@ Everything lives in one window. No tab replaces the others or hides the tab bar.
 
 ## The editor
 
+The mouse does more than it looks like: drag empty canvas to select several
+layers, hold control to add one, scroll to zoom, right-drag to pan, double-click
+a layer's name to rename it, drag a row to reorder. **Canvas controls** in the
+palette lists all of it.
+
 Layers are images, text, shapes, or groups of those. Dragging snaps to the canvas
 edges and centre, to the frame cell boundaries, and to other layers, with guides
 drawn while you drag; hold `Alt` to suspend it. Alignment and distribution act on
