@@ -43,7 +43,29 @@ cd companion
 ./gradlew build
 ```
 
-The jar lands in `build/libs/`. Copy it into your `mods` folder.
+The jar lands in `build/libs/`.
+
+### Installing over a running game
+
+Do not `cp` it over the jar in `mods/`. Copying writes into the same file, and a
+running game has that file open: everything already loaded carries on, and the next
+class the mod reaches for comes out of a build it was not compiled against. What you
+get is `Failed to load class file for ...PublishFlow$Request`, named after a class
+nobody has heard of, from whichever screen happened to need it first.
+
+Write it beside the target and rename it into place instead:
+
+```sh
+cp build/libs/mcmarkings-companion-0.1.0.jar "$MODS/.staging.jar"
+mv "$MODS/.staging.jar" "$MODS/mcmarkings-companion-0.1.0.jar"
+```
+
+A rename gives the file a new inode. The running game keeps reading the old one and
+carries on working; the new jar applies at the next launch. This is the same reason
+everything the mod writes goes through a temporary file and a move.
+
+The window also notices its own file changing and says so, but that only helps from
+the launch after the one that installed it.
 
 Gradle 9.5.1 comes from the wrapper. Do not try to build with the Gradle on your
 `PATH` unless it is 9.5+ running on Java 25.
