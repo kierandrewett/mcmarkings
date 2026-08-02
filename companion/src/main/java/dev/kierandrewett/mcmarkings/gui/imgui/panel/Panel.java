@@ -27,4 +27,15 @@ public interface Panel {
      * budget is a fraction of a frame.
      */
     void draw();
+
+    /**
+     * Called when the window closes, for panels holding something the garbage
+     * collector will not free.
+     *
+     * <p>Default empty, because most panels hold nothing of the sort. A GPU texture
+     * is the case this exists for: nothing else references it, so without a hook it
+     * survives for the rest of the session.
+     */
+    default void onRemoved() {
+    }
 }

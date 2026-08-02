@@ -1,12 +1,11 @@
-package dev.kierandrewett.mcmarkings.gui.imgui;
+package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 
-import cn.enaium.fabric.imgui.ImGuiRenderable;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
-import dev.kierandrewett.mcmarkings.core.RepoImage;
-import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell;
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.js.GeneratorDef;
 import dev.kierandrewett.mcmarkings.js.GeneratorException;
@@ -14,17 +13,12 @@ import dev.kierandrewett.mcmarkings.js.ParamDef;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImGui;
-import imgui.ImGuiIO;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.network.chat.Component;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -44,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>The form is built entirely from {@link ParamDef}, so a generator can add a
  * field by editing its script and reloading, with no Java change.
  */
-public class GeneratorScreen extends Screen implements ImGuiRenderable {
+public final class GeneratorPanel implements Panel {
 
     /**
      * Re-rendering runs a JS script. At 60fps a keystroke-per-frame rebuild would
@@ -56,7 +50,6 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
     private static final float FORM_WIDTH = 360.0f;
     private static final int TEXT_BUFFER = 512;
     private static final int LINES_BUFFER = 4096;
-    private static final String PICKER_POPUP = "Pick repository image";
 
     private final CompanionServices services;
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
@@ -85,90 +78,53 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
     private int previewSequence;
     private String generatorError;
 
+    /** Whether the generator list has been read yet. See {@link #draw()}. */
+    private boolean loadedOnce;
+
     private GridSize grid;
     private boolean gridPinned;
     private List<GridSuggestion> suggestions = List.of();
 
-    private Field pickerTarget;
-    private final ImString pickerQuery = new ImString("", TEXT_BUFFER);
+    /** The shared browser, as a modal. Its own instance so its search is its own. */
+    private final ImageBrowserPanel picker;
 
-    /**
-     * ImGuiIO is only meaningful once the wrapper has run a frame, and the input
-     * overrides below are called before that on the very first tick.
-     */
-    private ImGuiIO io;
 
-    private String renderError;
-
-    public GeneratorScreen(CompanionServices services) {
-        super(Component.literal("MCMarkings generator"));
+    public GeneratorPanel(CompanionServices services) {
         this.services = services;
         this.publish = new PublishFlow(services, status);
+        this.picker = new ImageBrowserPanel(services, "generator-pick", "Images");
     }
 
     @Override
-    protected void init() {
-        reloadGeneratorList();
+    public String title() {
+        return "Generate";
     }
 
     @Override
-    public void removed() {
+    public void onRemoved() {
         // The preview is a GPU texture nobody else references; without this it
-        // survives every open of the screen for the rest of the session.
+        // survives for the rest of the session.
         if (previewKey != null) {
             services.thumbnails.evict(previewKey);
             previewKey = null;
             previewTexture = null;
         }
-        super.removed();
-    }
-
-    /**
-     * The wrapper chains GLFW callbacks rather than consuming them, so Minecraft
-     * still sees keys typed into an ImGui text box. Escape is the one that hurts:
-     * it would close the screen mid-sentence.
-     */
-    @Override
-    public boolean keyPressed(KeyEvent event) {
-        if (io != null && io.getWantCaptureKeyboard()) {
-            return true;
-        }
-        return super.keyPressed(event);
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        if (io != null && io.getWantCaptureMouse()) {
-            return true;
+    public void draw() {
+        // A panel has no init, and reading the list on the first frame rather than in
+        // the constructor means a repository that is still opening when the window
+        // appears is picked up as soon as it is there.
+        if (!loadedOnce && !services.isLoading()) {
+            loadedOnce = true;
+            reloadGeneratorList();
         }
-        return super.mouseClicked(event, doubled);
-    }
 
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
-        if (io != null && io.getWantCaptureMouse()) {
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
-    }
-
-    /**
-     * Called by the wrapper's mixin at the end of each frame. Nothing may escape:
-     * an exception here is thrown into the game's frame loop.
-     */
-    @Override
-    public void render(ImGuiIO frameIo) {
-        ImGuiScreens.applyMinecraftTheme();
-        ImGuiScreens.matchGameGuiScale();
-        this.io = frameIo;
-        try {
-            maybeRenderPreview();
-            ImGuiScreens.fullViewportWindow("##mcmarkings-generator", this::drawBody);
-            renderError = null;
-        } catch (Throwable throwable) {
-            renderError = String.valueOf(throwable);
-            McMarkingsCompanion.LOGGER.error("[mcmarkings] generator screen render failed", throwable);
-        }
+        // Kicking the preview off here rather than from the shell keeps the whole
+        // debounce in one place: nothing outside this panel knows the form is dirty.
+        maybeRenderPreview();
+        drawBody();
     }
 
     private void drawBody() {
@@ -188,26 +144,10 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
     }
 
     private void drawHeader() {
-        // This is an ImGui window, so none of the mod's normal navigation is on
-        // screen. Without a way back the only exit is closing the game's screen
-        // entirely, which reads as being stranded.
-        if (ImGui.button("< Back")) {
-            Minecraft.getInstance().setScreen(new ImGuiShell(services));
-        }
-        ImGui.sameLine();
         ImGui.text("Generator");
         ImGui.sameLine();
         if (ImGui.button("Reload scripts")) {
             reloadScripts();
-        }
-        ImGui.sameLine();
-        if (ImGui.button("Close")) {
-            onClose();
-        }
-        if (renderError != null) {
-            ImGui.sameLine();
-            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "render error: "
-                    + ImGuiScreens.truncate(renderError, 120));
         }
     }
 
@@ -291,9 +231,7 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
     private boolean drawImageField(Field field) {
         boolean changed = ImGui.inputText("##" + field.def.key() + "-path", field.text);
         if (ImGui.button("Pick...##" + field.def.key())) {
-            pickerTarget = field;
-            pickerQuery.set("");
-            ImGui.openPopup(PICKER_POPUP);
+            openImagePicker(field);
         }
         ImGui.sameLine();
         if (ImGui.button("Clear##" + field.def.key())) {
@@ -308,30 +246,26 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
         return false;
     }
 
+    /**
+     * The image picker, which is the shared browser rather than a list of paths.
+     *
+     * <p>Picking an image for a generator is the same job as picking one anywhere
+     * else, and doing it from a plain list meant choosing a sign by reading its file
+     * name. This is the reason the browser was written as a component.
+     */
     private void drawImagePicker() {
-        ImGui.setNextWindowSize(380.0f, 420.0f);
-        if (!ImGui.beginPopup(PICKER_POPUP)) {
-            return;
-        }
-        try {
-            ImGui.setNextItemWidth(-1.0f);
-            ImGui.inputTextWithHint("##picker-query", "Search images", pickerQuery);
+        picker.drawPicker();
+    }
 
-            for (RepoImage image : services.repo().search(pickerQuery.get(), 60)) {
-                if (!ImGui.selectable(ImGuiScreens.truncate(image.path(), 46) + "##pick-" + image.path())) {
-                    continue;
-                }
-                // The generator can be switched while the popup is open, which would
-                // leave the target pointing at a field the form no longer shows.
-                if (pickerTarget != null && fields.contains(pickerTarget)) {
-                    pickerTarget.text.set(image.path());
-                    markDirty();
-                }
-                ImGui.closeCurrentPopup();
+    private void openImagePicker(Field field) {
+        picker.openPicker(image -> {
+            // The generator can be switched while the picker is open, which would
+            // leave this pointing at a field the form no longer shows.
+            if (fields.contains(field)) {
+                field.text.set(image.path());
+                markDirty();
             }
-        } finally {
-            ImGui.endPopup();
-        }
+        });
     }
 
     private void drawGridChoice() {

@@ -10,6 +10,7 @@ import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.GeneratorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.WelcomePanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
@@ -115,11 +116,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         this.panels = List.of(
                 browser,
                 editor,
-                new ShortcutPanel("Generate",
-                        "Building an image from a script still lives in its own screen. "
-                                + "Everything it makes can be opened in the editor afterwards.",
-                        List.of(new Shortcut("Generator", "Build an image from a generator script",
-                                () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))))),
+                new GeneratorPanel(services),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
     }
@@ -135,10 +132,25 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         });
     }
 
-    /** The editor holds a preview texture; without this one survives every open. */
+    /**
+     * Every panel gets a chance to let go of what it is holding.
+     *
+     * <p>Two of them keep a GPU texture, and nothing else references those, so
+     * without this one survives every open for the rest of the session. Going
+     * through the list rather than naming panels means the next one to hold
+     * something is covered by having said so, not by someone remembering here.
+     */
     @Override
     public void removed() {
         editor.close();
+        for (Panel panel : panels) {
+            try {
+                panel.onRemoved();
+            } catch (RuntimeException failure) {
+                McMarkingsCompanion.LOGGER.warn("[mcmarkings] panel " + panel.title()
+                        + " failed to clean up", failure);
+            }
+        }
         super.removed();
     }
 
@@ -550,28 +562,4 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         return sha.length() > 7 ? sha.substring(0, 7) : sha;
     }
 
-    /**
-     * A tab for a job that has not been ported into this window yet.
-     *
-     * <p>Says so plainly and opens the screen that still does it, because a tab that
-     * exists but does nothing is worse than no tab at all.
-     */
-    private record ShortcutPanel(String title, String summary, List<Shortcut> shortcuts) implements Panel {
-
-        @Override
-        public void draw() {
-            ImGui.textWrapped(summary);
-            ImGui.separator();
-            for (Shortcut shortcut : shortcuts) {
-                if (ImGui.button(shortcut.label(), Math.max(160.0f, ImGui.getTextLineHeight() * 14.0f), 0.0f)) {
-                    shortcut.open().run();
-                }
-                ImGui.sameLine();
-                ImGui.textDisabled(shortcut.help());
-            }
-        }
-    }
-
-    private record Shortcut(String label, String help, Runnable open) {
-    }
 }
