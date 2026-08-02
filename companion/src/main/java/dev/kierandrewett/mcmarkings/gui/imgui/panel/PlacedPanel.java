@@ -4,6 +4,8 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RelativeTime;
+import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.doc.DocumentJson;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -14,6 +16,10 @@ import imgui.ImGui;
 import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +46,9 @@ public final class PlacedPanel implements Panel {
 
     private final CompanionServices services;
 
+    /** Brings the editor forward once a sign's document is in it. */
+    private final Runnable showEditor;
+
     private final ImString query = new ImString("", QUERY_BUFFER);
 
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
@@ -53,8 +62,9 @@ public final class PlacedPanel implements Panel {
     /** What "now" is for this frame, so every row agrees. */
     private long drawnAtMillis;
 
-    public PlacedPanel(CompanionServices services) {
+    public PlacedPanel(CompanionServices services, Runnable showEditor) {
         this.services = services;
+        this.showEditor = showEditor;
     }
 
     @Override
@@ -179,6 +189,12 @@ public final class PlacedPanel implements Panel {
         }
 
         ImGui.sameLine();
+        boolean edit = ImGui.button("Edit");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Reopen this sign in the editor, if its document was saved beside it.");
+        }
+
+        ImGui.sameLine();
         boolean copy = ImGui.button("Copy name");
 
         ImGui.sameLine();
@@ -209,6 +225,9 @@ public final class PlacedPanel implements Panel {
             services.commands.send(ImageFrameCommands.giveInvisibleFrames(
                     services.config.commandAlias, services.config.glowingFrames, entry.grid().frameCount()));
             status.good("Requested " + entry.grid().frameCount() + " invisible frames");
+        }
+        if (edit) {
+            edit(entry);
         }
         if (copy) {
             Minecraft.getInstance().keyboardHandler.setClipboard(entry.imageFrameName());
@@ -273,6 +292,70 @@ public final class PlacedPanel implements Panel {
             status.bad("Could not refresh " + entry.imageFrameName() + ": "
                     + ImGuiScreens.truncate(message, 80));
         });
+    }
+
+    /**
+     * Reopens a placed sign in the editor.
+     *
+     * <p>Only signs placed from the editor have a document beside them: it is written
+     * next to the PNG for exactly this. Anything made from a repository image or an
+     * older generator has only the picture, so this says so rather than opening a
+     * blank canvas, which is the failure this whole path had until recently.
+     *
+     * <p>Checked when pressed rather than when the row is drawn. Whether a file exists
+     * is a question for the filesystem, and asking it once per row per frame is how
+     * this mod has frozen the game before.
+     */
+    private void edit(MapEntry entry) {
+        var workspace = services.byId(entry.repositoryId()).orElse(null);
+        if (workspace == null) {
+            status.bad("The repository " + entry.imageFrameName() + " came from is not set up here.");
+            return;
+        }
+
+        Path document = workspace.entry().root().resolve(documentPathFor(entry.repoPath()));
+        status.info("Opening " + entry.imageFrameName() + "...");
+
+        Thread.ofVirtual().name("mcmarkings-placed-edit").start(() -> {
+            try {
+                if (!Files.isRegularFile(document)) {
+                    Minecraft.getInstance().execute(() -> status.bad(entry.imageFrameName()
+                            + " has no saved document, so there is nothing to reopen. "
+                            + "Signs placed from the editor do; ones made from an image do not."));
+                    return;
+                }
+
+                Document opened = DocumentJson.read(Files.readString(document, StandardCharsets.UTF_8));
+                Minecraft.getInstance().execute(() -> {
+                    // Pushed, so whatever was on the canvas is one undo away.
+                    services.editing.push(opened, "Open " + entry.imageFrameName(), null);
+                    services.editing.endGesture();
+                    status.good("Opened " + entry.imageFrameName() + " in the editor.");
+                    showEditor.run();
+                });
+            } catch (IOException | RuntimeException failure) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] could not open " + document, failure);
+                Minecraft.getInstance().execute(() -> status.bad("Could not open "
+                        + entry.imageFrameName() + ": " + ImGuiScreens.truncate(
+                                String.valueOf(failure.getMessage()), 70)));
+            }
+        });
+    }
+
+    /**
+     * The document written beside a published PNG: "signs/a.png" to
+     * "signs/a.layout.json".
+     *
+     * <p>Only the extension of the file name counts. Taking the last dot in the whole
+     * path truncates a folder instead when someone has one called "my.signs", and the
+     * result is a lookup in a directory that does not exist reported as a sign with
+     * no document.
+     */
+    static String documentPathFor(String repoPath) {
+        int slash = repoPath.lastIndexOf('/');
+        int dot = repoPath.lastIndexOf('.');
+        String stem = dot > slash + 1 ? repoPath.substring(0, dot) : repoPath;
+        return stem + ".layout.json";
     }
 
     private void forget(MapEntry entry) {

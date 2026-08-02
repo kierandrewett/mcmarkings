@@ -147,7 +147,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 browser,
                 editor,
                 new GeneratorPanel(services, () -> pendingTab = "Editor"),
-                new PlacedPanel(services),
+                new PlacedPanel(services, () -> pendingTab = "Editor"),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
 
