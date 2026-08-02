@@ -392,6 +392,9 @@ public final class SettingsPanel implements Panel {
         note("Reloading...");
         Minecraft.getInstance().execute(() -> {
             try {
+                // Deliberately the blocking save, not the shared asynchronous one.
+                // The services are about to be thrown away, and a save still queued
+                // when that happens is a save that never lands.
                 services.config.save();
 
                 // Written before the services holding it are discarded, so even if

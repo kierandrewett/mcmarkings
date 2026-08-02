@@ -373,7 +373,7 @@ public final class CompanionServices {
     public void setActive(String id) {
         if (workspaces.containsKey(id)) {
             config.activeRepositoryId = id;
-            config.save();
+            saveConfig();
         }
     }
 
@@ -384,7 +384,7 @@ public final class CompanionServices {
      */
     public Workspace addRepository(Path directory) {
         RepositoryEntry entry = config.addRepository(directory);
-        config.save();
+        saveConfig();
         // Opening scans the folder, so it must not run on the client thread. The
         // caller gets the entry immediately and the scan lands through whenReady.
         Workspace blank = EmptyWorkspace.create();
@@ -422,7 +422,7 @@ public final class CompanionServices {
     public void removeRepository(String id) {
         workspaces.remove(id);
         config.removeRepository(id);
-        config.save();
+        saveConfig();
     }
 
     /** Re-scans one repository, picking up files added outside the game. */
