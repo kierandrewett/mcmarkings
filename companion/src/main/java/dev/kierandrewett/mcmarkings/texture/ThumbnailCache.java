@@ -19,6 +19,19 @@ public interface ThumbnailCache {
     /** Already-resident texture, if any. Never blocks. */
     Optional<TextureHandle> peek(RepoImage image);
 
+    /**
+     * The larger texture used for a detail pane, if it is already resident.
+     *
+     * <p>A separate tier because a grid cell and a preview pane want genuinely
+     * different resolutions: upscaling the grid's thumbnail into a large pane looks
+     * soft, and decoding at preview size for every cell would be wasteful. Kept to
+     * a handful of entries, since these are far bigger than a thumbnail.
+     */
+    Optional<TextureHandle> peekPreview(RepoImage image);
+
+    /** Ensure the larger preview texture is being prepared. */
+    CompletableFuture<TextureHandle> requestPreview(RepoImage image);
+
     /** Ensure a texture is being prepared, returning it when ready. */
     CompletableFuture<TextureHandle> request(RepoImage image);
 

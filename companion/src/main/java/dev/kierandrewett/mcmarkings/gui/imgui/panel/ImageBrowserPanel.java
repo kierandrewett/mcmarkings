@@ -17,6 +17,8 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -496,7 +498,7 @@ public final class ImageBrowserPanel implements Panel {
         // Advances the layout by the box, so whatever follows lands under it.
         ImGui.dummy(boxWidth, boxHeight);
 
-        TextureHandle handle = thumbnail(image);
+        TextureHandle handle = preview(image);
         if (handle == null) {
             centredText(drawList, x, y, boxWidth, boxHeight, "Loading...",
                     ImGui.getColorU32(ImGuiCol.TextDisabled));
@@ -550,20 +552,47 @@ public final class ImageBrowserPanel implements Panel {
         if (handle != null) {
             return handle;
         }
+        askFor(image, "", () -> services.thumbnails.request(image));
+        return null;
+    }
 
-        String path = image.path();
-        if (failed.contains(path) || !requested.add(path)) {
-            return null;
+    /**
+     * The sharper texture for the detail pane, falling back to the grid thumbnail
+     * while it decodes.
+     *
+     * <p>Showing the small one meanwhile rather than a placeholder means the pane
+     * fills instantly and then sharpens, instead of sitting empty for a moment
+     * every time the selection changes.
+     */
+    private TextureHandle preview(RepoImage image) {
+        TextureHandle sharp = services.thumbnails.peekPreview(image).orElse(null);
+        if (sharp != null) {
+            return sharp;
+        }
+        askFor(image, "preview:", () -> services.thumbnails.requestPreview(image));
+        return services.thumbnails.peek(image).orElse(null);
+    }
+
+    /**
+     * Starts one decode per image per tier, on the worker pool.
+     *
+     * <p>The in-flight set is what stops a cell asking again on every frame while
+     * its first request is still running, which at sixty frames a second would
+     * queue thousands of decodes for one screenful.
+     */
+    private void askFor(RepoImage image, String tier, Supplier<CompletableFuture<TextureHandle>> start) {
+        String key = tier + image.path();
+        if (failed.contains(key) || !requested.add(key)) {
+            return;
         }
 
-        services.thumbnails.request(image).whenComplete((ready, error) ->
+        start.get().whenComplete((ready, error) ->
                 Minecraft.getInstance().execute(() -> {
-                    requested.remove(path);
+                    requested.remove(key);
                     if (error != null) {
-                        failed.add(path);
+                        failed.add(key);
                     }
                 }));
-        return null;
     }
 
     private void centredText(ImDrawList drawList, float x, float y,

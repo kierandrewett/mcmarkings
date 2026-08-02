@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
  * Decodes repository images off-thread and uploads them as GPU textures, keeping
@@ -37,8 +37,19 @@ import java.util.function.Function;
  */
 public class RuntimeTextureCache implements ThumbnailCache {
 
-    private final Function<RepoImage, BufferedImage> loader;
+    /** Decodes an image at a maximum edge length, so both tiers share one path. */
+    private final BiFunction<RepoImage, Integer, BufferedImage> loader;
+
     private final int maxResident;
+
+    /**
+     * Preview textures, kept separately and kept few.
+     *
+     * <p>A 512px preview is sixteen times the pixels of a 128px thumbnail, so these
+     * are capped hard. Someone only ever looks at one at a time; the rest are just
+     * the ones they clicked on recently.
+     */
+    private final LinkedHashMap<String, Entry> previews = new LinkedHashMap<>(8, 0.75f, true);
 
     private final ExecutorService decodePool = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
@@ -53,7 +64,16 @@ public class RuntimeTextureCache implements ThumbnailCache {
 
     private final Map<String, CompletableFuture<TextureHandle>> inFlight = new ConcurrentHashMap<>();
 
-    public RuntimeTextureCache(Function<RepoImage, BufferedImage> loader, int maxResident) {
+    /** Grid cells are small, so decoding beyond this is wasted work. */
+    private static final int THUMBNAIL_EDGE = 128;
+
+    /** Enough to stay sharp in a detail pane without being a full decode. */
+    private static final int PREVIEW_EDGE = 512;
+
+    /** Only ever one on screen; the rest are recently clicked. */
+    private static final int MAX_RESIDENT_PREVIEWS = 4;
+
+    public RuntimeTextureCache(BiFunction<RepoImage, Integer, BufferedImage> loader, int maxResident) {
         this.loader = loader;
         this.maxResident = maxResident;
         this.resident = new LinkedHashMap<>(64, 0.75f, true);
@@ -77,7 +97,7 @@ public class RuntimeTextureCache implements ThumbnailCache {
         }
 
         return inFlight.computeIfAbsent(key, ignored -> CompletableFuture
-                .supplyAsync(() -> loader.apply(image), decodePool)
+                .supplyAsync(() -> loader.apply(image, THUMBNAIL_EDGE), decodePool)
                 .thenCompose(decoded -> uploadOnRenderThread(key, decoded))
                 .whenComplete((handle, error) -> {
                     inFlight.remove(key);
@@ -85,6 +105,45 @@ public class RuntimeTextureCache implements ThumbnailCache {
                         McMarkingsCompanion.LOGGER.warn("[mcmarkings] thumbnail failed for {}", key, error);
                     }
                 }));
+    }
+
+    @Override
+    public synchronized Optional<TextureHandle> peekPreview(RepoImage image) {
+        return Optional.ofNullable(previews.get(image.path()));
+    }
+
+    @Override
+    public CompletableFuture<TextureHandle> requestPreview(RepoImage image) {
+        String key = "preview:" + image.path();
+
+        synchronized (this) {
+            Entry existing = previews.get(image.path());
+            if (existing != null) {
+                return CompletableFuture.completedFuture(existing);
+            }
+        }
+
+        return inFlight.computeIfAbsent(key, ignored -> CompletableFuture
+                .supplyAsync(() -> loader.apply(image, PREVIEW_EDGE), decodePool)
+                .thenCompose(decoded -> uploadOnRenderThread(key, decoded))
+                .thenApply(handle -> retainPreview(image.path(), handle))
+                .whenComplete((handle, error) -> {
+                    inFlight.remove(key);
+                    if (error != null) {
+                        McMarkingsCompanion.LOGGER.warn("[mcmarkings] preview failed for {}", key, error);
+                    }
+                }));
+    }
+
+    /** Moves a freshly uploaded preview into its own bounded shelf. */
+    private synchronized TextureHandle retainPreview(String path, TextureHandle handle) {
+        previews.put(path, (Entry) handle);
+        while (previews.size() > MAX_RESIDENT_PREVIEWS) {
+            var eldest = previews.entrySet().iterator().next();
+            previews.remove(eldest.getKey());
+            releaseTexture(eldest.getValue());
+        }
+        return handle;
     }
 
     @Override
@@ -177,6 +236,8 @@ public class RuntimeTextureCache implements ThumbnailCache {
     public synchronized void evictAll() {
         resident.values().forEach(this::releaseTexture);
         resident.clear();
+        previews.values().forEach(this::releaseTexture);
+        previews.clear();
     }
 
     private void releaseTexture(Entry entry) {

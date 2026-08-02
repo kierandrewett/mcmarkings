@@ -37,9 +37,6 @@ import java.util.function.Consumer;
  */
 public final class CompanionServices {
 
-    /** Thumbnails are drawn into a small cell, so decoding beyond this is wasted. */
-    private static final int THUMBNAIL_EDGE = 128;
-
     /** Comfortably more than a screenful, well short of exhausting VRAM. */
     private static final int MAX_RESIDENT_THUMBNAILS = 512;
 
@@ -338,12 +335,12 @@ public final class CompanionServices {
      * Thumbnails are resolved against whichever repository holds the image, so the
      * browser can show more than one repository's contents at once.
      */
-    private BufferedImage thumbnailFor(RepoImage image) {
+    private BufferedImage thumbnailFor(RepoImage image, int maxEdge) {
         for (Workspace workspace : workspaces.values()) {
             Path candidate = workspace.repo().resolve(image.path());
             if (java.nio.file.Files.isRegularFile(candidate)) {
                 try {
-                    return composer.thumbnail(candidate, THUMBNAIL_EDGE);
+                    return composer.thumbnail(candidate, maxEdge);
                 } catch (IOException exception) {
                     throw new IllegalStateException("could not read " + candidate, exception);
                 }
