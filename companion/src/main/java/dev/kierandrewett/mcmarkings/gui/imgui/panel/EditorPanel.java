@@ -180,6 +180,7 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("Open", "editor.file.open"),
             new ToolbarItem("Save", "editor.file.save"),
             new ToolbarItem("Place as map", "editor.file.publish"),
+            new ToolbarItem("Get frames", "editor.file.frames"),
             new ToolbarItem("|", null),
             new ToolbarItem("Undo", "editor.undo"),
             new ToolbarItem("Redo", "editor.redo"),

@@ -16,6 +16,7 @@ import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
 import dev.kierandrewett.mcmarkings.doc.TemplateStore;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import imgui.ImGui;
@@ -203,6 +204,14 @@ public final class EditorFiles {
                 .shortcut(Shortcut.controlShift(KEY_S))
                 .enabledWhen(this::canWrite)
                 .does(this::promptForName));
+
+        // Every other tab that can put something on a wall offers this, and the one
+        // where the thing was made did not. Placing a sign and then having to go to
+        // another tab to get the frames to hang it on is a gap you notice every time.
+        commands.register(Command.of("editor.file.frames", "Get frames").category("File")
+                .hint(() -> "Ask for the " + history.current().grid().frameCount()
+                        + " invisible frames this document needs")
+                .does(this::requestFrames));
 
         commands.register(Command.of("editor.file.publish", "Place as a map").category("File")
                 // Says push, because it does. A plain git push sends the whole branch,
@@ -638,6 +647,20 @@ public final class EditorFiles {
         services.recovery.clear();
 
         status.good("Saved to " + TemplateStore.DIRECTORY + "/" + file.getFileName() + ".");
+    }
+
+    /**
+     * Asks for the invisible frames this document would need.
+     *
+     * <p>Counted from the document's own grid rather than from anything published, so
+     * it is right before the sign exists as well as after. Changing the frame grid
+     * changes the count, which is the whole reason to read it live.
+     */
+    private void requestFrames() {
+        int frames = history.current().grid().frameCount();
+        services.commands.send(ImageFrameCommands.giveInvisibleFrames(
+                services.config.commandAlias, services.config.glowingFrames, frames));
+        status.good("Requested " + frames + " invisible frame(s).");
     }
 
     private void placeAsMap() {
