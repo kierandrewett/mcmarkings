@@ -62,7 +62,7 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 | `commandsPerSecond` | `2.0` | Command rate limit |
 | `generatedDirectory` | `generated` | Where placed images are written inside the repository before being committed |
 | `generatorDirectory` | `generators` | Where the mod looks for generator scripts |
-| `ignoredDirectories` | `node_modules`, `build`, `target`, `out`, `dist` | Folders never walked when scanning; dot-folders are always skipped |
+| `ignoredDirectories` | `node_modules`, `build`, `target`, `out`, `dist` | Folder names never walked when scanning, editable in Settings; dot-folders are always skipped |
 
 Everything in that table except the repository list is editable from the
 **Settings** tab, which also shows where the file lives. `templates/` is not

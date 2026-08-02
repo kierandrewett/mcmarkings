@@ -52,6 +52,8 @@ public final class SettingsPanel implements Panel {
 
     private final ImString fontPath = new ImString("", TEXT_BUFFER);
 
+    private final ImString ignoredName = new ImString("", TEXT_BUFFER);
+
     private final float[] rate = new float[1];
 
     private final ImInt pixelsPerFrame = new ImInt();
@@ -98,6 +100,8 @@ public final class SettingsPanel implements Panel {
         drawExportSection();
         ImGui.spacing();
         drawFontSection();
+        ImGui.spacing();
+        drawIgnoredSection();
         ImGui.spacing();
         drawMaintenanceSection();
 
@@ -186,6 +190,81 @@ public final class SettingsPanel implements Panel {
             services.config.generatorDirectory = generatorDirectory.get().trim();
             services.saveConfig();
         }
+    }
+
+    /**
+     * Folders the scanner never walks.
+     *
+     * <p>The last setting in the config with nowhere to change it. It decides what
+     * gets scanned, so a repository with a large folder of things that are not signs
+     * was slower to open and filled the browser with images nobody wanted, and the
+     * only fix was editing the config by hand.
+     */
+    private void drawIgnoredSection() {
+        ImGui.textDisabled("FOLDERS NEVER SCANNED");
+        ImGui.separator();
+
+        ImGui.textWrapped("Names skipped anywhere in a repository. Folders starting with a dot "
+                + "are always skipped and do not need listing.");
+
+        List<String> ignored = ignoredDirectories();
+        for (int index = 0; index < ignored.size(); index++) {
+            ImGui.pushID("ignored-" + index);
+            if (ImGui.button("Remove")) {
+                ignored.remove(index);
+                persistAndRescan();
+                ImGui.popID();
+                break;
+            }
+            ImGui.sameLine();
+            ImGui.text(ignored.get(index));
+            ImGui.popID();
+        }
+
+        ImGui.setNextItemWidth(fieldWidth());
+        boolean submitted = ImGui.inputTextWithHint("##settings-ignored", "node_modules", ignoredName);
+        ImGui.sameLine();
+        if (ImGui.button("Add##settings-ignored-add") || submitted) {
+            addIgnored(ignoredName.get());
+        }
+    }
+
+    private void addIgnored(String raw) {
+        String trimmed = raw == null ? "" : raw.trim();
+        if (trimmed.isEmpty()) {
+            warn("Type a folder name.");
+            return;
+        }
+
+        List<String> ignored = ignoredDirectories();
+        if (ignored.contains(trimmed)) {
+            warn("That folder is already skipped.");
+            return;
+        }
+
+        ignored.add(trimmed);
+        ignoredName.set("");
+        persistAndRescan();
+        warn("Skipping " + trimmed + " from now on.");
+    }
+
+    /**
+     * Saves and reopens every repository.
+     *
+     * <p>The scanner is built with this list when a repository is opened, so without
+     * reopening, a change here does nothing until the next restart and looks broken.
+     * It applies to all of them, not just the active one, for the same reason.
+     */
+    private void persistAndRescan() {
+        services.saveConfig();
+        services.workspaces().forEach(workspace -> services.reloadAsync(workspace.id()));
+    }
+
+    private List<String> ignoredDirectories() {
+        if (services.config.ignoredDirectories == null) {
+            services.config.ignoredDirectories = new ArrayList<>();
+        }
+        return services.config.ignoredDirectories;
     }
 
     private void drawFontSection() {
