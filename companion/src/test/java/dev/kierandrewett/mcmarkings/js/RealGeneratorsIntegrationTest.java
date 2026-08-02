@@ -223,6 +223,46 @@ class RealGeneratorsIntegrationTest {
         writeGolden(rendered, "real-plate-document.png");
     }
 
+    /**
+     * The direction sign as layers, which is the case this was built for.
+     *
+     * <p>It is the demanding one: stacked destinations, route numbers in a second
+     * colour, a stroked junction diagram, a composited roundel and an inset panel.
+     * If any of those cannot be expressed as layers then a generated sign is still
+     * a dead end for exactly the thing people most want to adjust.
+     */
+    @Test
+    void theRealDirectionSignOpensAsAnEditableDocument() throws Exception {
+        Document document = runtime.document("direction_sign", Map.of(
+                "destinations", List.of("Basingstoke|A339", "Wootton St Lawrence"),
+                "scheme", "primary")).orElseThrow(() -> new AssertionError("it should describe itself"));
+
+        // The roundel has to arrive as an image layer pointing at a real file, not
+        // as pixels baked into a background.
+        List<Layer.Image> images = document.layers().stream()
+                .filter(Layer.Image.class::isInstance).map(Layer.Image.class::cast).toList();
+        assertEquals(1, images.size(), "the roundel should be its own layer");
+        assertTrue(Files.isRegularFile(repoRoot.resolve(images.getFirst().repoPath())),
+                "the roundel layer points at " + images.getFirst().repoPath() + ", which is not there");
+
+        // Destinations and route numbers survive as editable text.
+        List<String> text = document.layers().stream()
+                .filter(Layer.Text.class::isInstance).map(Layer.Text.class::cast)
+                .map(Layer.Text::text).toList();
+        assertTrue(text.contains("Basingstoke"), () -> "expected the destination, got " + text);
+        assertTrue(text.contains("A339"), () -> "expected the route number, got " + text);
+        assertTrue(text.contains("Wootton St Lawrence"), () -> "expected the second destination, got " + text);
+
+        // The diagram is strokes, so it can be moved rather than only redrawn.
+        assertTrue(document.layers().stream().anyMatch(Layer.Shape.class::isInstance),
+                "the panel and junction should be shapes");
+
+        BufferedImage rendered = new DocumentRenderer(fonts)
+                .render(document, path -> ImageIO.read(repoRoot.resolve(path).toFile()));
+        assertFalse(isBlank(rendered), "the document rendered to nothing");
+        writeGolden(rendered, "real-direction-sign-document.png");
+    }
+
     /** Whatever comes out has to map onto a placeable block of item frames. */
     @Test
     void outputMapsOntoAReasonableFrameGrid() throws Exception {

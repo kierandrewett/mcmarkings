@@ -244,6 +244,134 @@ defineGenerator({
 
     size: (params) => layout(lib.estimateMeasurer(), params).size,
 
+    // The same sign as layers, which is the point for this one especially: a
+    // direction sign is the kind of thing people want to adjust by hand and keep,
+    // not regenerate from scratch every time a destination changes.
+    //
+    // Positions mirror render() exactly, including pinning the columns to the outer
+    // edges, so opening the document shows the sign that was generated rather than
+    // a rearrangement of it.
+    document: (params) => {
+        const l = layout(lib.estimateMeasurer(), params);
+        const m = l.metrics;
+        const canvas = lib.canvasFor(l.size.width, l.size.height);
+
+        const layers = [
+            {
+                kind: "shape",
+                name: "Panel",
+                bounds: { x: 0, y: 0, width: canvas.width, height: canvas.height },
+                fill: l.scheme.background,
+                cornerRadius: m.radius,
+                borderColour: l.scheme.border,
+                borderWidth: m.border,
+                padding: { top: m.margin, right: m.margin, bottom: m.margin, left: m.margin },
+            },
+        ];
+
+        const top = m.margin;
+        const contentHeight = canvas.height - m.margin * 2;
+        const contentLeft = m.margin;
+        const contentRight = canvas.width - m.margin;
+
+        let y = top + Math.round((contentHeight - l.destHeight) / 2);
+        for (let i = 0; i < l.destBlocks.length; i += 1) {
+            let block = l.destBlocks[i];
+            let lines = lib.textLayers(block, contentLeft, y, l.destWidth);
+            for (let j = 0; j < lines.length; j += 1) {
+                layers.push(lines[j]);
+            }
+            y += block.height + l.destGap;
+        }
+
+        const destRight = contentLeft + l.destWidth;
+        const rightLeft = contentRight - l.rightWidth;
+
+        // The diagram is strokes rather than a picture, so each arm is its own
+        // rectangle and can be moved or removed without redrawing anything.
+        if (l.junctionWidth > 0) {
+            const spanLeft = destRight + l.gap;
+            const spanRight = l.rightWidth > 0 ? rightLeft - l.gap : contentRight;
+            const slack = Math.max(0, spanRight - spanLeft - l.junctionWidth);
+            const jx = Math.round(spanLeft + slack / 2);
+            const stroke = l.junctionStroke;
+            const centreX = jx + Math.round(l.junctionWidth / 2);
+            const centreY = top + Math.round(contentHeight / 2);
+
+            layers.push({
+                kind: "shape",
+                name: "Junction stem",
+                bounds: {
+                    x: Math.round(centreX - stroke / 2),
+                    y: top,
+                    width: Math.round(stroke),
+                    height: Math.round(contentHeight),
+                },
+                fill: lib.COLOURS.white,
+            });
+            if (l.junction !== "none") {
+                layers.push({
+                    kind: "shape",
+                    name: "Junction arm",
+                    bounds: {
+                        x: jx,
+                        y: Math.round(centreY - stroke / 2),
+                        width: Math.round(l.junctionWidth),
+                        height: Math.round(stroke),
+                    },
+                    fill: lib.COLOURS.white,
+                });
+            }
+        }
+
+        if (l.rightWidth > 0) {
+            let ry = top + Math.round((contentHeight - l.rightHeight) / 2);
+            if (l.roundelSize > 0) {
+                layers.push({
+                    kind: "image",
+                    name: "Roundel",
+                    bounds: {
+                        x: rightLeft + Math.round((l.rightWidth - l.roundelSize) / 2),
+                        y: ry,
+                        width: Math.round(l.roundelSize),
+                        height: Math.round(l.roundelSize),
+                    },
+                    repoPath: l.roundel,
+                    fit: "contain",
+                });
+                ry += l.roundelSize + m.lineGap;
+            }
+            if (l.panel) {
+                const px = rightLeft + Math.round((l.rightWidth - l.panel.width) / 2);
+                layers.push({
+                    kind: "shape",
+                    name: "Distance panel",
+                    bounds: {
+                        x: px,
+                        y: ry,
+                        width: Math.round(l.panel.width),
+                        height: Math.round(l.panel.height),
+                    },
+                    fill: lib.COLOURS.white,
+                    cornerRadius: Math.round(m.radius / 2),
+                });
+                let panelLines = lib.textLayers(l.panel.block, px + m.margin / 2, ry + m.margin / 2,
+                    l.panel.width - m.margin);
+                for (let k = 0; k < panelLines.length; k += 1) {
+                    layers.push(panelLines[k]);
+                }
+            }
+        }
+
+        return {
+            name: "Direction sign",
+            grid: canvas.grid,
+            pixelsPerFrame: canvas.pixelsPerFrame,
+            background: "#00000000",
+            layers: layers,
+        };
+    },
+
     render: (ctx, params) => {
         const l = layout(lib.ctxMeasurer(ctx), params);
         const m = l.metrics;

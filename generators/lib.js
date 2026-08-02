@@ -281,37 +281,54 @@ const warnOverflow = (tag, needed, available) => {
 // natural shape, then the layout is done into the resulting canvas rather than
 // being computed at the natural size and scaled, which would distort the legend.
 const canvasFor = (naturalWidth, naturalHeight) => {
-    const aspect = naturalHeight > 0 ? naturalWidth / naturalHeight : 1;
+    const width = Math.max(1, Math.round(naturalWidth));
+    const height = Math.max(1, Math.round(naturalHeight));
 
-    let best = { columns: 1, rows: 1, error: Infinity };
+    // Chooses the grid that wastes the least canvas while still covering the
+    // layout. Scoring by shape alone picked a square for a sign twice as wide as
+    // it is tall, which left the legend crammed into one half and everything else
+    // pushed against the edge. Wasted area is the thing actually being minimised,
+    // and it falls out of the frame resolution rather than being guessed at.
+    let best = null;
     for (let columns = 1; columns <= 8; columns += 1) {
         for (let rows = 1; rows <= 8; rows += 1) {
-            // Same trade the recommender makes: prefer fewer frames unless the
-            // shape is genuinely wrong, since every frame is placed by hand.
-            const ratio = (columns / rows) / aspect;
-            const distortion = Math.abs(ratio >= 1 ? ratio - 1 : (1 / ratio) - 1);
-            const cost = distortion + (columns * rows) * 0.02;
-            if (cost < best.error) {
-                best = { columns: columns, rows: rows, error: cost };
+            let perFrame = Math.max(128, Math.ceil(Math.max(width / columns, height / rows)));
+            if (perFrame > 1024) {
+                continue;
+            }
+
+            let canvasWidth = columns * perFrame;
+            let canvasHeight = rows * perFrame;
+            // A canvas smaller than the measured layout would clip it, which is the
+            // one outcome worse than a little wasted background.
+            if (canvasWidth < width || canvasHeight < height) {
+                continue;
+            }
+
+            // Frames are placed by hand, so a marginally tighter fit is not worth
+            // extra ones; the penalty is what breaks near-ties towards fewer.
+            let score = canvasWidth * canvasHeight * (1 + columns * rows * 0.02);
+            if (best === null || score < best.score) {
+                best = {
+                    score: score,
+                    grid: { columns: columns, rows: rows },
+                    pixelsPerFrame: perFrame,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                };
             }
         }
     }
 
-    // The frame resolution follows the natural size rather than being fixed, so the
-    // canvas is at least as big as the layout that was measured for it. Choosing a
-    // grid and then keeping a fixed resolution would shrink the canvas under a
-    // legend already sized in pixels, and the text would run off the edge.
-    const perFrame = Math.max(128, Math.min(1024, Math.ceil(Math.max(
-        naturalWidth / best.columns,
-        naturalHeight / best.rows))));
-
-    return {
-        grid: { columns: best.columns, rows: best.rows },
-        pixelsPerFrame: perFrame,
-        width: best.columns * perFrame,
-        height: best.rows * perFrame,
-    };
+    if (best === null) {
+        // Larger than eight frames of 1024 in some direction. Nothing here fits, so
+        // take the biggest canvas available and let the layout be clipped rather
+        // than returning something unusable.
+        return { grid: { columns: 8, rows: 8 }, pixelsPerFrame: 1024, width: 8192, height: 8192 };
+    }
+    return best;
 };
+
 
 // Turns a laid-out text block into one text layer per line.
 //
