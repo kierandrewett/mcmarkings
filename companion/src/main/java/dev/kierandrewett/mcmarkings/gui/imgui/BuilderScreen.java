@@ -149,6 +149,8 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
     /** Nothing may escape: this is called from inside the game's frame loop. */
     @Override
     public void render(ImGuiIO frameIo) {
+        ImGuiScreens.applyMinecraftTheme();
+        ImGuiScreens.matchGameGuiScale();
         this.io = frameIo;
         try {
             ImGuiScreens.fullViewportWindow("##mcmarkings-builder", this::drawBody);

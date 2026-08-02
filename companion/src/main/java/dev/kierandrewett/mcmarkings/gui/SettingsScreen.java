@@ -200,14 +200,19 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
 
     private FlowLayout fontsSection() {
         FlowLayout section = section("Fonts",
-                "Generated signs are lettered in Transport, which is not shipped with the mod.");
+                "Generators can letter signs in any font installed on this machine. "
+                        + "Which one to use is up to the generator, not the mod.");
 
-        boolean hasTransport = hasTransport();
-        section.child(UIComponents.label(Component.literal(hasTransport
-                        ? "Transport was found. Generated signs will be lettered properly."
-                        : "Transport was not found. Signs still generate, but in a substitute typeface "
-                                + "that will not look right.")
-                .withStyle(hasTransport ? ChatFormatting.GREEN : ChatFormatting.GOLD)));
+        int available = fontCount();
+        section.child(UIComponents.label(Component.literal(available > 0
+                        ? available + " font family(ies) available to generators"
+                        : "No fonts found. Add a folder below, or install some.")
+                .withStyle(available > 0 ? ChatFormatting.GREEN : ChatFormatting.GOLD)));
+
+        String sample = String.join(", ", firstFamilies(6));
+        if (!sample.isBlank()) {
+            section.child(note(sample + (available > 6 ? ", and " + (available - 6) + " more" : "")));
+        }
 
         for (String warning : fontWarnings()) {
             section.child(UIComponents.label(Component.literal(warning).withStyle(ChatFormatting.GOLD)));
@@ -332,11 +337,21 @@ public class SettingsScreen extends BaseOwoScreen<FlowLayout> {
         }
     }
 
-    private boolean hasTransport() {
+    private int fontCount() {
         try {
-            return services.fonts.hasTransport();
+            return services.fonts.count();
         } catch (RuntimeException exception) {
-            return false;
+            return 0;
+        }
+    }
+
+    /** A handful of names, so the list is evidently real without filling the screen. */
+    private List<String> firstFamilies(int limit) {
+        try {
+            List<String> families = services.fonts.availableFamilies();
+            return families.subList(0, Math.min(limit, families.size()));
+        } catch (RuntimeException exception) {
+            return List.of();
         }
     }
 

@@ -55,8 +55,9 @@ ctx.translate(x, y) / ctx.scale(sx, sy) / ctx.rotate(radians)
 ctx.clip(x, y, w, h) / ctx.clearClip()
 ```
 
-`opts` is `{ font, size, colour, align, baseline, tracking, scaleY }`. `font` is `transport-heavy`
-or `transport-medium`. Colours are `#RGB`, `#RRGGBB`, `#RRGGBBAA` or `rgba(r, g, b, a)`.
+`opts` is `{ font, size, colour, align, baseline, tracking, scaleY }`. `font` is the name of any font
+installed on the machine, matched loosely (see below). Colours are `#RGB`, `#RRGGBB`, `#RRGGBBAA` or
+`rgba(r, g, b, a)`.
 
 ---
 
@@ -177,6 +178,25 @@ Worth knowing before you change anything, because the contract does not settle t
   not sit on a shorter row than the line above it.
 
 ---
+
+## Fonts are yours to choose
+
+`font` in the text options is any font installed on the machine. Names match loosely, so the
+family, the face name, the PostScript name or the file name all work, and case and punctuation
+are ignored:
+
+```js
+ctx.text("30 mph", x, y, { font: "Transport Heavy", size: 80 });
+ctx.text("Ausfahrt", x, y, { font: "DIN 1451 Mittelschrift", size: 80 });
+```
+
+The mod has no opinion about which font a sign wants and treats none of them specially. The
+generators here use Transport because these are UK road signs; a repository of German signs would
+name a different one, and nothing in the mod needs changing for that. If a font is not installed
+the sign still renders in a substitute and the mod says which name it could not resolve, so a
+preview is never blocked by a missing typeface.
+
+The settings screen lists what is available on the machine.
 
 ## Never use `const` inside a loop body
 

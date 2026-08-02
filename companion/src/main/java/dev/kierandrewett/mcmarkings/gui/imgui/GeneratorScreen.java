@@ -159,6 +159,8 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
      */
     @Override
     public void render(ImGuiIO frameIo) {
+        ImGuiScreens.applyMinecraftTheme();
+        ImGuiScreens.matchGameGuiScale();
         this.io = frameIo;
         try {
             maybeRenderPreview();

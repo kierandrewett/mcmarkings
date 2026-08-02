@@ -1,12 +1,16 @@
 package dev.kierandrewett.mcmarkings.gui.imgui;
 
+import com.mojang.blaze3d.platform.Window;
+import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImGuiStyle;
 import imgui.ImGuiViewport;
 import imgui.flag.ImGuiChildFlags;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
+import net.minecraft.client.Minecraft;
 
 import java.util.OptionalInt;
 
@@ -38,6 +42,136 @@ public final class ImGuiScreens {
             | ImGuiWindowFlags.NoSavedSettings;
 
     private ImGuiScreens() {
+    }
+
+    private static boolean themed;
+
+    /**
+     * Restyles ImGui to sit alongside Minecraft's own interface.
+     *
+     * <p>The single biggest cue is corners. Minecraft's UI has no rounding anywhere,
+     * so ImGui's default rounded panels read as a different application pasted over
+     * the game. Everything else follows vanilla's palette: near-black translucent
+     * panels like the screen background, mid grey raised controls, and the muted
+     * grey-white text the game uses rather than pure white.
+     *
+     * <p>Applied once. The ImGui context is process-wide, so repeating it is waste
+     * rather than harm, but it also has to survive being called from either screen.
+     */
+    public static void applyMinecraftTheme() {
+        if (themed) {
+            return;
+        }
+        themed = true;
+
+        ImGuiStyle style = ImGui.getStyle();
+
+        // Minecraft is blocky. Nothing in its interface is rounded.
+        style.setWindowRounding(0.0f);
+        style.setChildRounding(0.0f);
+        style.setFrameRounding(0.0f);
+        style.setPopupRounding(0.0f);
+        style.setScrollbarRounding(0.0f);
+        style.setGrabRounding(0.0f);
+        style.setTabRounding(0.0f);
+
+        // Vanilla widgets are outlined rather than shadowed.
+        style.setWindowBorderSize(1.0f);
+        style.setChildBorderSize(1.0f);
+        style.setFrameBorderSize(1.0f);
+        style.setPopupBorderSize(1.0f);
+
+        style.setWindowPadding(8.0f, 8.0f);
+        style.setFramePadding(6.0f, 4.0f);
+        style.setItemSpacing(6.0f, 6.0f);
+        style.setScrollbarSize(10.0f);
+        style.setGrabMinSize(10.0f);
+
+        setColour(ImGuiCol.WindowBg, 0.06f, 0.06f, 0.06f, 0.94f);
+        setColour(ImGuiCol.ChildBg, 0.00f, 0.00f, 0.00f, 0.30f);
+        setColour(ImGuiCol.PopupBg, 0.06f, 0.06f, 0.06f, 0.96f);
+        setColour(ImGuiCol.Border, 0.00f, 0.00f, 0.00f, 0.90f);
+
+        // Vanilla text is a slightly warm off-white, not pure white.
+        setColour(ImGuiCol.Text, 0.87f, 0.87f, 0.87f, 1.00f);
+        setColour(ImGuiCol.TextDisabled, 0.42f, 0.42f, 0.42f, 1.00f);
+
+        // Sunken fields, matching a vanilla text box.
+        setColour(ImGuiCol.FrameBg, 0.00f, 0.00f, 0.00f, 0.78f);
+        setColour(ImGuiCol.FrameBgHovered, 0.10f, 0.10f, 0.10f, 0.90f);
+        setColour(ImGuiCol.FrameBgActive, 0.14f, 0.14f, 0.14f, 0.95f);
+
+        // Raised controls, matching a vanilla button and its hover highlight.
+        setColour(ImGuiCol.Button, 0.42f, 0.42f, 0.42f, 1.00f);
+        setColour(ImGuiCol.ButtonHovered, 0.56f, 0.56f, 0.56f, 1.00f);
+        setColour(ImGuiCol.ButtonActive, 0.34f, 0.34f, 0.34f, 1.00f);
+
+        setColour(ImGuiCol.Header, 0.32f, 0.32f, 0.32f, 1.00f);
+        setColour(ImGuiCol.HeaderHovered, 0.46f, 0.46f, 0.46f, 1.00f);
+        setColour(ImGuiCol.HeaderActive, 0.52f, 0.52f, 0.52f, 1.00f);
+
+        setColour(ImGuiCol.TitleBg, 0.10f, 0.10f, 0.10f, 1.00f);
+        setColour(ImGuiCol.TitleBgActive, 0.14f, 0.14f, 0.14f, 1.00f);
+
+        setColour(ImGuiCol.ScrollbarBg, 0.00f, 0.00f, 0.00f, 0.60f);
+        setColour(ImGuiCol.ScrollbarGrab, 0.42f, 0.42f, 0.42f, 1.00f);
+        setColour(ImGuiCol.ScrollbarGrabHovered, 0.56f, 0.56f, 0.56f, 1.00f);
+
+        setColour(ImGuiCol.CheckMark, 0.34f, 0.75f, 0.34f, 1.00f);
+        setColour(ImGuiCol.SliderGrab, 0.56f, 0.56f, 0.56f, 1.00f);
+        setColour(ImGuiCol.SliderGrabActive, 0.68f, 0.68f, 0.68f, 1.00f);
+
+        setColour(ImGuiCol.Separator, 0.00f, 0.00f, 0.00f, 0.80f);
+        setColour(ImGuiCol.Tab, 0.16f, 0.16f, 0.16f, 1.00f);
+        setColour(ImGuiCol.TabHovered, 0.42f, 0.42f, 0.42f, 1.00f);
+    }
+
+    private static void setColour(int target, float red, float green, float blue, float alpha) {
+        ImGui.getStyle().setColor(target, red, green, blue, alpha);
+    }
+
+    /**
+     * What the ImGui style is currently scaled by.
+     *
+     * <p>Tracked because {@code scaleAllSizes} multiplies the current metrics rather
+     * than setting them, so re-applying a scale would compound. Static because the
+     * ImGui context is process-wide and outlives any one screen.
+     */
+    private static float appliedScale = 1.0f;
+
+    /**
+     * Matches ImGui to Minecraft's own GUI scale.
+     *
+     * <p>ImGui lays out in raw framebuffer pixels, so on a high resolution display,
+     * or with the GUI scale turned up, its text and controls come out a fraction of
+     * the size of everything else on screen. Following the game's setting keeps the
+     * two looking like one interface.
+     *
+     * <p>Call once per frame before any widgets. It returns immediately unless the
+     * setting has actually changed.
+     */
+    public static void matchGameGuiScale() {
+        Window window = Minecraft.getInstance().getWindow();
+        if (window == null) {
+            return;
+        }
+
+        float target = Math.max(1.0f, window.getGuiScale());
+        if (Math.abs(target - appliedScale) < 0.01f) {
+            return;
+        }
+
+        // Padding, spacing and borders are multiplied by the delta from whatever is
+        // already applied, since there is no way to reset the style to defaults.
+        ImGui.getStyle().scaleAllSizes(target / appliedScale);
+
+        // Fonts are set absolutely rather than multiplied. In imgui 1.92 this drives
+        // the dynamic rasteriser, so the glyphs are re-rendered at the new size
+        // instead of a small atlas being stretched and going soft.
+        ImGui.getStyle().setFontScaleMain(target);
+
+        appliedScale = target;
+        McMarkingsCompanion.LOGGER.debug("[mcmarkings] imgui scaled to match gui scale {}", target);
     }
 
     /**

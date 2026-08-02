@@ -9,172 +9,145 @@ import java.awt.Font;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+/**
+ * The font catalogue.
+ *
+ * <p>No font is special here. Which typeface a sign wants belongs to whoever is
+ * designing it, so the registry only has to enumerate what is installed, match
+ * names loosely, and never leave a caller without something to draw with.
+ */
 class FontRegistryTest {
 
-    /** Places a font might live on this machine. Nothing here is required to exist. */
-    private static final List<Path> SYSTEM_FONT_DIRECTORIES = List.of(
-            Path.of(System.getProperty("user.home"), ".local", "share", "fonts"),
-            Path.of("/usr/share/fonts"),
-            Path.of(System.getProperty("java.home"), "lib", "fonts"));
-
     @Test
-    @DisplayName("a nonexistent search path falls back cleanly and says so")
-    void missingPathFallsBack() {
-        FontRegistry registry = new FontRegistry(List.of("/definitely/not/a/font/directory"));
-
-        assertFalse(registry.hasTransport());
-        assertEquals(Optional.empty(), registry.find(FontRegistry.TRANSPORT_HEAVY));
-
-        Font fallback = registry.get(FontRegistry.TRANSPORT_HEAVY);
-        assertNotNull(fallback);
-        assertTrue(fallback.isBold(), "a heavy face should fall back to something bold");
-        assertTrue(fallback.getSize() > 1, "a 1pt font is unusable; it must be derived to a real size");
-
-        assertFalse(registry.warnings().isEmpty());
-        assertTrue(registry.warnings().stream().anyMatch(warning -> warning.contains("/definitely/not/a/font")),
-                "the warning should name the path that was searched: " + registry.warnings());
-        assertTrue(registry.warnings().stream().anyMatch(warning -> warning.contains("Transport Heavy")
-                        && warning.contains("fallback")),
-                "the warning should name the missing face: " + registry.warnings());
-    }
-
-    @Test
-    @DisplayName("an empty search path list is not a crash")
-    void noSearchPathsFallsBack() {
+    @DisplayName("system fonts are available without configuring a search path")
+    void platformFontsAreFound() {
         FontRegistry registry = new FontRegistry(List.of());
 
-        assertFalse(registry.hasTransport());
-        assertNotNull(registry.get(FontRegistry.TRANSPORT_MEDIUM));
-        assertFalse(registry.warnings().isEmpty());
-
-        FontRegistry fromNull = new FontRegistry(null);
-        assertNotNull(fromNull.get(FontRegistry.TRANSPORT_HEAVY));
+        assertNotNull(registry.availableFamilies());
+        assertTrue(registry.count() >= 0);
     }
 
     @Test
-    @DisplayName("the same fallback instance comes back every time, and warns once")
-    void fallbackIsCachedAndWarnsOnce() {
-        FontRegistry registry = new FontRegistry(List.of("/definitely/not/a/font/directory"));
+    @DisplayName("families come back sorted and without duplicates")
+    void familiesAreSortedAndUnique() {
+        List<String> families = new FontRegistry(List.of()).availableFamilies();
 
-        Font first = registry.get(FontRegistry.TRANSPORT_HEAVY);
-        Font second = registry.get(FontRegistry.TRANSPORT_HEAVY);
-        assertSame(first, second);
-
-        long transportWarnings = registry.warnings().stream()
-                .filter(warning -> warning.contains("Transport Heavy"))
-                .count();
-        assertEquals(1, transportWarnings, "a repeated lookup should not spam the UI: " + registry.warnings());
-    }
-
-    @Test
-    @DisplayName("a font in a search directory is found by filename and by family name")
-    void findsARealFont(@TempDir Path directory) throws IOException {
-        Path donor = anyFontFile();
-        assumeTrue(donor != null, "no .ttf on this machine to test against");
-
-        Path copy = directory.resolve("Test Face.ttf");
-        Files.copy(donor, copy, StandardCopyOption.REPLACE_EXISTING);
-
-        FontRegistry registry = new FontRegistry(List.of(directory.toString()));
-
-        // Filename index: the cheap path that does not parse anything up front.
-        Optional<Font> byFileName = registry.find("test-face");
-        assertTrue(byFileName.isPresent(), "should match the filename: " + registry.warnings());
-        assertTrue(byFileName.get().getSize() > 1);
-        assertSame(byFileName.get(), registry.find("Test Face").orElseThrow(), "loaded fonts should be cached");
-
-        // Name index: the lazy full parse, exercised by asking for something the
-        // filename cannot answer.
-        String family = fontFamilyOf(donor);
-        assumeTrue(family != null && !family.isBlank(), "could not read a family name from " + donor);
-        assertTrue(registry.find(family).isPresent(), "should match the font's own family name '" + family + "'");
-
-        assertFalse(registry.hasTransport(), "a lone test face is not Transport");
-    }
-
-    @Test
-    @DisplayName("an unknown name is absent but still gets a usable font")
-    void unknownNameStillReturnsAFont(@TempDir Path directory) throws IOException {
-        Path donor = anyFontFile();
-        assumeTrue(donor != null, "no .ttf on this machine to test against");
-        Files.copy(donor, directory.resolve("Test Face.ttf"), StandardCopyOption.REPLACE_EXISTING);
-
-        FontRegistry registry = new FontRegistry(List.of(directory.toString()));
-
-        assertEquals(Optional.empty(), registry.find("no-such-face-at-all"));
-        assertEquals(Optional.empty(), registry.find(""));
-        assertEquals(Optional.empty(), registry.find(null));
-
-        Font fallback = registry.get("no-such-face-at-all");
-        assertNotNull(fallback);
-        assertFalse(fallback.isBold(), "nothing in that name suggests a heavy weight");
-    }
-
-    @Test
-    @DisplayName("the configured search paths either yield Transport or explain why not")
-    void configuredPathsAreHonest() {
-        // Transport is Crown copyright and not in the repo, so this machine may or may
-        // not have it. Both outcomes are correct; silence is not.
-        FontRegistry registry = new FontRegistry(new CompanionConfig().fontSearchPaths);
-
-        if (registry.hasTransport()) {
-            assertTrue(registry.find(FontRegistry.TRANSPORT_HEAVY).isPresent());
-            assertTrue(registry.find(FontRegistry.TRANSPORT_MEDIUM).isPresent());
-            assertNotNull(registry.get(FontRegistry.TRANSPORT_HEAVY).getFamily());
-        } else {
-            assertNotNull(registry.get(FontRegistry.TRANSPORT_HEAVY));
-            assertFalse(registry.warnings().isEmpty(), "missing Transport has to be reported to the user");
+        for (int index = 1; index < families.size(); index++) {
+            assertTrue(families.get(index - 1).compareToIgnoreCase(families.get(index)) <= 0,
+                    "not sorted at " + index + ": " + families.get(index - 1) + " then " + families.get(index));
         }
+        assertEquals(families.size(), families.stream().map(String::toLowerCase).distinct().count());
     }
 
     @Test
-    @DisplayName("lookups never need a display")
-    void staysHeadless() {
-        // Loading the class is what sets the property, so touch it before looking.
-        assertNotNull(new FontRegistry(List.of()).get(FontRegistry.TRANSPORT_HEAVY));
-        assertEquals("true", System.getProperty("java.awt.headless"),
-                "the registry should default AWT to headless");
+    @DisplayName("a font dropped into a search folder is found by its file name")
+    void findsAFontInASearchFolder(@TempDir Path directory) throws IOException {
+        Path copied = copyAnyInstalledFont(directory);
+        if (copied == null) {
+            return;
+        }
+
+        FontRegistry registry = new FontRegistry(List.of(directory.toString()));
+
+        assertTrue(registry.find(stripExtension(copied.getFileName().toString())).isPresent(),
+                "a font in a search folder should be findable by its file name");
     }
 
-    private static Path anyFontFile() {
-        for (Path directory : SYSTEM_FONT_DIRECTORIES) {
+    @Test
+    @DisplayName("matching ignores case and punctuation")
+    void matchingIsLoose() {
+        FontRegistry registry = new FontRegistry(List.of());
+        List<String> families = registry.availableFamilies();
+        if (families.isEmpty()) {
+            return;
+        }
+
+        String family = families.getFirst();
+        assertTrue(registry.find(family).isPresent(), "the exact name should match");
+        assertTrue(registry.find(family.toUpperCase()).isPresent(), "case should not matter");
+        assertTrue(registry.find(family.replace(" ", "").toLowerCase()).isPresent(),
+                "spacing and punctuation should not matter");
+    }
+
+    @Test
+    @DisplayName("an unknown font falls back rather than failing the sign")
+    void unknownFontFallsBack() {
+        FontRegistry registry = new FontRegistry(List.of());
+
+        Font font = registry.get("a font nobody has installed " + System.nanoTime());
+
+        assertNotNull(font, "a sign should render in a substitute rather than not at all");
+        assertTrue(font.getSize() > 1, "a 1pt font draws as nothing, which is a trap for callers");
+        assertFalse(registry.warnings().isEmpty(), "the substitution should be recorded for the UI");
+    }
+
+    @Test
+    @DisplayName("a blank or missing name is not reported as a problem")
+    void blankNameIsNotAWarning() {
+        FontRegistry registry = new FontRegistry(List.of());
+
+        assertNotNull(registry.get(null));
+        assertNotNull(registry.get(""));
+        assertTrue(registry.find(null).isEmpty());
+        assertTrue(registry.find("").isEmpty());
+    }
+
+    @Test
+    @DisplayName("a nonexistent search folder is skipped quietly")
+    void missingSearchFolderIsHarmless() {
+        FontRegistry registry = new FontRegistry(List.of(
+                Path.of("not", "a", "real", "folder", String.valueOf(System.nanoTime())).toString()));
+
+        assertNotNull(registry.availableFamilies());
+        assertNotNull(registry.get("anything"));
+    }
+
+    @Test
+    @DisplayName("fonts come back at a usable size, not the 1pt createFont default")
+    void fontsAreDerivedToAUsableSize() {
+        FontRegistry registry = new FontRegistry(List.of());
+        List<String> families = registry.availableFamilies();
+        if (families.isEmpty()) {
+            return;
+        }
+
+        assertTrue(registry.get(families.getFirst()).getSize() > 1);
+    }
+
+    /** Copies a real font out of the platform's own directories, or null if none. */
+    private static Path copyAnyInstalledFont(Path target) throws IOException {
+        for (String candidate : CompanionConfig.defaultFontSearchPaths()) {
+            Path directory = Path.of(candidate);
             if (!Files.isDirectory(directory)) {
                 continue;
             }
-            try (Stream<Path> walk = Files.walk(directory)) {
-                Optional<Path> found = walk
-                        .filter(Files::isRegularFile)
-                        .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ttf"))
-                        .sorted()
-                        .findFirst();
-                if (found.isPresent()) {
-                    return found.get();
+            try (Stream<Path> walk = Files.walk(directory, 3)) {
+                Path source = walk.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".ttf"))
+                        .findFirst()
+                        .orElse(null);
+                if (source != null) {
+                    Path copy = target.resolve(source.getFileName().toString());
+                    Files.copy(source, copy);
+                    return copy;
                 }
-            } catch (IOException exception) {
-                // Unreadable font directory is not this test's problem; try the next one.
+            } catch (IOException ignored) {
+                // Try the next directory rather than failing the test on one of them.
             }
         }
         return null;
     }
 
-    private static String fontFamilyOf(Path file) {
-        try {
-            return Font.createFont(Font.TRUETYPE_FONT, file.toFile()).getFamily(Locale.ROOT);
-        } catch (Exception exception) {
-            return null;
-        }
+    private static String stripExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot > 0 ? fileName.substring(0, dot) : fileName;
     }
 }

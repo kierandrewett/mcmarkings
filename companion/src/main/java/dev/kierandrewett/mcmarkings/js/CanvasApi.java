@@ -96,7 +96,9 @@ public final class CanvasApi {
             double tracking,
             double scaleY) {
 
-        public static final String DEFAULT_FONT = "transport-heavy";
+        // Whatever a sign should be lettered in belongs to the generator, not to
+        // the mod. This is only what to use when a script names nothing at all.
+        public static final String DEFAULT_FONT = FontRegistry.DEFAULT_FONT;
 
         public static final double DEFAULT_SIZE = 100.0;
 
