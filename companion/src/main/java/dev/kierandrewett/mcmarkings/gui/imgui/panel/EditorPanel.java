@@ -729,6 +729,35 @@ public final class EditorPanel implements Panel {
         panY = (float) (height / 2.0 - bounds.centreY() * zoom);
     }
 
+    /**
+     * How much of the canvas has to stay in the pane, in screen pixels.
+     *
+     * <p>A strip rather than the whole thing, because panning most of the canvas off
+     * to work on one corner is the point of panning.
+     */
+    private static final float KEEP_IN_VIEW = 48.0f;
+
+    /**
+     * Keeps a pan from putting the canvas somewhere nobody can find it.
+     *
+     * <p>Right-dragging added the mouse delta with nothing bounding it, so a few
+     * flicks at a low zoom put the document thousands of pixels away and left an
+     * empty pane with no hint which direction it went. There is a Fit button on the
+     * toolbar and it does recover this, but a state you have to know a button to
+     * escape is a state worth not having: it costs someone their place, which is the
+     * one thing an editor is for keeping.
+     *
+     * <p>Static and taking its numbers as arguments so the arithmetic can be checked
+     * without a window.
+     */
+    static float clampPan(float pan, double contentPixels, float regionPixels) {
+        // With a canvas smaller than the strip, the two bounds cross. Keeping the
+        // lower one wins, which parks it against the left edge rather than jittering.
+        float lowest = (float) (KEEP_IN_VIEW - contentPixels);
+        float highest = Math.max(lowest, regionPixels - KEEP_IN_VIEW);
+        return Math.clamp(pan, lowest, highest);
+    }
+
     private void fitToRegion(Document document, float width, float height) {
         // A margin, so the canvas edge and its handles are not flush against the pane.
         double fit = Math.min(width / (double) document.width(), height / (double) document.height()) * 0.92;
@@ -905,8 +934,10 @@ public final class EditorPanel implements Panel {
         // Right-drag pans. It has to work anywhere on the canvas, including on top of
         // a layer, so it is checked before anything that selects.
         if (active && ImGui.isMouseDown(ImGuiMouseButton.Right)) {
-            panX += ImGui.getIO().getMouseDeltaX();
-            panY += ImGui.getIO().getMouseDeltaY();
+            panX = clampPan(panX + ImGui.getIO().getMouseDeltaX(),
+                    document.width() * zoom, ImGui.getItemRectSizeX());
+            panY = clampPan(panY + ImGui.getIO().getMouseDeltaY(),
+                    document.height() * zoom, ImGui.getItemRectSizeY());
             return;
         }
 
