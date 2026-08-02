@@ -2,7 +2,6 @@ package dev.kierandrewett.mcmarkings;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
-import dev.kierandrewett.mcmarkings.gui.WelcomeScreen;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -72,12 +71,10 @@ public class McMarkingsCompanion implements ClientModInitializer {
         }
         resolved.clearStartupNotes();
 
-        // Deliberately asks what is configured rather than what has finished
-        // opening. Opening runs in the background, and treating "not ready yet" as
-        // "nothing set up" would flash the first-run screen at an existing user.
-        client.setScreen(resolved.hasConfiguredRepositories()
-                ? new ImGuiShell(resolved)
-                : new WelcomeScreen(resolved));
+        // Always the shell. It shows the first-run panel itself when nothing is set
+        // up, which is what stops an unconfigured install being a different screen
+        // with a different look and a handover in the middle of it.
+        client.setScreen(new ImGuiShell(resolved));
     }
 
     /**

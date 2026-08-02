@@ -12,17 +12,6 @@ base {
 }
 
 repositories {
-    // owo-lib.
-    maven {
-        name = "Wisp Forest"
-        url = "https://maven.wispforest.io/releases/"
-    }
-    // owo-lib pulls kdl4j, which is only published on jitpack. Its own docs
-    // omit this; without it resolution fails.
-    maven {
-        name = "JitPack"
-        url = "https://jitpack.io"
-    }
     mavenCentral()
 }
 
@@ -33,8 +22,6 @@ dependencies {
 
     // Non-remapping Loom drops modImplementation/modCompileOnly; mods are plain
     // implementation dependencies because there is nothing left to remap.
-    implementation "io.wispforest:owo-lib:${project.owo_version}"
-    include "io.wispforest:owo-lib:${project.owo_version}"
 
     // The published fabric-gui-imgui jar does not bundle imgui-java, so the
     // binding and the platform natives have to be shipped alongside it or the

@@ -11,6 +11,7 @@ import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.WelcomePanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.RepositoriesPanel;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -61,6 +62,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             | ImGuiTabBarFlags.DrawSelectedOverline;
 
     private final CompanionServices services;
+
+    /** Drawn in place of the tabs until a repository exists. */
+    private final WelcomePanel welcome;
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
 
     private final ImageBrowserPanel browser;
@@ -106,6 +110,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 .onDetail(this::drawImageActions);
 
         this.editor = new EditorPanel(services);
+        this.welcome = new WelcomePanel(services);
 
         this.panels = List.of(
                 browser,
@@ -195,7 +200,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     private void drawBody() {
         drawTopBar();
         ImGui.separator();
-        drawTabs();
+
+        // The first run is a state of this window, not a screen in front of it.
+        // Adding a folder puts the tabs here on the very next frame, so there is no
+        // handover and nothing flashes.
+        if (services.hasConfiguredRepositories()) {
+            drawTabs();
+        } else {
+            welcome.draw();
+        }
+
         status.draw();
     }
 
