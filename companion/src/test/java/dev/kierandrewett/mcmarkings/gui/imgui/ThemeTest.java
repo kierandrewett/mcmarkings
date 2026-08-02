@@ -183,4 +183,67 @@ class ThemeTest {
         int half = Theme.over(0x80FFFFFF, 0xFF000000);
         assertEquals(128, half & 0xFF, 1, "half-transparent white should land mid grey");
     }
+
+    @Test
+    @DisplayName("text is readable on every surface it can land on, hovered included")
+    void hoveredSurfacesAreReadableToo() {
+        // Field and tab both had their resting and selected states checked and their
+        // hovered ones missed, though text sits on all of them. Buttons were done
+        // properly, which is what made the omission easy to see once listed.
+        assertReadable("text in a hovered field", Theme.TEXT, Theme.FIELD_HOVERED,
+                Theme.MINIMUM_TEXT_CONTRAST);
+        assertReadable("hovered tab label", Theme.TEXT, Theme.TAB_HOVERED,
+                Theme.MINIMUM_TEXT_CONTRAST);
+    }
+
+    @Test
+    @DisplayName("marks that carry meaning are visible without being text")
+    void functionalMarksAreVisible() {
+        // A checkbox tick and a slider grab are the only thing saying what a control
+        // is set to. Held to the 3:1 non-text threshold against the surface each is
+        // actually drawn on, which for both is a sunken field rather than the panel.
+        assertReadable("checkbox tick", Theme.CHECK_MARK, Theme.FIELD, Theme.MINIMUM_MUTED_CONTRAST);
+        assertReadable("slider grab", Theme.SLIDER_GRAB, Theme.FIELD, Theme.MINIMUM_MUTED_CONTRAST);
+        assertReadable("held slider grab", Theme.SLIDER_GRAB_ACTIVE, Theme.FIELD,
+                Theme.MINIMUM_MUTED_CONTRAST);
+    }
+
+    /**
+     * Colours that carry no meaning on their own, and so need no contrast check.
+     *
+     * <p>Listed rather than inferred, so adding one is a decision someone made rather
+     * than a check someone forgot.
+     */
+    private static final java.util.Set<String> DECORATIVE = java.util.Set.of(
+            "WINDOW_BACKGROUND", "CHILD_BACKGROUND", "POPUP_BACKGROUND", "BORDER", "SEPARATOR",
+            "FIELD", "FIELD_HOVERED", "FIELD_ACTIVE", "BUTTON", "BUTTON_HOVERED", "BUTTON_ACTIVE",
+            "HEADER", "HEADER_HOVERED", "HEADER_ACTIVE", "TAB", "TAB_HOVERED", "TAB_ACTIVE",
+            "SCROLLBAR_BACKGROUND", "SCROLLBAR_GRAB", "SCROLLBAR_GRAB_HOVERED");
+
+    @Test
+    @DisplayName("every colour in the palette has been thought about")
+    void noColourEscapesTheChecks() throws Exception {
+        // The checks above cover the colours I remembered to list, which is exactly
+        // the guarantee that rots. This asks the class what colours it has, so a new
+        // one forces a decision: either it is drawn on something and needs a contrast
+        // assertion, or it is a surface and goes in the list above with the rest.
+        java.util.List<String> unclassified = new java.util.ArrayList<>();
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/test/java/dev/kierandrewett/mcmarkings/gui/imgui/ThemeTest.java"));
+
+        for (java.lang.reflect.Field field : Theme.class.getFields()) {
+            if (field.getType() != int.class) {
+                continue;
+            }
+            String name = field.getName();
+            if (DECORATIVE.contains(name) || source.contains("Theme." + name + ",")) {
+                continue;
+            }
+            unclassified.add(name);
+        }
+
+        assertTrue(unclassified.isEmpty(), () -> """
+                A colour in the palette is neither checked for contrast nor listed as                 decorative. Add an assertion for what it is drawn on, or add it to                 DECORATIVE if it carries no meaning by itself.
+                unclassified: """ + unclassified);
+    }
 }
