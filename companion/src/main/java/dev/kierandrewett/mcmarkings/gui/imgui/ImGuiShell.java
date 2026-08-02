@@ -680,12 +680,22 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             ImGui.setTooltip("Every item frame shows a " + GridSize.MAP_PIXELS + " pixel map, so this "
                     + "is the detail the sign really has however large the source image is.");
         }
+        // Stretch is a real risk here and only here. The editor and the generator go
+        // out through publishing, which squares the image up to the grid itself and
+        // pads the rest, so nothing they place can be squashed. This hands the server
+        // a URL and a grid and lets it decide, which is why the grid is chosen to
+        // match the image's shape and why the number beside a mismatched one matters.
         for (GridSuggestion suggestion : suggestions) {
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
                     + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
             if (ImGui.button(label + "##grid-" + suggestion.grid(), -1.0f, 0.0f)) {
                 grid = suggestion.grid();
                 status.info("Frame size " + grid);
+            }
+            if (ImGuiScreens.explaining() && !suggestion.isComfortable()) {
+                ImGui.setTooltip("This image is placed straight from the repository, so the "
+                        + "server fits it to the frames rather than the mod doing it. A grid "
+                        + "this far from the image's own shape may come out squashed.");
             }
         }
 

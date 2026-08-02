@@ -2177,22 +2177,31 @@ public final class EditorPanel implements Panel {
             return;
         }
 
+        // Coverage, not stretch. Changing a document's grid stretches nothing: the
+        // layers keep their sizes and their positions and the canvas changes shape
+        // around them, so a grid that does not suit the content leaves empty canvas
+        // rather than squashing anything. Publishing pads too, so there was no reading
+        // of the old wording that was true.
+        double contentAspect = content.width() / (double) Math.max(1, content.height());
+
         ImGui.textDisabled("Suits this content");
         for (GridSuggestion suggestion : GridRecommender.top(content.width(), content.height(), 3)) {
             GridSize grid = suggestion.grid();
             boolean current = grid.equals(document.grid());
+            int covers = GridSuggestion.coveragePercent(grid, contentAspect);
 
             String label = grid + "   " + grid.frameCount() + " frames"
-                    + (suggestion.isComfortable() ? "" : "   " + suggestion.distortionPercent() + "% stretch")
+                    + (covers >= 100 ? "" : "   covers " + covers + "%")
                     + (current ? "   (current)" : "");
 
             ImGui.beginDisabled(current);
             boolean pressed = ImGui.button(label + "##suggest-" + grid, -1.0f, 0.0f);
             ImGui.endDisabled();
 
-            if (ImGui.isItemHovered() && !suggestion.isComfortable()) {
-                ImGui.setTooltip("Fits, but the content would be stretched by "
-                        + suggestion.distortionPercent() + "% to fill the frames.");
+            if (ImGuiScreens.explaining() && covers < 100) {
+                ImGui.setTooltip("Your layers keep their size and position. The canvas becomes "
+                        + grid.pixelWidth() + "x" + grid.pixelHeight() + ", which is a different "
+                        + "shape from what is on it, so " + (100 - covers) + "% of it would be empty.");
             }
             if (pressed) {
                 apply(document.withGrid(grid, document.pixelsPerFrame()), "Frame grid " + grid, null);
