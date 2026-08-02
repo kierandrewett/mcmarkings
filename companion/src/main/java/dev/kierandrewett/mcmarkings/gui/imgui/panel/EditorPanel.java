@@ -1544,6 +1544,13 @@ public final class EditorPanel implements Panel {
         if (ImGui.checkbox("Locked", layer.locked())) {
             setLocked(layer, !layer.locked());
         }
+        if (layer.locked()) {
+            // Says what locking does, at the moment someone is looking at a layer that
+            // will not move. A locked layer can still be selected and still has every
+            // property editable, so dragging it and having nothing happen is otherwise
+            // indistinguishable from the editor being broken.
+            ImGui.textDisabled("No dragging, nudging or resizing. Everything here still edits it.");
+        }
 
         if (insetsField("##margins", "Margins (top, right, bottom, left)", layer.margins())) {
             apply(document.replace(rebuilt(layer, layer.name(), layer.visible(), layer.locked(),
