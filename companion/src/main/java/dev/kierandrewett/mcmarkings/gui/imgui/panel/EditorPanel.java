@@ -102,6 +102,19 @@ public final class EditorPanel implements Panel {
     private static final int MAX_LAYER_EDGE = 8192;
 
     /**
+     * How far off the canvas a layer may be parked.
+     *
+     * <p>The position field had no range at all. Nothing allocates from a coordinate,
+     * so this is not the crash the size field was, but typing ten digits into it puts
+     * a layer somewhere you will not find again and the only way back is undo.
+     *
+     * <p>Eight times the largest canvas, because parking work off to one side while
+     * you get on with something else is a real way to use an editor and a range that
+     * stopped at the canvas edge would be in the way.
+     */
+    private static final int MAX_LAYER_POSITION = MAX_LAYER_EDGE * 8;
+
+    /**
      * Longest edge of the preview texture.
      *
      * <p>A document can be several thousand pixels across and the canvas pane is a
@@ -1637,7 +1650,8 @@ public final class EditorPanel implements Panel {
 
         pair[0] = bounds.x();
         pair[1] = bounds.y();
-        if (field("Position (x, y)", () -> ImGui.dragInt2("##position", pair))) {
+        if (field("Position (x, y)", () -> ImGui.dragInt2("##position", pair, 1.0f,
+                -MAX_LAYER_POSITION, MAX_LAYER_POSITION))) {
             apply(document.replace(layer.withBounds(bounds.movedTo(pair[0], pair[1]))),
                     "Move layer", "position:" + layer.id());
         }
