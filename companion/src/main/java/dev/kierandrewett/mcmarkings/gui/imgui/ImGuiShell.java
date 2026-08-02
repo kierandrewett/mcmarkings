@@ -8,11 +8,11 @@ import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
-import dev.kierandrewett.mcmarkings.gui.RepositoriesScreen;
-import dev.kierandrewett.mcmarkings.gui.SettingsScreen;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.RepositoriesPanel;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.repo.GitException;
@@ -118,14 +118,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                                         () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))),
                                 new Shortcut("Builder", "Lay several images out on one canvas",
                                         () -> Minecraft.getInstance().setScreen(new BuilderScreen(services))))),
-                new ShortcutPanel("Repositories",
-                        "Adding, switching, renaming and repairing repositories is still on its own screen.",
-                        List.of(new Shortcut("Manage repositories", "Add, switch, rename or repair a repository",
-                                () -> Minecraft.getInstance().setScreen(new RepositoriesScreen(services))))),
-                new ShortcutPanel("Settings",
-                        "Command alias, export size, fonts and folders are still on their own screen.",
-                        List.of(new Shortcut("Open settings", "Command alias, export size, fonts and folders",
-                                () -> Minecraft.getInstance().setScreen(new SettingsScreen(services))))));
+                new RepositoriesPanel(services),
+                new SettingsPanel(services));
     }
 
     @Override

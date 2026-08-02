@@ -1,0 +1,403 @@
+package dev.kierandrewett.mcmarkings.gui.imgui.panel;
+
+import dev.kierandrewett.mcmarkings.CompanionServices;
+import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import imgui.ImGui;
+import imgui.type.ImInt;
+import imgui.type.ImString;
+import net.minecraft.client.Minecraft;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Settings, in the window rather than instead of it.
+ *
+ * <p>Grouped by what someone is trying to do rather than by which field lives next
+ * to which in the config file. Every control says what it affects, because a setting
+ * whose effect you have to discover by trying it is a setting people leave alone.
+ *
+ * <p>Writing the config file is IO, so it never happens on a keystroke: edits are
+ * written when a field is left, on a worker, and repeated saves collapse into one.
+ */
+public final class SettingsPanel implements Panel {
+
+    private static final int TEXT_BUFFER = 256;
+
+    /** Below this, commands outrun the server's own rate limit and get dropped. */
+    private static final double MINIMUM_RATE = 0.2;
+
+    private static final double MAXIMUM_RATE = 20.0;
+
+    private static final int MINIMUM_PIXELS = 32;
+
+    /** One map is 128 pixels, so this is eight maps of detail per frame. */
+    private static final int MAXIMUM_PIXELS = 1024;
+
+    private final CompanionServices services;
+
+    private final DirectoryPicker picker = new DirectoryPicker("settings-picker");
+
+    private final ImString alias = new ImString("", TEXT_BUFFER);
+
+    private final ImString generatedDirectory = new ImString("", TEXT_BUFFER);
+
+    private final ImString generatorDirectory = new ImString("", TEXT_BUFFER);
+
+    private final ImString fontPath = new ImString("", TEXT_BUFFER);
+
+    private final float[] rate = new float[1];
+
+    private final ImInt pixelsPerFrame = new ImInt();
+
+    /** One save at a time, with a re-check afterwards so nothing is lost. */
+    private final AtomicBoolean saving = new AtomicBoolean();
+
+    private volatile boolean savePending;
+
+    /**
+     * Which font folders actually exist, worked out on a worker.
+     *
+     * <p>Checked once per change rather than per frame. Asking the filesystem while
+     * drawing is what froze the game the first time round, and a stale network mount
+     * can block for seconds on a question as small as "is this a directory".
+     */
+    private volatile Set<String> presentFontPaths = Set.of();
+
+    private String note = "";
+
+    private boolean noteIsWarning;
+
+    public SettingsPanel(CompanionServices services) {
+        this.services = services;
+        readFromConfig();
+        refreshFontPathChecks();
+    }
+
+    @Override
+    public String title() {
+        return "Settings";
+    }
+
+    @Override
+    public void draw() {
+        try {
+            drawBody();
+        } finally {
+            picker.draw();
+        }
+    }
+
+    private void drawBody() {
+        drawPlacingSection();
+        ImGui.spacing();
+        drawExportSection();
+        ImGui.spacing();
+        drawFontSection();
+        ImGui.spacing();
+        drawMaintenanceSection();
+
+        if (!note.isEmpty()) {
+            ImGui.separator();
+            if (noteIsWarning) {
+                ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f, note);
+            } else {
+                ImGui.textDisabled(note);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Sections
+    // -----------------------------------------------------------------------
+
+    private void drawPlacingSection() {
+        ImGui.textDisabled("PLACING MAPS");
+        ImGui.separator();
+
+        ImGui.setNextItemWidth(fieldWidth());
+        ImGui.inputText("Command name##settings-alias", alias);
+        boolean aliasDone = ImGui.isItemDeactivatedAfterEdit();
+        help("The plugin's own command. Change it only if your server renamed ImageFrame.");
+        if (aliasDone) {
+            String value = alias.get().trim();
+            if (value.isEmpty()) {
+                warn("The command name cannot be empty, so it has been left as it was.");
+                alias.set(services.config.commandAlias);
+            } else {
+                services.config.commandAlias = value;
+                saveSoon();
+            }
+        }
+
+        ImGui.setNextItemWidth(fieldWidth());
+        if (ImGui.sliderFloat("Commands per second##settings-rate", rate,
+                (float) MINIMUM_RATE, (float) MAXIMUM_RATE, "%.1f")) {
+            services.config.commandsPerSecond = clamp(rate[0], MINIMUM_RATE, MAXIMUM_RATE);
+        }
+        boolean rateDone = ImGui.isItemDeactivatedAfterEdit();
+        help("How fast commands are sent. Too fast and the server drops them; "
+                + "a large sign is many commands.");
+        if (rateDone) {
+            saveSoon();
+        }
+
+        if (ImGui.checkbox("Give glowing item frames##settings-glowing", services.config.glowingFrames)) {
+            services.config.glowingFrames = !services.config.glowingFrames;
+            saveSoon();
+        }
+        help("Glowing frames keep the image bright in the dark. Otherwise it dims like a block.");
+    }
+
+    private void drawExportSection() {
+        ImGui.textDisabled("EXPORTING");
+        ImGui.separator();
+
+        ImGui.setNextItemWidth(fieldWidth());
+        ImGui.inputInt("Pixels per frame##settings-pixels", pixelsPerFrame);
+        boolean pixelsDone = ImGui.isItemDeactivatedAfterEdit();
+        help("Detail per item frame. A map shows 128, so more than that only helps "
+                + "if you look at the sign up close.");
+        if (pixelsDone) {
+            int value = (int) clamp(pixelsPerFrame.get(), MINIMUM_PIXELS, MAXIMUM_PIXELS);
+            pixelsPerFrame.set(value);
+            services.config.exportPixelsPerFrame = value;
+            saveSoon();
+        }
+
+        ImGui.setNextItemWidth(fieldWidth());
+        ImGui.inputText("Generated folder##settings-generated", generatedDirectory);
+        boolean generatedDone = ImGui.isItemDeactivatedAfterEdit();
+        help("Where rendered images are written inside the repository, before being committed.");
+        if (generatedDone) {
+            services.config.generatedDirectory = generatedDirectory.get().trim();
+            saveSoon();
+        }
+
+        ImGui.setNextItemWidth(fieldWidth());
+        ImGui.inputText("Generators folder##settings-generators", generatorDirectory);
+        boolean generatorsDone = ImGui.isItemDeactivatedAfterEdit();
+        help("Where the mod looks for generator scripts in the repository.");
+        if (generatorsDone) {
+            services.config.generatorDirectory = generatorDirectory.get().trim();
+            saveSoon();
+        }
+    }
+
+    private void drawFontSection() {
+        ImGui.textDisabled("FONTS");
+        ImGui.separator();
+
+        ImGui.textWrapped("Every font in these folders is offered in the editor. "
+                + "Your system's own font folders are searched by default.");
+        ImGui.textDisabled(services.fonts.count() + " font(s) available right now.");
+
+        List<String> paths = fontPaths();
+        for (int index = 0; index < paths.size(); index++) {
+            String path = paths.get(index);
+            ImGui.pushID("font-path-" + index);
+
+            if (ImGui.button("Remove")) {
+                paths.remove(index);
+                saveSoon();
+                refreshFontPathChecks();
+                warn("Removed. Font changes take effect after a reload.");
+                ImGui.popID();
+                break;
+            }
+            ImGui.sameLine();
+
+            // Whether the folder is actually there is worth showing: a path typed with
+            // a typo looks identical to one that works until you go looking for a font.
+            boolean exists = presentFontPaths.contains(path);
+            if (exists) {
+                ImGui.text(ImGuiScreens.truncate(path, 64));
+            } else {
+                ImGui.textColored(0.95f, 0.78f, 0.35f, 1.0f,
+                        ImGuiScreens.truncate(path, 64) + "  (nothing there)");
+            }
+
+            ImGui.popID();
+        }
+
+        ImGui.setNextItemWidth(fieldWidth());
+        boolean submitted = ImGui.inputText("##settings-font-path", fontPath);
+        ImGui.sameLine();
+        if (ImGui.button("Add##settings-font-add") || submitted) {
+            addFontPath(fontPath.get());
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Browse...##settings-font-browse")) {
+            picker.open("Choose a folder of fonts", null, directory -> addFontPath(directory.toString()));
+        }
+    }
+
+    private void drawMaintenanceSection() {
+        ImGui.textDisabled("MAINTENANCE");
+        ImGui.separator();
+
+        if (ImGui.button("Reload everything##settings-reload")) {
+            reloadEverything();
+        }
+        help("Re-reads the config, the repositories and the fonts. Needed after changing font folders.");
+
+        ImGui.textDisabled("Config file: " + ImGuiScreens.truncate(
+                String.valueOf(dev.kierandrewett.mcmarkings.config.CompanionConfig.configPath()), 70));
+    }
+
+    // -----------------------------------------------------------------------
+    // Actions
+    // -----------------------------------------------------------------------
+
+    private void addFontPath(String raw) {
+        String trimmed = raw == null ? "" : raw.trim();
+        if (trimmed.isEmpty()) {
+            warn("Type a folder, or use Browse.");
+            return;
+        }
+
+        List<String> paths = fontPaths();
+        if (paths.contains(trimmed)) {
+            warn("That folder is already being searched.");
+            return;
+        }
+
+        paths.add(trimmed);
+        fontPath.set("");
+        saveSoon();
+
+        // Said plainly rather than hidden: adding a folder that is not there is a
+        // typo most of the time, and finding out later means hunting for a font that
+        // was never going to appear.
+        refreshFontPathChecks();
+        warn("Added. Font changes take effect after a reload.");
+    }
+
+    /**
+     * Throws the services away and builds them again.
+     *
+     * <p>Deferred rather than done here: this replaces the screen currently being
+     * drawn, and swapping it out part way through a frame is how ImGui ends up
+     * submitting into a window that no longer exists.
+     */
+    private void reloadEverything() {
+        note("Reloading...");
+        Minecraft.getInstance().execute(() -> {
+            try {
+                services.config.save();
+
+                // The textures belong to the services being discarded, and nothing else
+                // will ever free them once the reference is gone.
+                services.thumbnails.evictAll();
+                McMarkingsCompanion.reset();
+
+                Minecraft.getInstance().setScreen(
+                        new dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell(McMarkingsCompanion.services()));
+            } catch (RuntimeException failure) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] reload failed", failure);
+            }
+        });
+    }
+
+    /**
+     * Writes the config, off the client thread, at most once at a time.
+     *
+     * <p>Called whenever a field is left. Saves collapse rather than queue: if a save
+     * is already running, the one that follows is flagged and runs after it, so a
+     * burst of edits costs one extra write rather than one per edit.
+     */
+    private void saveSoon() {
+        savePending = true;
+        if (!saving.compareAndSet(false, true)) {
+            return;
+        }
+
+        Thread.ofVirtual().name("mcmarkings-settings-save").start(() -> {
+            try {
+                while (savePending) {
+                    savePending = false;
+                    services.config.save();
+                }
+            } catch (RuntimeException failure) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] could not save the config", failure);
+            } finally {
+                saving.set(false);
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    private void readFromConfig() {
+        alias.set(services.config.commandAlias);
+        generatedDirectory.set(services.config.generatedDirectory);
+        generatorDirectory.set(services.config.generatorDirectory);
+        rate[0] = (float) services.config.commandsPerSecond;
+        pixelsPerFrame.set(services.config.exportPixelsPerFrame);
+    }
+
+    private List<String> fontPaths() {
+        if (services.config.fontSearchPaths == null) {
+            services.config.fontSearchPaths = new ArrayList<>();
+        }
+        return services.config.fontSearchPaths;
+    }
+
+    /** A dim line under the control it explains, indented so it reads as attached to it. */
+    private static void help(String text) {
+        ImGui.indent();
+        ImGui.pushTextWrapPos(ImGui.getContentRegionMaxX());
+        ImGui.textDisabled(text);
+        ImGui.popTextWrapPos();
+        ImGui.unindent();
+    }
+
+    private static float fieldWidth() {
+        return ImGui.getFontSize() * 16.0f;
+    }
+
+    private static double clamp(double value, double low, double high) {
+        return Math.max(low, Math.min(high, value));
+    }
+
+    /**
+     * Re-checks which font folders exist, on a worker.
+     *
+     * <p>Cheap to call: it copies the paths on the client thread so the worker never
+     * reads a list that is being edited underneath it.
+     */
+    private void refreshFontPathChecks() {
+        List<String> snapshot = List.copyOf(fontPaths());
+        Thread.ofVirtual().name("mcmarkings-font-paths").start(() -> {
+            Set<String> present = new HashSet<>();
+            for (String path : snapshot) {
+                try {
+                    if (Files.isDirectory(Path.of(path))) {
+                        present.add(path);
+                    }
+                } catch (RuntimeException unusable) {
+                    // Not a usable path, so it is simply not present.
+                }
+            }
+            presentFontPaths = Set.copyOf(present);
+        });
+    }
+
+    private void note(String text) {
+        this.note = text;
+        this.noteIsWarning = false;
+    }
+
+    private void warn(String text) {
+        this.note = text;
+        this.noteIsWarning = true;
+    }
+}
