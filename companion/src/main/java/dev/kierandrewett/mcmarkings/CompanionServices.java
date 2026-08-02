@@ -423,9 +423,24 @@ public final class CompanionServices {
             loading = true;
         }
         Thread.ofVirtual().name("mcmarkings-reload").start(() -> {
-            Workspace reopened = open(entry.get());
+            // Guarded the way the initial open already is. Without it a throw here
+            // leaves loading true for the rest of the session: the window says
+            // "opening repositories" forever, everything gated on it stays disabled,
+            // and whenReady listeners never fire, so the browser never refreshes
+            // either. A hang with no message, from one unexpected exception.
+            Workspace reopened;
+            try {
+                reopened = open(entry.get());
+            } catch (RuntimeException exception) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] failed while reopening " + id, exception);
+                Workspace blank = EmptyWorkspace.create();
+                reopened = new Workspace(entry.get(), blank.repo(), blank.git(), blank.generators(),
+                        "Could not reopen this repository: " + exception.getMessage());
+            }
+
+            Workspace result = reopened;
             Minecraft.getInstance().execute(() -> {
-                workspaces.put(id, reopened);
+                workspaces.put(id, result);
                 loading = false;
                 List<Runnable> pending;
                 synchronized (readyListeners) {
