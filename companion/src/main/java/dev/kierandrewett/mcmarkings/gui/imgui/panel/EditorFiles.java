@@ -134,6 +134,9 @@ public final class EditorFiles {
      */
     private volatile RecoveryStore.Recovered offered;
 
+    /** The canvas as it was when the offer appeared, so an edit releases the hold. */
+    private volatile Document documentWhenOffered;
+
     private boolean recoveryAnswered;
 
     /** True once the check has finished, whether or not it found anything. */
@@ -147,13 +150,23 @@ public final class EditorFiles {
         // Reading the snapshot is file IO, and it happens while the first frame of
         // the editor is being drawn, so it cannot be done inline.
         Thread.ofVirtual().name("mcmarkings-editor-recovery").start(() -> {
+            RecoveryStore.Recovered found = null;
             try {
-                offered = services.recovery.pending().orElse(null);
+                found = services.recovery.pending().orElse(null);
             } catch (RuntimeException failure) {
                 McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not read the recovery snapshot", failure);
-            } finally {
-                recoveryChecked = true;
             }
+
+            // All three set together, on the client thread. Marking the check finished
+            // on the worker and letting the offer land later leaves a window where the
+            // hold is already released and the offer does not exist yet, which is the
+            // gap the hold was added to close.
+            RecoveryStore.Recovered result = found;
+            Minecraft.getInstance().execute(() -> {
+                documentWhenOffered = history.current();
+                offered = result;
+                recoveryChecked = true;
+            });
         });
     }
 
@@ -169,7 +182,21 @@ public final class EditorFiles {
      * nobody has read yet is exactly as easy to destroy as one being offered.
      */
     public boolean holdsRecovery() {
-        return !recoveryChecked || (offered != null && !recoveryAnswered);
+        if (!recoveryChecked) {
+            return true;
+        }
+        if (offered == null || recoveryAnswered) {
+            return false;
+        }
+        // Only while the canvas is still as it was when the offer appeared. Holding
+        // it open regardless was a bug of mine: someone who does not answer the
+        // banner and simply starts composing would have had nothing snapshotted for
+        // the whole session, which is exactly the protection they thought they had.
+        //
+        // Once there is live work, that is what needs protecting. The offered
+        // document is still restorable this session, because it is held in memory
+        // rather than read back from the file each time.
+        return history.current().equals(documentWhenOffered);
     }
 
     public ImGuiScreens.Status status() {
