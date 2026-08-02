@@ -1,12 +1,17 @@
 # MCMarkings Companion
 
-A client-side Fabric mod that turns any folder of images into an in-game browser
-for the [ImageFrame](https://modrinth.com/plugin/imageframe) server plugin.
+A client-side Fabric mod that turns any folder of images into an in-game browser,
+layer editor and publisher for the
+[ImageFrame](https://modrinth.com/plugin/imageframe) server plugin.
 
 Instead of finding an image, working out how many item frames it needs, and typing
 a `/imageframe create` command with a hand-built URL, you search your images in
 game, click one, and the mod issues the command with a correctly pinned URL and
 hands you the right number of invisible frames.
+
+You can also make the image in the first place: compose one from layers, text and
+shapes, or run a script that draws it, then save it into the repository and put it
+on a wall without leaving the game.
 
 **It is not about road signs.** This repository happens to hold UK road signs and
 its generator scripts draw them, but the mod knows nothing about that. Point it at
@@ -28,8 +33,8 @@ does goes through commands you are already allowed to run.
 | Java | 25 (mandatory, not optional) |
 | Server-side | ImageFrame, with the standard player command set |
 
-owo-lib, Rhino, fabric-gui-imgui and the ImGui natives are all bundled inside
-the jar. There is nothing else to install.
+Rhino, fabric-gui-imgui and the ImGui natives are all bundled inside the jar.
+There is nothing else to install.
 
 ## Build
 
@@ -55,17 +60,69 @@ Written to `<minecraft>/config/mcmarkings.json` on first run.
 | `exportPixelsPerFrame` | `256` | Export resolution per map frame |
 | `glowingFrames` | `true` | Ask for glowing invisible frames rather than plain |
 | `commandsPerSecond` | `2.0` | Command rate limit |
+| `generatedDirectory` | `generated` | Where placed images are written inside the repository before being committed |
+| `generatorDirectory` | `generators` | Where the mod looks for generator scripts |
 | `ignoredDirectories` | `node_modules`, `build`, `target`, `out`, `dist` | Folders never walked when scanning; dot-folders are always skipped |
 
-**One key: `M`.** Rebindable in Minecraft's own controls screen. Everything else
-is reached from the screens themselves, so there is nothing else to memorise.
+Everything in that table except the repository list is editable from the
+**Settings** tab, which also shows where the file lives. `templates/` is not
+configurable: the editor reads and writes it beside the images.
 
-On a first run `M` opens a setup screen that walks you through choosing a folder.
-There is nothing to edit by hand: repositories are added, switched, renamed and
-removed entirely from the GUI, and you can have as many as you like.
+**One key to remember: `M`.** Rebindable in Minecraft's own controls screen.
+Everything else has a route through the interface, so nothing below is required.
+
+| Keys | What |
+| --- | --- |
+| `M` | Open and close the window |
+| `Ctrl+P` | Command palette: search everything the window and the visible tab can do |
+| `Ctrl+1` .. `Ctrl+6` | Jump to a tab |
+| `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | In the editor: new, open, save |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo, redo |
+| `Ctrl+D`, `Delete`, `Ctrl+G`, `Ctrl+A` | Duplicate, delete, group, select all |
+
+The palette is the honest answer to "what can this do". It lists everything,
+including things that are unavailable right now and why, so a missing entry
+always means a wrong search rather than a state you cannot see.
+
+On a first run the window shows a setup panel rather than tabs, and adding a
+folder replaces it with the tabs on the next frame. There is nothing to edit by
+hand: repositories are added, switched, renamed and removed entirely from the
+GUI, and you can have as many as you like.
 
 Repositories are opened on the first keypress rather than at startup, so a folder
 that has been moved can be pointed somewhere new without restarting the game.
+
+## The tabs
+
+| Tab | For |
+| --- | --- |
+| **Browse** | Search the repository's images, see the frame size each one wants, place one, or drop it on the editor's canvas |
+| **Editor** | Compose from layers: images, text and shapes, with snapping, alignment, groups, and full styling |
+| **Generate** | Run a generator script, fill in its parameters, and either place the result or open it in the editor as layers |
+| **Placed** | Everything you have already put on a wall, and the button that makes a sign catch up with a changed image |
+| **Repositories** | Add, switch, rename, repoint or forget a folder |
+| **Settings** | Command name, rate, export resolution, font folders |
+
+Everything lives in one window. No tab replaces the others or hides the tab bar.
+
+## The editor
+
+Layers are images, text, shapes, or groups of those. Dragging snaps to the canvas
+edges and centre, to the frame cell boundaries, and to other layers, with guides
+drawn while you drag; hold `Alt` to suspend it. Alignment and distribution act on
+the selection, and a drag is one undo rather than one per frame.
+
+**Saving** writes into the repository's `templates/` folder. That format is the
+same one the editor reads, so a saved document is a template and a template is a
+saved document: there is no second format and anyone who clones the repository
+gets them. **Place as a map** renders at full size, commits, pushes and issues the
+ImageFrame command, and writes the document alongside the PNG so the sign on the
+wall can be reopened and edited later rather than only looked at.
+
+Work in progress is snapshotted to the config directory every few seconds and
+offered back if the game does not come back. It is never committed, and an
+explicit save clears it, so it only ever describes work that would otherwise be
+gone.
 
 ## How it works
 
@@ -96,7 +153,13 @@ and can composite existing repository PNGs. The scripts in
 [`../generators/`](../generators/README.md) draw road signs because that is what
 this repository is for; yours would draw whatever you like.
 
-**Git.** Saving a generated image writes the PNG, commits only that file, and
+A script that also defines `document(params)` returns a layer tree rather than
+only drawing, and the Generate tab will then offer to open its output in the
+editor. That is the difference between a generator being a starting point and
+being a dead end: without it, a result that is nearly right can only be fixed by
+editing the script.
+
+**Git.** Placing an image writes the PNG, commits only that file, and
 pushes, so the image has a URL the server can reach. The mod **never reads or
 writes git configuration** at any scope. If a commit fails because identity or
 credentials are missing, it shows you git's own error and stops rather than
@@ -123,7 +186,7 @@ The read path does not use git at all: HEAD, the current branch and the origin U
 are read straight out of `.git` as files, so browsing, pinning URLs, creating maps
 and getting frames work in a sandbox with no git anywhere.
 
-**Pull** and **Save & publish** genuinely need it, so inside a sandbox the mod
+**Pull** and placing a map genuinely need it, so inside a sandbox the mod
 hands those to the host through `flatpak-spawn --host`. That needs one more grant:
 
 ```sh
@@ -133,7 +196,7 @@ flatpak override --user --talk-name=org.freedesktop.Flatpak org.prismlauncher.Pr
 Be clear about what this is. It lets the sandboxed launcher run arbitrary commands
 on your host, which is effectively an escape from the sandbox for Prism and every
 mod in it. It is the price of publishing from inside a Flatpak. If you would rather
-not pay it, leave it ungranted: everything except Pull and publish still works, and
+not pay it, leave it ungranted: everything except Pull and placing still works, and
 the mod tells you exactly what is missing instead of failing obscurely.
 
 Git is invoked with `-C <repo>` rather than by working directory, because a host
@@ -157,10 +220,16 @@ companion/src/main/java/dev/kierandrewett/mcmarkings/
   registry/                  which maps exist and what backs them
   imageframe/                command strings and the throttled sender
   render/                    grid recommender, image composition, font lookup
+  doc/                       the document model: layers, snapping, history, templates
+  command/                   commands, shortcuts and the palette's search
   js/                        Rhino generator runtime
   texture/                   runtime texture upload and caching
-  gui/                       owo-ui browser, ImGui editors
+  gui/imgui/                 the window, its theme and the publish flow
+  gui/imgui/panel/           one file per tab, plus the reusable browser and picker
 ```
+
+The interface is entirely ImGui. There was a second toolkit until the ports
+finished; nothing of it remains.
 
 ## Things that will catch you out
 
@@ -173,16 +242,15 @@ no remap step. The Loom plugin must be `net.fabricmc.fabric-loom`; the old
 override `extractRenderState` rather than `render`. Essentially every Fabric GUI
 tutorial online predates this.
 
-**owo renamed its core API on the 26.1 line** to avoid colliding with Mojang's
-`Component`. It is `UIComponents`, `UIContainers`, `UIComponent` and
-`OwoUIGraphics` now. The published owo docs still use the old names.
+**The ImGui backend does not implement `RendererHasTextures`.** So the font
+scale cannot be changed by scaling the built-in atlas: doing that stretches a
+13px bitmap and everything goes blurry. The atlas is rebuilt from a real TTF at
+the size the game's GUI scale asks for, between frames.
 
-**owo needs the jitpack repository.** Its own setup docs omit this, but it
-depends on kdl4j, which is not on the wisp forest maven, and resolution fails
-without it.
-
-**Texture components need `blend(true)`.** owo defaults to a no-blend pipeline,
-which draws every transparent PNG in this repository on an opaque black square.
+**Nothing that touches a file may run while drawing.** Listing a folder, reading
+an image header, writing the config: all of it happens on a virtual thread and
+hops back. This has been got wrong twice here, and both times the symptom was
+the whole game freezing rather than anything that looked like a bug in the mod.
 
 **No font is bundled or required.** Generators name whatever font they want and
 the mod resolves it against everything installed on the machine, matching on
@@ -207,4 +275,10 @@ need you in game:
 3. Create a larger one; confirm a single combined item arrives, not loose maps.
 4. Get frames and place the image.
 5. Change a PNG, push, then Pull in game and confirm the placed map updates.
-6. Generate an image, save and publish, and confirm it appears on the wall.
+6. Change a PNG, push, then use Refresh on that row in **Placed** and confirm the
+   same thing happens for one map on its own.
+7. Generate an image, place it, and confirm it appears on the wall.
+8. Generate one, open it in the editor, move something, save it as a template,
+   reopen it and confirm it comes back the same.
+9. Move the config file aside and confirm the first-run panel appears in the
+   window rather than as a separate screen.
