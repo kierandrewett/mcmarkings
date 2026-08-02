@@ -81,6 +81,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     private final WelcomePanel welcome;
 
     /** A tab asked for by name, selected on the next frame and then forgotten. */
+    /** What the map will be called, and which image that was seeded from. */
+    private final imgui.type.ImString mapName = new imgui.type.ImString("", 128);
+
+    private String namedFor = "";
+
     private String pendingTab;
 
     /** Map names already made from the selected image, or empty. */
@@ -663,8 +668,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             String names = String.join(", ", placedAs);
             ImGui.textDisabled("Already placed as " + ImGuiScreens.truncate(names, 48));
             if (ImGuiScreens.explaining()) {
-                ImGui.setTooltip(names + "\n\nCreating it again refreshes that map "
-                        + "rather than making a second one.");
+                ImGui.setTooltip(names + "\n\nUnder one of those names it refreshes that map. "
+                        + "Under a new one it places another.");
             }
         }
 
@@ -700,6 +705,29 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
 
         ImGui.separator();
+
+        // A name you can change, so the same image can go on more than one wall.
+        //
+        // The name was always the image's own, in both places that build a command,
+        // and ImageFrame keys a map by name: asking for one that exists refreshes it
+        // rather than making a second. So a repository of road signs could put exactly
+        // one "no entry" in the world, and wanting it at two junctions meant going
+        // through the generator or the editor for something the browser is otherwise
+        // the fastest way to do.
+        //
+        // Seeded from the image and re-seeded when the selection changes, so the
+        // common case is still one click.
+        if (!image.path().equals(namedFor)) {
+            namedFor = image.path();
+            mapName.set(ImageFrameCommands.sanitiseName(image.name()));
+        }
+        ImGui.textDisabled("Map name");
+        ImGui.setNextItemWidth(-1.0f);
+        ImGui.inputText("##map-name", mapName);
+        if (ImGuiScreens.explaining()) {
+            ImGui.setTooltip("What the server calls this map. Change it to place the same "
+                    + "image somewhere else as well, rather than moving the one you have.");
+        }
 
         // Presses are collected first and acted on below, so an action that threw
         // cannot leave ImGui's disabled stack unbalanced for the next frame.
@@ -748,8 +776,19 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
     }
 
+    /**
+     * The name to place under: what was typed, or the image's own.
+     *
+     * <p>Sanitised either way, since ImageFrame will not take a name with anything
+     * unusual in it and someone typing one has no reason to know that.
+     */
+    private String chosenName(RepoImage image) {
+        String typed = mapName.get().trim();
+        return ImageFrameCommands.sanitiseName(typed.isEmpty() ? image.name() : typed);
+    }
+
     private void createMap(RepoImage image) {
-        String name = ImageFrameCommands.sanitiseName(image.name());
+        String name = chosenName(image);
         String url = rawUrls.pinned(headSha, image.path());
 
         // ImageFrame rejects create for a name it already knows, so placing the same
@@ -784,7 +823,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     }
 
     private void copyCommand(RepoImage image) {
-        String name = ImageFrameCommands.sanitiseName(image.name());
+        String name = chosenName(image);
         String url = rawUrls.pinned(headSha, image.path());
 
         // The same choice the button makes. A copied create for a name the server
