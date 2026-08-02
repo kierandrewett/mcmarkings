@@ -110,9 +110,9 @@ that has been moved can be pointed somewhere new without restarting the game.
 | **Browse** | Search the repository's images, see the frame size each one wants, place one, or drop it on the editor's canvas |
 | **Editor** | Compose from layers: images, text and shapes, with snapping, alignment, groups, and full styling |
 | **Generate** | Run a generator script, fill in its parameters, and either place the result or open it in the editor as layers |
-| **Placed** | Everything you have already put on a wall, and the button that makes a sign catch up with a changed image |
+| **Placed** | Everything you have already put on a wall: refresh one after its image changed, reopen it in the editor, or get more frames |
 | **Repositories** | Add, switch, rename, repoint or forget a folder |
-| **Settings** | Command name, rate, export resolution, font folders |
+| **Settings** | Command name, send rate, export resolution, font folders, and which folder names are never scanned |
 
 Everything lives in one window. No tab replaces the others or hides the tab bar.
 
@@ -122,6 +122,15 @@ Layers are images, text, shapes, or groups of those. Dragging snaps to the canva
 edges and centre, to the frame cell boundaries, and to other layers, with guides
 drawn while you drag; hold `Alt` to suspend it. Alignment and distribution act on
 the selection, and a drag is one undo rather than one per frame.
+
+Views worth knowing: **zoom to selection** fills the canvas with whatever is
+selected, and **view at map resolution** shows the sign at the 128 pixels per
+frame a wall really has, which is the only way to tell before placing it whether
+small text survives.
+
+Templates can be deleted from the same list they are opened from, which matters
+more than it sounds: without it the list only ever grows and every experiment
+stays in the way of the things worth keeping.
 
 **Saving** writes into the repository's `templates/` folder. That format is the
 same one the editor reads, so a saved document is a template and a template is a
