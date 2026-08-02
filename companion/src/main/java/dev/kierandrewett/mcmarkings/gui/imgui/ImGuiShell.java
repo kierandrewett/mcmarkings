@@ -10,6 +10,7 @@ import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import java.util.Optional;
+import java.util.Set;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
@@ -20,6 +21,7 @@ import dev.kierandrewett.mcmarkings.gui.imgui.panel.WelcomePanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.RepositoriesPanel;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
+import dev.kierandrewett.mcmarkings.imageframe.ServerMapNames;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.repo.GitException;
 import dev.kierandrewett.mcmarkings.repo.PullResult;
@@ -786,7 +788,28 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // in signs/, and both come out of the sanitiser as give_way. Anything scanned
         // from more than one folder can do this.
         String wanted = chosenName(image);
-        Optional<MapEntry> known = services.registry.byName(wanted);
+
+        // The server first, this mod's own file second.
+        //
+        // The file says what was sent, not what worked, so a command the server threw
+        // away still leaves it certain the map exists and every press after that
+        // refreshes something that was never created. ImageFrame registers its command
+        // through Brigadier and the server completes the map name argument on request,
+        // which is the same thing the chat box does on tab, so there is a real answer
+        // available and it was never asked for.
+        //
+        // Silence is not a no. A server that offers no completions there looks exactly
+        // like one with no maps, so an empty answer falls back to the record rather
+        // than claiming nothing exists.
+        Set<String> onServer = ServerMapNames.known(services.config.commandAlias);
+        Optional<MapEntry> recorded = services.registry.byName(wanted);
+        Optional<MapEntry> known = onServer.isEmpty()
+                ? recorded
+                : onServer.contains(wanted.toLowerCase(java.util.Locale.ROOT))
+                        ? Optional.of(recorded.orElseGet(() ->
+                                new MapEntry(wanted, services.activeRepositoryId(), image.path(),
+                                        grid, "", 0L)))
+                        : Optional.empty();
         known.filter(taken -> !taken.repoPath().equals(image.path()))
                 .ifPresent(taken -> Notice.warningWrapped(
                         "The name " + wanted + " is already showing " + taken.repoPath()
@@ -810,10 +833,22 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // on.
         boolean getMap = false;
         if (known.isPresent()) {
-            getMap = ImGui.button("Get the map", -1.0f, 0.0f);
+            // The size it will actually hand you, in the label. A map is whatever size
+            // it was made at, and the picker above chooses the size of the next one,
+            // so a button reading "Get the map" while the fields said 2x2 gave people
+            // a 1x1 and looked like the mod ignoring them. It is not ignoring them: it
+            // cannot resize a map that already exists, and it was not saying so.
+            GridSize made = known.get().grid();
+            getMap = ImGui.button("Get the map, " + made + "##get-map", -1.0f, 0.0f);
             if (ImGuiScreens.explaining()) {
-                ImGui.setTooltip("Asks the server for " + wanted + " as an item, so you can put "
-                        + "it up. It already exists; this does not make another.");
+                ImGui.setTooltip("Asks the server for " + wanted + " as an item. It was made at "
+                        + made + " and that is the size it is; this does not make another.");
+            }
+
+            if (!made.equals(grid)) {
+                Notice.warningWrapped(wanted + " was made at " + made + ", so that is what you get. "
+                        + "For " + grid + ", give it another name above and create that, or delete "
+                        + wanted + " from the Placed tab first.");
             }
         }
 
