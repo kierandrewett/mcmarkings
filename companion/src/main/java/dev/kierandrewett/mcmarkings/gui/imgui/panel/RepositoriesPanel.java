@@ -6,7 +6,6 @@ import dev.kierandrewett.mcmarkings.Workspace;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
-import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -36,8 +35,6 @@ public final class RepositoriesPanel implements Panel {
 
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
 
-    private final Persist persist;
-
     /** Which row is being renamed, by id. Empty when none is. */
     private String renaming = "";
 
@@ -46,7 +43,6 @@ public final class RepositoriesPanel implements Panel {
 
     public RepositoriesPanel(CompanionServices services) {
         this.services = services;
-        this.persist = new Persist("the config", services.config::save);
     }
 
     @Override
@@ -158,7 +154,7 @@ public final class RepositoriesPanel implements Panel {
             String name = renameBuffer.get().trim();
             if (!name.isEmpty()) {
                 services.config.replaceRepository(entry.withName(name));
-                persist.request();
+                services.saveConfig();
             }
             renaming = "";
         }
@@ -243,7 +239,7 @@ public final class RepositoriesPanel implements Panel {
             Workspace relocated = services.addRepository(directory);
             services.config.byId(relocated.id())
                     .ifPresent(entry -> services.config.replaceRepository(entry.withName(old.displayName())));
-            persist.request();
+            services.saveConfig();
 
             if (wasActive) {
                 services.setActive(relocated.id());

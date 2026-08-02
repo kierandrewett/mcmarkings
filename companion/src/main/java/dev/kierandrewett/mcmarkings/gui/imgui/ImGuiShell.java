@@ -618,11 +618,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     }
 
     private void saveRegistry() {
-        try {
-            services.registry.save();
-        } catch (Exception exception) {
-            McMarkingsCompanion.LOGGER.error("[mcmarkings] could not save registry", exception);
-        }
+        services.saveRegistry();
     }
 
     /**

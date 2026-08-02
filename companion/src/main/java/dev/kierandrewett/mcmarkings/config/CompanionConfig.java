@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -213,11 +214,27 @@ public class CompanionConfig {
         }
     }
 
+    /**
+     * Writes the config.
+     *
+     * <p>Through a temporary file and a move, as the recovery snapshot and templates
+     * already were. Writing in place truncates first, so an interrupted write leaves
+     * a half-written file, and the one thing that must survive a crash is the list of
+     * where someone's repositories are. Losing that turns a crash into a setup.
+     */
     public void save() {
         try {
             Path path = configPath();
             Files.createDirectories(path.getParent());
-            Files.writeString(path, GSON.toJson(this));
+
+            Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+            Files.writeString(temporary, GSON.toJson(this));
+            try {
+                Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicNotSupported) {
+                Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException exception) {
             McMarkingsCompanion.LOGGER.error("[mcmarkings] could not write config", exception);
         }

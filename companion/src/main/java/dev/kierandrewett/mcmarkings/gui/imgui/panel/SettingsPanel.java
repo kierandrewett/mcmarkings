@@ -4,7 +4,6 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
-import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import imgui.ImGui;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -57,8 +56,6 @@ public final class SettingsPanel implements Panel {
 
     private final ImInt pixelsPerFrame = new ImInt();
 
-    private final Persist persist;
-
     /**
      * Which font folders actually exist, worked out on a worker.
      *
@@ -74,7 +71,6 @@ public final class SettingsPanel implements Panel {
 
     public SettingsPanel(CompanionServices services) {
         this.services = services;
-        this.persist = new Persist("the config", services.config::save);
         readFromConfig();
         refreshFontPathChecks();
     }
@@ -131,7 +127,7 @@ public final class SettingsPanel implements Panel {
                 alias.set(services.config.commandAlias);
             } else {
                 services.config.commandAlias = value;
-                persist.request();
+                services.saveConfig();
             }
         }
 
@@ -144,12 +140,12 @@ public final class SettingsPanel implements Panel {
         help("How fast commands are sent. Too fast and the server drops them; "
                 + "a large sign is many commands.");
         if (rateDone) {
-            persist.request();
+            services.saveConfig();
         }
 
         if (ImGui.checkbox("Give glowing item frames##settings-glowing", services.config.glowingFrames)) {
             services.config.glowingFrames = !services.config.glowingFrames;
-            persist.request();
+            services.saveConfig();
         }
         help("Glowing frames keep the image bright in the dark. Otherwise it dims like a block.");
     }
@@ -167,7 +163,7 @@ public final class SettingsPanel implements Panel {
             int value = (int) clamp(pixelsPerFrame.get(), MINIMUM_PIXELS, MAXIMUM_PIXELS);
             pixelsPerFrame.set(value);
             services.config.exportPixelsPerFrame = value;
-            persist.request();
+            services.saveConfig();
         }
 
         ImGui.setNextItemWidth(fieldWidth());
@@ -176,7 +172,7 @@ public final class SettingsPanel implements Panel {
         help("Where rendered images are written inside the repository, before being committed.");
         if (generatedDone) {
             services.config.generatedDirectory = generatedDirectory.get().trim();
-            persist.request();
+            services.saveConfig();
         }
 
         ImGui.setNextItemWidth(fieldWidth());
@@ -185,7 +181,7 @@ public final class SettingsPanel implements Panel {
         help("Where the mod looks for generator scripts in the repository.");
         if (generatorsDone) {
             services.config.generatorDirectory = generatorDirectory.get().trim();
-            persist.request();
+            services.saveConfig();
         }
     }
 
@@ -204,7 +200,7 @@ public final class SettingsPanel implements Panel {
 
             if (ImGui.button("Remove")) {
                 paths.remove(index);
-                persist.request();
+                services.saveConfig();
                 refreshFontPathChecks();
                 warn("Removed. Font changes take effect after a reload.");
                 ImGui.popID();
@@ -269,7 +265,7 @@ public final class SettingsPanel implements Panel {
 
         paths.add(trimmed);
         fontPath.set("");
-        persist.request();
+        services.saveConfig();
 
         // Said plainly rather than hidden: adding a folder that is not there is a
         // typo most of the time, and finding out later means hunting for a font that

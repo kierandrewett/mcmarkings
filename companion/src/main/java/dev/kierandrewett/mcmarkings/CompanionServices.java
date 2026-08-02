@@ -1,6 +1,7 @@
 package dev.kierandrewett.mcmarkings;
 
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
+import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.core.GridSize;
@@ -92,6 +93,28 @@ public final class CompanionServices {
      */
     private Document savedDocument = editing.current();
 
+    /**
+     * The two settings files, each written by exactly one saver.
+     *
+     * <p>Here rather than in the panels that write them. Two panels each holding
+     * their own saver for the same file is not a guard at all: each one collapses
+     * only its own writes, so a rename in one tab and a checkbox in another can land
+     * on the file at the same moment. One per file is the whole point.
+     */
+    private final Persist configSaver;
+
+    private final Persist registrySaver;
+
+    /** Writes the config, off the client thread, collapsing repeated calls. */
+    public void saveConfig() {
+        configSaver.request();
+    }
+
+    /** Writes the map registry, off the client thread, collapsing repeated calls. */
+    public void saveRegistry() {
+        registrySaver.request();
+    }
+
     /** Called after a successful save or open. */
     public void markSaved(Document document) {
         this.savedDocument = document;
@@ -144,6 +167,11 @@ public final class CompanionServices {
             startupNotes.add("Could not read the map registry, starting empty: " + exception.getMessage());
         }
         this.registry = loadedRegistry;
+
+        // After the fields they write, which is what makes them final rather than
+        // lazily created on first use.
+        this.configSaver = new Persist("the config", config::save);
+        this.registrySaver = new Persist("the map registry", this.registry::save);
 
         this.thumbnails = new RuntimeTextureCache(this::thumbnailFor, MAX_RESIDENT_THUMBNAILS);
         this.recovery = new RecoveryStore(

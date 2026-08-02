@@ -5,7 +5,6 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
-import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.registry.MapRegistry;
 import dev.kierandrewett.mcmarkings.repo.GitException;
@@ -47,11 +46,8 @@ public final class PlacedPanel implements Panel {
     /** True while a refresh is resolving a commit, so the button cannot be spammed. */
     private volatile boolean refreshing;
 
-    private final Persist persist;
-
     public PlacedPanel(CompanionServices services) {
         this.services = services;
-        this.persist = new Persist("the map registry", services.registry::save);
     }
 
     @Override
@@ -235,7 +231,7 @@ public final class PlacedPanel implements Panel {
 
                     services.registry.put(new MapEntry(entry.imageFrameName(), entry.repositoryId(),
                             entry.repoPath(), entry.grid(), commit, entry.createdAtEpochMillis()));
-                    persist.request();
+                    services.saveRegistry();
 
                     status.good("Refreshed " + entry.imageFrameName() + " at " + shortSha(commit));
                 });
@@ -260,7 +256,7 @@ public final class PlacedPanel implements Panel {
 
     private void forget(MapEntry entry) {
         services.registry.remove(entry.imageFrameName());
-        persist.request();
+        services.saveRegistry();
         status.info("Stopped tracking " + entry.imageFrameName() + ".");
     }
 

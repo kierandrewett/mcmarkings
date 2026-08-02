@@ -185,11 +185,9 @@ public final class PublishFlow {
     }
 
     private void saveRegistryQuietly() {
-        try {
-            services.registry.save();
-        } catch (IOException | RuntimeException exception) {
-            McMarkingsCompanion.LOGGER.error("[mcmarkings] could not save registry", exception);
-        }
+        // Through the one saver, so a publish and a settings edit cannot reach the
+        // same file at the same moment.
+        services.saveRegistry();
     }
 
     /** Config holds a repo-relative directory; tolerate stray or reversed slashes. */
