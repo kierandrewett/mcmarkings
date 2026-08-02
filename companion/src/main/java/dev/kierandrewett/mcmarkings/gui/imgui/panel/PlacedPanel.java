@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
+import dev.kierandrewett.mcmarkings.core.RelativeTime;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -49,6 +50,9 @@ public final class PlacedPanel implements Panel {
     /** True while a refresh is resolving a commit, so the button cannot be spammed. */
     private volatile boolean refreshing;
 
+    /** What "now" is for this frame, so every row agrees. */
+    private long drawnAtMillis;
+
     public PlacedPanel(CompanionServices services) {
         this.services = services;
     }
@@ -68,6 +72,12 @@ public final class PlacedPanel implements Panel {
     }
 
     private void drawList() {
+        // Read once per frame rather than once per row. Sixty rows asking the system
+        // for the time sixty times a second is work for nothing, and a list where
+        // rows disagree about what "now" is would be worse than one that is a
+        // fraction of a second stale.
+        drawnAtMillis = System.currentTimeMillis();
+
         List<MapEntry> entries = matching();
 
         ImGui.setNextItemWidth(ImGui.getFontSize() * 18.0f);
@@ -121,6 +131,7 @@ public final class PlacedPanel implements Panel {
         ImGui.textDisabled(entry.grid() + ", " + entry.grid().frameCount() + " frames");
 
         ImGui.textDisabled(ImGuiScreens.truncate(entry.repoPath(), 64)
+                + "   " + RelativeTime.describe(entry.createdAtEpochMillis(), drawnAtMillis)
                 + "   " + shortSha(entry.commitSha())
                 + repositoryNote(entry));
 
