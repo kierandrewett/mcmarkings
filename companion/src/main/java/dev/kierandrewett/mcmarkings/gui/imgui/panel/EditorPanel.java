@@ -1456,6 +1456,14 @@ public final class EditorPanel implements Panel {
     private void drawProperties() {
         Document document = history.current();
 
+        // Every number here is a drag widget, and every one of them can be typed into
+        // by holding control and clicking it. That is ImGui's, not something this mod
+        // binds, and it is the only way to enter an exact value without a steady hand.
+        // Undiscoverable unless someone says so, and precision is the whole reason to
+        // use these fields rather than dragging on the canvas.
+        ImGui.textDisabled("Ctrl+click a number to type it");
+        ImGui.separator();
+
         if (selection.size() > 1) {
             drawSharedProperties(document);
         } else {

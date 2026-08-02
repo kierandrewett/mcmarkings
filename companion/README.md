@@ -85,6 +85,10 @@ Everything else has a route through the interface, so nothing below is required.
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Bring to front, send to back |
 | Arrow keys | Nudge the selection; hold `Shift` for a larger step |
 
+Numbers in the editor's properties can be typed rather than dragged: hold
+control and click one. That is ImGui's own behaviour and the only way to enter
+an exact value without a steady hand.
+
 Everything except the editor's canvas can also be reached with the keyboard
 alone: arrow keys move between controls, Space and Enter activate them, and the
 focused control carries a bright ring. Navigation is deliberately off in the

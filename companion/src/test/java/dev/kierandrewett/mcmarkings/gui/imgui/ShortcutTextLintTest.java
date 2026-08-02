@@ -50,7 +50,13 @@ class ShortcutTextLintTest {
      * has to say so. Verified against that code rather than assumed.
      */
     private static final List<String> ALLOWED = List.of(
-            "Hold Alt to suspend it for one drag");
+            "Hold Alt to suspend it for one drag",
+
+            // ImGui's own behaviour on a drag widget, not something this mod binds,
+            // so there is no Shortcut to ask and nothing that could move it. The lint
+            // cannot tell that apart from a hand-typed binding, which is the right way
+            // round: it made me say why rather than letting it through.
+            "Ctrl+click a number to type it");
 
     @Test
     @DisplayName("no interface string hardcodes a shortcut")
