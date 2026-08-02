@@ -318,7 +318,8 @@ public final class EditorPanel implements Panel {
     }
 
     /** Drops the preview texture. Without it, one survives every open for the session. */
-    public void close() {
+    @Override
+    public void onRemoved() {
         if (textureKey == null) {
             return;
         }

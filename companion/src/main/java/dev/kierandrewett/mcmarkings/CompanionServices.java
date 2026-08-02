@@ -78,6 +78,30 @@ public final class CompanionServices {
     public final History editing = new History(
             Document.blank("untitled", new GridSize(2, 1), 256));
 
+    /**
+     * The document as it was last written to disk.
+     *
+     * <p>Here for the same reason the history is: a fresh window is built every time
+     * the key is pressed, so anything the editor panel remembered about whether the
+     * work is saved would reset the moment someone glanced at the world. It did, and
+     * the effect was that unsaved work looked saved, which is the one thing that
+     * indicator exists to prevent.
+     *
+     * <p>Null until something is saved or opened, which correctly reads as unsaved
+     * for a document that has been edited and never as unsaved for a blank one.
+     */
+    private Document savedDocument = editing.current();
+
+    /** Called after a successful save or open. */
+    public void markSaved(Document document) {
+        this.savedDocument = document;
+    }
+
+    /** True when the document has changed since it was last written. */
+    public boolean hasUnsavedEdits() {
+        return !editing.current().equals(savedDocument);
+    }
+
     private final ClientCommandSink commandSink;
 
     /** Insertion-ordered so the GUI list matches the configured order. */

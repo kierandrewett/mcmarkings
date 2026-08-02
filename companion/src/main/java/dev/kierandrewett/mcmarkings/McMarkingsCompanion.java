@@ -74,7 +74,28 @@ public class McMarkingsCompanion implements ClientModInitializer {
         // Always the shell. It shows the first-run panel itself when nothing is set
         // up, which is what stops an unconfigured install being a different screen
         // with a different look and a handover in the middle of it.
-        client.setScreen(new ImGuiShell(resolved));
+        client.setScreen(shell(resolved));
+    }
+
+    /**
+     * The window, kept between openings.
+     *
+     * <p>It used to be built fresh on every keypress, which threw away everything the
+     * interface was holding: where the canvas was scrolled and how far in, what was
+     * selected, the search you had typed, and the generator form you were halfway
+     * through filling in. In a game the window gets closed constantly, because Escape
+     * is also how you look at the world, and coming back to a reset view every time
+     * is the sort of friction that stops a session rather than interrupting it.
+     *
+     * <p>Tied to the services it was built against, so a reload in settings still gets
+     * a genuinely new window rather than one holding references to services that have
+     * been thrown away.
+     */
+    private static ImGuiShell shell(CompanionServices resolved) {
+        if (shell == null || !shell.belongsTo(resolved)) {
+            shell = new ImGuiShell(resolved);
+        }
+        return shell;
     }
 
     /**
@@ -85,6 +106,8 @@ public class McMarkingsCompanion implements ClientModInitializer {
      * deliberately total: it never throws, so there is no failure path here to
      * handle.
      */
+    private static ImGuiShell shell;
+
     public static CompanionServices services() {
         if (services == null) {
             services = new CompanionServices(CompanionConfig.load(), command ->
@@ -96,6 +119,12 @@ public class McMarkingsCompanion implements ClientModInitializer {
 
     /** Forgets everything so the next open re-reads config and re-scans from disk. */
     public static void reset() {
+        if (shell != null) {
+            // The window owns GPU textures that nothing else references. Dropping the
+            // reference without this leaks them for the rest of the session.
+            shell.dispose();
+            shell = null;
+        }
         services = null;
     }
 

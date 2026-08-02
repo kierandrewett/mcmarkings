@@ -258,17 +258,25 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         });
     }
 
+    /** Whether this window was built against the services still in use. */
+    public boolean belongsTo(CompanionServices candidate) {
+        return services == candidate;
+    }
+
     /**
-     * Every panel gets a chance to let go of what it is holding.
+     * Lets every panel go of what it is holding.
      *
-     * <p>Two of them keep a GPU texture, and nothing else references those, so
-     * without this one survives every open for the rest of the session. Going
-     * through the list rather than naming panels means the next one to hold
-     * something is covered by having said so, not by someone remembering here.
+     * <p>Deliberately not {@code removed()}. The window is kept between openings, and
+     * closing it is something that happens constantly in a game, so freeing textures
+     * there would throw away the previews and thumbnails on every glance at the world
+     * and rebuild them on the way back in. This runs when the window is genuinely
+     * being discarded, which is only when the services behind it are.
+     *
+     * <p>Two panels keep a GPU texture that nothing else references. Going through the
+     * list rather than naming them means the next panel to hold something is covered
+     * by having said so, not by someone remembering to edit this.
      */
-    @Override
-    public void removed() {
-        editor.close();
+    public void dispose() {
         for (Panel panel : panels) {
             try {
                 panel.onRemoved();
@@ -277,7 +285,6 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                         + " failed to clean up", failure);
             }
         }
-        super.removed();
     }
 
     /**

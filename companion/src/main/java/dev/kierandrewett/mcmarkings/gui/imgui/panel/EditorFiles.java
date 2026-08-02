@@ -105,9 +105,6 @@ public final class EditorFiles {
      */
     private boolean busy;
 
-    /** The document as it was last written, for telling saved from unsaved. */
-    private Document saved;
-
     private boolean openSavePopup;
 
     private boolean openTemplatePopup;
@@ -127,7 +124,6 @@ public final class EditorFiles {
         this.services = services;
         this.history = history;
         this.publish = new PublishFlow(services, status);
-        this.saved = history.current();
 
         // Reading the snapshot is file IO, and it happens while the first frame of
         // the editor is being drawn, so it cannot be done inline.
@@ -163,7 +159,7 @@ public final class EditorFiles {
 
     /** True when the document has changed since it was last written. */
     public boolean hasUnsavedChanges() {
-        return !history.current().equals(saved);
+        return services.hasUnsavedEdits();
     }
 
     public boolean busy() {
@@ -239,6 +235,14 @@ public final class EditorFiles {
             recoveryAnswered = true;
             history.push(recovered.document(), "Restore recovered work", null);
             history.endGesture();
+
+            // Cleared because it is no longer lost work: it is the document on the
+            // canvas. Leaving it would offer to restore it again the next time the
+            // window is opened, which reads as the restore not having worked. The
+            // editor starts snapshotting it again within seconds, so nothing is at
+            // risk in the gap.
+            services.recovery.clear();
+
             status.good("Restored \"" + recovered.document().name() + "\". Save it to keep it.");
         }
         ImGui.sameLine();
@@ -461,7 +465,7 @@ public final class EditorFiles {
         // that was there a moment ago, which is exactly what it is for.
         history.push(blank, "New document", null);
         history.endGesture();
-        saved = blank;
+        services.markSaved(blank);
         status.info("New document.");
     }
 
@@ -514,7 +518,7 @@ public final class EditorFiles {
         // the canvas. It is a big undo step, but a recoverable one.
         history.push(document, "Open " + document.name(), null);
         history.endGesture();
-        saved = document;
+        services.markSaved(document);
         status.good("Opened " + document.name() + ".");
     }
 
@@ -561,7 +565,7 @@ public final class EditorFiles {
 
     private void onSaved(Document document, Path file) {
         busy = false;
-        saved = document;
+        services.markSaved(document);
         templates = List.of();
 
         // The snapshot only ever describes work that would otherwise be gone, so a
