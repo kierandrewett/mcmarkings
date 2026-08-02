@@ -135,6 +135,9 @@ public final class EditorPanel implements Panel {
      * says what it binds without a lookup. A printable key shares its code with its
      * uppercase character.
      */
+    /** A screenful. Beyond this, scrolling is not how anyone is going to find it. */
+    private static final int FONT_RESULT_LIMIT = 100;
+
     private static final int KEY_A = 'A';
     private static final int KEY_D = 'D';
     private static final int KEY_G = 'G';
@@ -278,6 +281,11 @@ public final class EditorPanel implements Panel {
      */
     private volatile String[] fontFamilies;
     private boolean fontsRequested;
+
+    private final ImString fontQuery = new ImString("", 128);
+
+    /** So the search can be cleared and focused on opening rather than every frame. */
+    private boolean fontComboWasOpen;
 
     public EditorPanel(CompanionServices services) {
         this.services = services;
@@ -1407,6 +1415,19 @@ public final class EditorPanel implements Panel {
         }
     }
 
+    /**
+     * The font picker.
+     *
+     * <p>Every font on the machine is offered, which is the point, and on an ordinary
+     * machine that is well over a thousand. A plain list of them is not a choice
+     * anyone can make: finding one means scrolling past hundreds, and every one of
+     * them is submitted on every frame the list is open.
+     *
+     * <p>So it filters as you type, focused the moment it opens, and stops drawing
+     * after a screenful. Anyone who knows what they want types three letters and
+     * anyone who does not can still scroll, which are the only two ways people pick
+     * a font.
+     */
     private void drawFontCombo(Document document, Layer.Text text) {
         ensureFontsRequested();
         String[] families = fontFamilies;
@@ -1419,16 +1440,49 @@ public final class EditorPanel implements Panel {
         ImGui.setNextItemWidth(-1.0f);
         if (ImGui.beginCombo("##font", ImGuiScreens.truncate(text.font(), 30))) {
             try {
+                if (!fontComboWasOpen) {
+                    // Cleared and focused on opening, so the common case is: click,
+                    // type, press nothing else.
+                    fontComboWasOpen = true;
+                    fontQuery.set("");
+                    ImGui.setKeyboardFocusHere();
+                }
+
+                ImGui.setNextItemWidth(-1.0f);
+                ImGui.inputTextWithHint("##font-query", "Search fonts", fontQuery);
+
+                String query = fontQuery.get().trim().toLowerCase(Locale.ROOT);
+                int shown = 0;
+                int matched = 0;
+
                 for (String family : families) {
+                    if (!query.isEmpty() && !family.toLowerCase(Locale.ROOT).contains(query)) {
+                        continue;
+                    }
+                    matched++;
+                    if (shown >= FONT_RESULT_LIMIT) {
+                        continue;
+                    }
+                    shown++;
                     if (ImGui.selectable(family, family.equalsIgnoreCase(text.font()))) {
                         chosen = family;
                     }
                 }
+
+                if (matched == 0) {
+                    ImGui.textDisabled("No font matches that.");
+                } else if (matched > shown) {
+                    // Said rather than silently cut off, so a font that is installed
+                    // and missing from the list is never a mystery.
+                    ImGui.textDisabled((matched - shown) + " more; keep typing to narrow it down");
+                }
             } finally {
                 ImGui.endCombo();
             }
+        } else {
+            fontComboWasOpen = false;
         }
-        ImGui.textDisabled("Font");
+        ImGui.textDisabled("Font  (" + families.length + " installed)");
 
         if (chosen != null) {
             apply(document.replace(restyled(text, text.text(), chosen, text.size(), text.colour(),
