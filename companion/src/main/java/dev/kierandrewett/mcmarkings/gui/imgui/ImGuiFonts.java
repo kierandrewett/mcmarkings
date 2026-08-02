@@ -98,9 +98,42 @@ public final class ImGuiFonts {
         };
     }
 
+    /** Where the bundled face lives in the jar. */
+    private static final String BUNDLED_FONT = "/assets/mcmarkings/font/Monocraft.ttf";
+
+    /**
+     * The bundled face, or null if it is not in the jar.
+     *
+     * <p>Null rather than throwing, because a missing font is not worth taking the
+     * window down for: the scan of installed fonts is still there behind it, and
+     * before that Dear ImGui's own bitmap. The interface reads worse and it opens.
+     */
+    private static byte[] bundledFont() {
+        try (java.io.InputStream stream = ImGuiFonts.class.getResourceAsStream(BUNDLED_FONT)) {
+            return stream == null ? null : stream.readAllBytes();
+        } catch (java.io.IOException | RuntimeException unreadable) {
+            McMarkingsCompanion.LOGGER.warn("[mcmarkings] could not read the bundled font", unreadable);
+            return null;
+        }
+    }
+
     private static void rebuild(FontRegistry fonts, float pixels) {
         var atlas = ImGui.getIO().getFonts();
         atlas.clear();
+
+        // Monocraft first, and it travels with the mod rather than being looked for.
+        // Minecraft's own font is a bitmap in ascii.png and unicode pages, which
+        // nothing here can load, so this is a scalable recreation of the same shapes.
+        // Bundled because the alternative is telling somebody to go and install a font
+        // before their interface reads properly, and most people will not.
+        byte[] bundled = bundledFont();
+        if (bundled != null) {
+            atlas.addFontFromMemoryTTF(bundled, pixels, glyphRanges());
+            McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from Monocraft",
+                    (int) pixels);
+            finishAtlas(atlas);
+            return;
+        }
 
         Optional<Path> file = fonts.anyReadableFontFile();
         if (file.isPresent()) {
@@ -113,17 +146,23 @@ public final class ImGuiFonts {
             atlas.addFontDefault(config);
             config.destroy();
         }
-        atlas.build();
+        McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from {}",
+                (int) pixels, file.map(Path::getFileName).map(Path::toString).orElse("the built-in font"));
+        finishAtlas(atlas);
+    }
 
-        // The backend uploaded the old atlas as a GL texture, so it has to be told
-        // to take the new one; otherwise the glyph coordinates and the texture
-        // disagree and the text renders as garbage.
+    /**
+     * Builds the atlas and makes the backend take the new texture.
+     *
+     * <p>Shared, because there are three ways in now and forgetting this on any of
+     * them does not fail, it renders every glyph from the wrong place in the texture
+     * and the interface comes out as garbage.
+     */
+    private static void finishAtlas(imgui.ImFontAtlas atlas) {
+        atlas.build();
         if (FabricImGui.IMGUI instanceof DefaultImGui backend) {
             backend.imGuiImplGl3.destroyFontsTexture();
             backend.imGuiImplGl3.createFontsTexture();
         }
-
-        McMarkingsCompanion.LOGGER.info("[mcmarkings] imgui font atlas rebuilt at {}px from {}",
-                (int) pixels, file.map(Path::getFileName).map(Path::toString).orElse("the built-in font"));
     }
 }
