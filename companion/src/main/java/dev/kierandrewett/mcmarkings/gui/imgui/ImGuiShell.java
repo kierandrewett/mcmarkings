@@ -23,6 +23,7 @@ import dev.kierandrewett.mcmarkings.repo.RawUrls;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiTabBarFlags;
+import imgui.flag.ImGuiTabItemFlags;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -66,6 +67,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
     /** Drawn in place of the tabs until a repository exists. */
     private final WelcomePanel welcome;
+
+    /** A tab asked for by name, selected on the next frame and then forgotten. */
+    private String pendingTab;
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
 
     private final ImageBrowserPanel browser;
@@ -116,7 +120,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         this.panels = List.of(
                 browser,
                 editor,
-                new GeneratorPanel(services),
+                new GeneratorPanel(services, () -> pendingTab = "Editor"),
                 new RepositoriesPanel(services),
                 new SettingsPanel(services));
     }
@@ -334,7 +338,15 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     }
 
     private void drawTab(Panel panel) {
-        if (!ImGui.beginTabItem(panel.title())) {
+        // A panel can hand its work to another one, and the tab has to follow it.
+        // Sending someone to the editor and leaving them looking at the generator
+        // would read as nothing having happened.
+        int flags = panel.title().equals(pendingTab) ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        if (panel.title().equals(pendingTab)) {
+            pendingTab = null;
+        }
+
+        if (!ImGui.beginTabItem(panel.title(), flags)) {
             return;
         }
         activePanel = panel;

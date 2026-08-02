@@ -423,8 +423,8 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
         Function documentFunction = optionalFunction(definition, "document");
         List<ParamDef> params = params(source, definition);
 
-        return new Loaded(new GeneratorDef(id, title, description, params), size, render,
-                documentFunction, scope, source);
+        return new Loaded(new GeneratorDef(id, title, description, params, documentFunction != null),
+                size, render, documentFunction, scope, source);
     }
 
     private void evaluate(Context cx, Scriptable scope, Path script, String source) throws GeneratorException {

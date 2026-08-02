@@ -4,6 +4,7 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
+import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.PublishFlow;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -52,6 +54,9 @@ public final class GeneratorPanel implements Panel {
     private static final int LINES_BUFFER = 4096;
 
     private final CompanionServices services;
+
+    /** Brings the editor to the front once a generator's layers are in it. */
+    private final Runnable showEditor;
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
     private final PublishFlow publish;
 
@@ -81,6 +86,9 @@ public final class GeneratorPanel implements Panel {
     /** Whether the generator list has been read yet. See {@link #draw()}. */
     private boolean loadedOnce;
 
+    /** True while document() is running, so the button cannot be pressed twice. */
+    private boolean opening;
+
     private GridSize grid;
     private boolean gridPinned;
     private List<GridSuggestion> suggestions = List.of();
@@ -89,8 +97,9 @@ public final class GeneratorPanel implements Panel {
     private final ImageBrowserPanel picker;
 
 
-    public GeneratorPanel(CompanionServices services) {
+    public GeneratorPanel(CompanionServices services, Runnable showEditor) {
         this.services = services;
+        this.showEditor = showEditor;
         this.publish = new PublishFlow(services, status);
         this.picker = new ImageBrowserPanel(services, "generator-pick", "Images");
     }
@@ -310,9 +319,82 @@ public final class GeneratorPanel implements Panel {
             copyCommand();
         }
 
+        drawOpenInEditor();
+
         if (busy) {
             ImGui.textDisabled("Publishing...");
         }
+    }
+
+    /**
+     * Hands the generator's output to the editor as layers.
+     *
+     * <p>This is the difference between a generator being a starting point and being
+     * a dead end. Without it you run a script, get a flat image, and if one arrow
+     * wants moving two pixels the only options are editing the script or starting
+     * again by hand.
+     *
+     * <p>Only offered by scripts that describe themselves that way. Running one to
+     * find out would mean a button that sometimes does nothing.
+     */
+    private void drawOpenInEditor() {
+        if (selected == null || !selected.editable()) {
+            return;
+        }
+
+        ImGui.sameLine();
+        ImGui.beginDisabled(opening);
+        boolean pressed = ImGui.button("Open in editor");
+        ImGui.endDisabled();
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Puts this in the editor as layers you can move, restyle and save.");
+        }
+        if (pressed) {
+            openInEditor();
+        }
+    }
+
+    private void openInEditor() {
+        GeneratorDef generator = selected;
+        Map<String, Object> params = collectParams();
+        String documentName = name.get();
+
+        opening = true;
+        status.info("Building layers...");
+
+        // Running the script is the same work as a preview, so it belongs on a worker
+        // for the same reason.
+        Thread.ofVirtual().name("mcmarkings-generator-document").start(() -> {
+            try {
+                Optional<Document> built = services.generators().document(generator.id(), params);
+                Minecraft.getInstance().execute(() -> {
+                    opening = false;
+                    if (built.isEmpty()) {
+                        status.bad("This generator did not describe any layers.");
+                        return;
+                    }
+
+                    Document document = built.get();
+                    if (!documentName.isBlank()) {
+                        document = new Document(documentName, document.grid(), document.pixelsPerFrame(),
+                                document.background(), document.layers());
+                    }
+
+                    // Pushed rather than replacing the editor's history, so whatever was
+                    // already on the canvas is one undo away.
+                    services.editing.push(document, "Generate " + generator.title(), null);
+                    services.editing.endGesture();
+                    status.good("Opened in the editor.");
+                    showEditor.run();
+                });
+            } catch (GeneratorException failure) {
+                Minecraft.getInstance().execute(() -> {
+                    opening = false;
+                    status.bad(failure.getMessage());
+                });
+            }
+        });
     }
 
     private void drawPreview() {
