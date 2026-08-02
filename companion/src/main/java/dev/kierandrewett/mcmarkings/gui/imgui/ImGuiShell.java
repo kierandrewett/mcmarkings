@@ -496,7 +496,14 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // failure everybody who updates this mod meets and the one whose own message
         // names a class nobody has heard of.
         Notice.errorWrapped("The window failed to draw: " + ImGuiScreens.truncate(renderError, 140));
-        ImGui.textDisabled("The full stack trace is in the log. Closing and reopening usually clears it.");
+
+        // Not "closing and reopening usually clears it" when it will not. That line
+        // sat under the stale jar advice contradicting it: the window is fine, and
+        // reopening it loads more classes out of the same replaced file. Said only
+        // when it is true.
+        ImGui.textDisabled(dev.kierandrewett.mcmarkings.core.Diagnosis.adviceFor(renderError).isEmpty()
+                ? "The full stack trace is in the log. Closing and reopening usually clears it."
+                : "The full stack trace is in the log.");
         ImGui.separator();
     }
 
