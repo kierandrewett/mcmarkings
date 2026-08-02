@@ -134,7 +134,7 @@ public final class PublishFlow {
             // git's own words, verbatim. Never retried: a failed push usually means
             // diverged history or missing credentials, and repeating it makes both worse.
             McMarkingsCompanion.LOGGER.error("[mcmarkings] publish failed at git", exception);
-            fail("git: " + exception.output());
+            fail("git: " + exception.describe());
         } catch (IOException exception) {
             McMarkingsCompanion.LOGGER.error("[mcmarkings] publish failed writing files", exception);
             fail("Write failed: " + exception.getMessage());

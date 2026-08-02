@@ -342,7 +342,7 @@ public final class PlacedPanel implements Panel {
             } catch (GitException failure) {
                 // git's own words. "not a git repository" tells someone what to do;
                 // "refresh failed" does not.
-                report(entry, failure.output().isBlank() ? failure.getMessage() : failure.output());
+                report(entry, failure.describe());
             } catch (RuntimeException failure) {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] refresh failed", failure);
                 report(entry, String.valueOf(failure.getMessage()));

@@ -796,7 +796,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             } catch (GitException exception) {
                 Minecraft.getInstance().execute(() -> {
                     if (repoId.equals(services.activeRepositoryId())) {
-                        status.bad("git: " + exception.output());
+                        status.bad("git: " + exception.describe());
                     }
                 });
             }
@@ -868,7 +868,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             } catch (GitException exception) {
                 Minecraft.getInstance().execute(() -> {
                     pulling = false;
-                    status.bad("git: " + exception.output());
+                    status.bad("git: " + exception.describe());
                 });
             } catch (Exception exception) {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] pull failed", exception);
