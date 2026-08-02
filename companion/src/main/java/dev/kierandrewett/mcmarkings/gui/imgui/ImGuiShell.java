@@ -768,7 +768,17 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // common case is still one click.
         if (!image.path().equals(namedFor)) {
             namedFor = image.path();
-            mapName.set(ImageFrameCommands.sanitiseName(image.name()));
+            // Shortened here if it has to be, so what the field shows is what will
+            // actually be sent. A name that makes the command too long is refused by
+            // the server as a broken packet rather than an error, which reads as the
+            // button doing nothing, and the fix has to be visible before the click
+            // rather than explained after it.
+            String url = rawUrls == null || headSha == null
+                    ? "" : rawUrls.pinned(headSha, image.path());
+            String fitted = url.isEmpty()
+                    ? ImageFrameCommands.sanitiseName(image.name())
+                    : ImageFrameCommands.fitName(services.config.commandAlias, image.name(), url, grid);
+            mapName.set(fitted.isEmpty() ? ImageFrameCommands.sanitiseName(image.name()) : fitted);
         }
         ImGui.textDisabled("Map name");
         ImGui.setNextItemWidth(-1.0f);
@@ -819,6 +829,18 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Presses are collected first and acted on below, so an action that threw
         // cannot leave ImGui's disabled stack unbalanced for the next frame.
         boolean pinnable = rawUrls != null && headSha != null;
+
+        // The one case a shorter name cannot rescue: the URL on its own is past the
+        // limit, so where the file lives is the problem rather than what it is called.
+        if (pinnable) {
+            int length = ImageFrameCommands.create(services.config.commandAlias, wanted,
+                    rawUrls.pinned(headSha, image.path()), grid).length();
+            if (length > ImageFrameCommands.MAX_COMMAND_LENGTH) {
+                Notice.warningWrapped("This command is " + length + " characters and the server "
+                        + "takes " + ImageFrameCommands.MAX_COMMAND_LENGTH + ". Shorten the name "
+                        + "above, or move the file somewhere with a shorter path.");
+            }
+        }
 
         // The label says which of the two it will do. This button read "Create map"
         // and sent a refresh whenever the name was in the registry, which is a button

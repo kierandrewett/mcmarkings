@@ -56,12 +56,44 @@ public class ClientCommandSink implements CommandSink {
 
     @Override
     public synchronized void send(String command) {
+        if (tooLong(command)) {
+            return;
+        }
         queue.addLast(command);
     }
 
     @Override
     public synchronized void sendAll(List<String> commands) {
-        queue.addAll(commands);
+        for (String command : commands) {
+            send(command);
+        }
+    }
+
+    /**
+     * Whether this is longer than a server will take, said rather than sent.
+     *
+     * <p>The last line of the three. Names are fitted to the limit where they are
+     * built and the browser says so before anybody clicks, and this is here because
+     * neither of those covers a command assembled somewhere nobody has thought about
+     * yet. What an oversized command costs is not an error message: the server fails
+     * to decode the packet and closes the connection, so the first thing anybody knows
+     * about it is being thrown out of their world.
+     *
+     * <p>Refused rather than truncated. Half a command is a different command, and
+     * with a URL at the end of it that could mean pointing a map at a file nobody
+     * meant.
+     */
+    private boolean tooLong(String command) {
+        if (command == null || command.length() <= ImageFrameCommands.MAX_COMMAND_LENGTH) {
+            return false;
+        }
+        McMarkingsCompanion.LOGGER.error(
+                "[mcmarkings] refusing a command of {} characters; the limit is {}: {}",
+                command.length(), ImageFrameCommands.MAX_COMMAND_LENGTH, command);
+        if (onFailure != null) {
+            onFailure.accept(command);
+        }
+        return true;
     }
 
     @Override

@@ -12,7 +12,71 @@ import java.util.Locale;
  */
 public final class ImageFrameCommands {
 
+    /**
+     * The longest command worth sending.
+     *
+     * <p>Vanilla's packet would carry thirty two thousand characters, and the servers
+     * people actually run do not: a command past about this length is refused, and the
+     * refusal is a decoder failure that closes the connection rather than an error
+     * anybody sees. Somebody was thrown out of their world by one.
+     */
+    public static final int MAX_COMMAND_LENGTH = 256;
+
+    /** Enough of a digest to separate two names that shortened to the same thing. */
+    private static final int DISCRIMINATOR_LENGTH = 4;
+
     private ImageFrameCommands() {
+    }
+
+    /**
+     * A map name that leaves the command short enough to send.
+     *
+     * <p>The command carries the name and then a URL with the same name inside it, so
+     * a sign called vehicles_carrying_dangerous_goods_within_the_tunnel_restriction_
+     * code_622_10_2 spends its length twice and runs past what a server will take. Two
+     * hundred and twenty nine of the fourteen hundred images in the repository I have
+     * in front of me did exactly that, and what it looks like in game is the button
+     * doing nothing at all.
+     *
+     * <p>Shortened by the amount it is over rather than to a fixed size, because the
+     * name is the only part of the command anybody can change: the URL is where the
+     * file actually is, and the alias belongs to the server. Trimming a name to some
+     * round number would throw away characters that were not in the way.
+     *
+     * <p>Truncating alone would let two long names collide and quietly refresh each
+     * other, so a short digest of the full name goes on the end. Deterministic,
+     * because the same image has to produce the same name every time or refreshing it
+     * later would make a second map instead.
+     *
+     * <p>Blank when even an empty name would not fit, which means the URL alone is too
+     * long and no name can rescue it. The caller has to say so rather than send it.
+     */
+    public static String fitName(String alias, String name, String url, GridSize grid) {
+        String candidate = sanitiseName(name);
+        int over = create(alias, candidate, url, grid).length() - MAX_COMMAND_LENGTH;
+        if (over <= 0) {
+            return candidate;
+        }
+
+        int keep = candidate.length() - over - DISCRIMINATOR_LENGTH - 1;
+        if (keep < 1) {
+            return "";
+        }
+        return candidate.substring(0, keep) + "_" + digestOf(candidate);
+    }
+
+    /**
+     * A few stable hex characters from a name.
+     *
+     * <p>Only to tell two shortened names apart, so the width matters and the
+     * strength does not. String's own hash is deterministic across runs and machines,
+     * which is the only property being relied on here.
+     */
+    private static String digestOf(String name) {
+        String hex = Integer.toHexString(name.hashCode());
+        return hex.length() <= DISCRIMINATOR_LENGTH
+                ? "0".repeat(DISCRIMINATOR_LENGTH - hex.length()) + hex
+                : hex.substring(hex.length() - DISCRIMINATOR_LENGTH);
     }
 
     /**
