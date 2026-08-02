@@ -529,8 +529,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Never wider than the bar it sits in. The floor keeps it usable on a wide
         // window; the pane wins on a narrow one, where a picker running past the edge
         // takes Pull and Rescan off with it.
+        // Twenty lines wide, with no pixel floor under it. The floor used to be a
+        // hundred and sixty, which the line-height term already clears at every size
+        // this mod can produce, so it only ever stood to make the control wider than
+        // its own text at the smallest one. A minimum width for a name is a question
+        // about characters, and that is what the term beside it asks.
         ImGui.setNextItemWidth(Math.min(ImGui.getContentRegionAvailX(),
-                Math.max(160.0f, ImGui.getTextLineHeight() * 20.0f)));
+                ImGui.getTextLineHeight() * 20.0f));
         if (!ImGui.beginCombo("##repository", ImGuiScreens.truncate(label, 40))) {
             return;
         }
@@ -607,7 +612,12 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             // Reserves the status line, and gives the panel a child that scrolls
             // inside itself rather than scrolling the window and taking the tab bar
             // with it.
-            float bodyHeight = Math.max(64.0f,
+            // Four lines rather than sixty four pixels. The floor is only here to stop
+            // a window too short for the panel inverting the layout, but at the
+            // largest text on a high GUI scale a line is sixty five pixels, so the
+            // floor was under one line and the thing it protects against was what it
+            // produced.
+            float bodyHeight = Math.max(ImGui.getTextLineHeight() * 4.0f,
                     ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing());
             ImGuiScreens.child("##panel-" + panel.title(), 0.0f, bodyHeight, () -> drawPanel(panel));
         } finally {

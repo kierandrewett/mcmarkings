@@ -35,13 +35,49 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ScalingLintTest {
 
-    /** Calls whose numeric arguments are sizes on screen. */
+    /**
+     * Calls whose numeric arguments are sizes on screen.
+     *
+     * <p>The mod's own {@code child} helper is in here for a reason. The first version
+     * of this rule only knew about ImGui's own functions and passed clean, while four
+     * typed pixel sizes sat in plain sight: a panel body floored at sixty four pixels
+     * in two places, and the generator's two panes fixed at two hundred and twenty and
+     * three hundred and sixty. All four reached the screen through {@code child},
+     * which the rule could not see, so it reported nothing and I believed it.
+     */
     private static final Pattern SIZING = Pattern.compile(
-            "ImGui\\.(beginChild|setNextItemWidth|dummy|invisibleButton|inputTextMultiline"
-                    + "|setColumnWidth|setNextWindowSize|setCursorPosX|setCursorPosY)\\(([^;]*)\\)");
+            "(?:ImGui|ImGuiScreens)\\.(beginChild|child|textChild|setNextItemWidth|dummy"
+                    + "|invisibleButton|inputTextMultiline|setColumnWidth|setNextWindowSize"
+                    + "|setCursorPosX|setCursorPosY)\\(([^;]*)\\)");
 
-    /** A literal big enough to be a pixel count rather than a count of something. */
-    private static final Pattern PIXELS = Pattern.compile("(?<![\\w.])(\\d+\\.\\d+f|\\d+)(?![\\w.])");
+    /**
+     * A size worked out into a local before it is passed anywhere.
+     *
+     * <p>The other half of the same blind spot. A pixel count assigned to a variable
+     * and used a line later is the same pixel count, and it is the more common shape
+     * of the two because a size that needs a floor or a clamp needs somewhere to live.
+     */
+    private static final Pattern SIZE_LOCAL = Pattern.compile(
+            "float\\s+\\w*(?:[Hh]eight|HEIGHT|[Ww]idth|WIDTH)\\s*=\\s*([^;]+);");
+
+    /**
+     * A literal, and whether it follows a multiplication.
+     *
+     * <p>The distinction is the whole difficulty. {@code unit() * 8.0f} is eight
+     * lines, which is exactly right and scales on its own; {@code Math.max(64.0f, …)}
+     * is sixty four pixels, which does not. Both are a float beside a size, and what
+     * separates them is the operator in front.
+     */
+    private static final Pattern PIXELS = Pattern.compile("(\\*\\s*)?(?<![\\w.])(\\d+\\.?\\d*)f?(?![\\w.])");
+
+    /**
+     * Below this a literal is a visibility floor rather than a layout size.
+     *
+     * <p>A gap held at two pixels so it does not vanish, a handle kept at three so it
+     * can still be grabbed. Those are about the smallest thing a person can see or
+     * hit, which is a real screen-pixel question and does not scale with text.
+     */
+    private static final double SMALLEST_LAYOUT_SIZE = 8.0;
 
     /**
      * Ways of asking that follow the text.
@@ -54,8 +90,53 @@ class ScalingLintTest {
             "unit(", "fieldWidth", "getFontSize", "getTextLineHeight", "withinWindow",
             "iconButtonWidth", "getContentRegionAvail", "getStyle", "getWorkSize", "getSize");
 
-    /** Sentinels and counts, which are not measurements. */
-    private static final List<String> NOT_A_SIZE = List.of("0", "1", "0.0f", "1.0f", "-1.0f", "2");
+    /**
+     * Offences in one expression.
+     *
+     * <p>A number is only an offence when it stands as a size in its own right. One
+     * that multiplies something is a count of that thing and scales with it, which is
+     * how the whole interface is supposed to be written.
+     */
+    private static List<String> offences(Path file, String source, int at, String what, String expression) {
+        List<String> found = new ArrayList<>();
+        Matcher number = PIXELS.matcher(withoutCountsHandedToHelpers(expression));
+        while (number.find()) {
+            if (number.group(1) != null || Double.parseDouble(number.group(2)) < SMALLEST_LAYOUT_SIZE) {
+                continue;
+            }
+            found.add("  " + file.getFileName() + ":" + (source.substring(0, at).split("\n", -1).length)
+                    + "  " + what + number.group(2));
+        }
+        return found;
+    }
+
+    /**
+     * Empties out the arguments of the helpers that already work in counts.
+     *
+     * <p>{@code fieldWidth(24.0f)} is twenty four characters, not twenty four pixels,
+     * and it scales perfectly. Without this the rule reported five of those as
+     * offences, which is the shape of false positive that gets a check deleted rather
+     * than fixed: everything it named was correct and the person reading it learns to
+     * stop reading it.
+     *
+     * <p>Innermost first, repeatedly, so a helper called inside another is emptied
+     * before the one holding it.
+     */
+    private static String withoutCountsHandedToHelpers(String expression) {
+        String text = expression;
+        for (String helper : DERIVED) {
+            String name = helper.endsWith("(") ? helper.substring(0, helper.length() - 1) : helper;
+            Pattern call = Pattern.compile(Pattern.quote(name) + "\\([^()]*\\)");
+            for (int pass = 0; pass < 4; pass++) {
+                String emptied = call.matcher(text).replaceAll(name + "()");
+                if (emptied.equals(text)) {
+                    break;
+                }
+                text = emptied;
+            }
+        }
+        return text;
+    }
 
     @Test
     @DisplayName("no width or height is a pixel count somebody typed")
@@ -68,19 +149,14 @@ class ScalingLintTest {
                 String source = Files.readString(file, StandardCharsets.UTF_8);
                 Matcher call = SIZING.matcher(source);
                 while (call.find()) {
-                    String arguments = call.group(2);
-                    if (DERIVED.stream().anyMatch(arguments::contains)) {
-                        continue;
-                    }
-                    Matcher number = PIXELS.matcher(arguments);
-                    while (number.find()) {
-                        if (NOT_A_SIZE.contains(number.group(1))) {
-                            continue;
-                        }
-                        typed.add("  " + file.getFileName() + ":"
-                                + (source.substring(0, call.start()).split("\n", -1).length)
-                                + "  ImGui." + call.group(1) + " asks for " + number.group(1));
-                    }
+                    typed.addAll(offences(file, source, call.start(),
+                            call.group(1) + " asks for ", call.group(2)));
+                }
+
+                Matcher local = SIZE_LOCAL.matcher(source);
+                while (local.find()) {
+                    typed.addAll(offences(file, source, local.start(),
+                            "a size local is worked out from ", local.group(1)));
                 }
             }
         }

@@ -52,8 +52,20 @@ public final class GeneratorPanel implements Panel {
      */
     private static final long PREVIEW_DEBOUNCE_MILLIS = 300L;
 
-    private static final float LIST_WIDTH = 220.0f;
-    private static final float FORM_WIDTH = 360.0f;
+    /**
+     * The two panes, in characters rather than pixels.
+     *
+     * <p>Two hundred and twenty and three hundred and sixty pixels until the text
+     * size became a setting. A pane measured in pixels holds fewer and fewer
+     * characters as the text grows, so the list that comfortably showed a generator's
+     * name at the size I wrote it against would have started cutting names in half
+     * for anybody who made the text larger, which is very often somebody who made it
+     * larger because they were struggling to read it.
+     *
+     * <p>Counts, so the panes hold the same amount of text at every size.
+     */
+    private static final float LIST_CHARACTERS = 22.0f;
+    private static final float FORM_CHARACTERS = 36.0f;
     private static final int TEXT_BUFFER = 512;
     private static final int LINES_BUFFER = 4096;
 
@@ -156,10 +168,12 @@ public final class GeneratorPanel implements Panel {
 
         // ImGui reads a negative child size as "the remaining space minus this", so
         // a window too small for the panes would silently invert the layout.
-        float bodyHeight = Math.max(64.0f, ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing());
-        ImGuiScreens.child("##generators", LIST_WIDTH, bodyHeight, this::drawGeneratorList);
+        float bodyHeight = Math.max(ImGui.getTextLineHeight() * 4.0f,
+                ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing());
+        ImGuiScreens.child("##generators", ImGui.getFontSize() * LIST_CHARACTERS, bodyHeight,
+                this::drawGeneratorList);
         ImGui.sameLine();
-        ImGuiScreens.child("##form", FORM_WIDTH, bodyHeight, this::drawForm);
+        ImGuiScreens.child("##form", ImGui.getFontSize() * FORM_CHARACTERS, bodyHeight, this::drawForm);
         ImGui.sameLine();
         ImGuiScreens.child("##preview", 0.0f, bodyHeight, this::drawPreview);
 
