@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "name": "Warning plate",
+  "grid": {
+    "columns": 1,
+    "rows": 1
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "shape",
+      "id": "plate",
+      "name": "Plate",
+      "bounds": {
+        "x": 8,
+        "y": 8,
+        "width": 240,
+        "height": 240
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 18,
+        "right": 18,
+        "bottom": 18,
+        "left": 18
+      },
+      "fill": "#FFCC00",
+      "cornerRadius": 24,
+      "borderColour": "#111111",
+      "borderWidth": 10
+    },
+    {
+      "kind": "text",
+      "id": "word",
+      "name": "Word",
+      "bounds": {
+        "x": 28,
+        "y": 92,
+        "width": 200,
+        "height": 72
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "text": "SLOW",
+      "font": "sans-serif",
+      "size": 62.0,
+      "colour": "#111111",
+      "horizontalAlign": "centre",
+      "verticalAlign": "middle",
+      "lineGap": 6.0,
+      "tracking": 0.0,
+      "verticalScale": 1.0
+    }
+  ]
+}

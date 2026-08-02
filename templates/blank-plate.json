@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "name": "Blank plate",
+  "grid": {
+    "columns": 2,
+    "rows": 1
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "shape",
+      "id": "plate",
+      "name": "Plate",
+      "bounds": {
+        "x": 12,
+        "y": 12,
+        "width": 488,
+        "height": 232
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 18,
+        "right": 18,
+        "bottom": 18,
+        "left": 18
+      },
+      "fill": "#1A4C8B",
+      "cornerRadius": 24,
+      "borderColour": "#FFFFFF",
+      "borderWidth": 10
+    }
+  ]
+}

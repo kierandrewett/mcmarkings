@@ -58,6 +58,6 @@ generated/           images the mod rendered and committed
 companion/           the Fabric mod
 ```
 
-`templates/` appears the first time something is saved from the editor. A template is
-just a saved document, so anything made in the editor can become the starting point
-for the next thing.
+`templates/` holds three starters: a blank plate, a worded plate and a warning
+plate. A template is just a saved document, so anything made in the editor can become
+the starting point for the next thing, and saving one puts it here beside them.
