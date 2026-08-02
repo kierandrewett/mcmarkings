@@ -74,6 +74,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         root.padding(Insets.of(8));
         root.gap(6);
 
+        root.child(NavBar.build(services, NavBar.Destination.BROWSE));
         root.child(buildHeader());
 
         statusLabel = UIComponents.label(Component.literal("Loading repository...")
@@ -107,6 +108,7 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         FlowLayout header = UIContainers.horizontalFlow(Sizing.fill(100), Sizing.content());
         header.gap(6);
         header.verticalAlignment(VerticalAlignment.CENTER);
+        header.child(UIComponents.label(Component.literal("Search").withStyle(ChatFormatting.GRAY)));
         header.child(search);
         header.child(UIComponents.button(Component.literal("Pull"), button -> pullAndRefresh()));
         header.child(UIComponents.button(Component.literal("Close"), button -> onClose()));

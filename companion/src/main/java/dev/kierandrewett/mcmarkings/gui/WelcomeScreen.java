@@ -112,11 +112,14 @@ public class WelcomeScreen extends BaseOwoScreen<FlowLayout> {
         if (workspace.hasWarning()) {
             RepositoryCheck check = RepositoryCheck.inspect(directory);
             if (!check.usable()) {
-                client.setScreen(this);
                 return;
             }
         }
 
-        client.setScreen(new BrowserScreen(services));
+        // The picker returns to its parent as soon as this callback has run, so
+        // setting the screen here would be thrown away. Going through the client's
+        // queue puts the move after that, which is the whole point of adding a
+        // folder from the first-run screen.
+        client.execute(() -> client.setScreen(new BrowserScreen(services)));
     }
 }

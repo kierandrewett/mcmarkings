@@ -7,6 +7,7 @@ import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
+import dev.kierandrewett.mcmarkings.gui.BrowserScreen;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
@@ -176,6 +177,14 @@ public class BuilderScreen extends Screen implements ImGuiRenderable {
     }
 
     private void drawHeader() {
+        // This is an ImGui window, so none of the mod's normal navigation is on
+        // screen. Without a way back the only exit is closing the game's screen
+        // entirely, which reads as being stranded.
+        if (ImGui.button("< Back")) {
+            Minecraft.getInstance().setScreen(new BrowserScreen(services));
+        }
+
+        ImGui.sameLine();
         ImGui.setNextItemWidth(160.0f);
         ImGui.inputTextWithHint("##name", "Map name", name);
 
