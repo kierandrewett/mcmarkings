@@ -81,6 +81,15 @@ public final class Theme {
 
     public static final int CANVAS_EDGE = 0xE6BFBFC7;
 
+    /**
+     * Behind a label that sits on the chequerboard.
+     *
+     * <p>Mostly opaque, so the label reads the same over a light cell as a dark one.
+     * Not fully, because the band is over the image and a solid bar would hide part
+     * of what someone is trying to look at.
+     */
+    public static final int CAPTION_BACKING = 0xD914141A;
+
     /** Faint on purpose. It is a reference, not something to read. */
     public static final int FRAME_GRID = 0x47BFBFC7;
 

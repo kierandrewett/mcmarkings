@@ -848,12 +848,12 @@ public final class EditorPanel implements Panel {
 
         if (document.layers().isEmpty()) {
             String hint = "Add a layer from the panel on the left";
-            drawList.addText(originX + (width - ImGui.calcTextSizeX(hint)) / 2.0f, originY + height / 2.0f,
-                    ImGui.getColorU32(ImGuiCol.TextDisabled), hint);
+            ImGuiScreens.overlayText(drawList, originX + (width - ImGui.calcTextSizeX(hint)) / 2.0f,
+                    originY + height / 2.0f, ImGui.getColorU32(ImGuiCol.TextDisabled), hint);
             return;
         }
         if (texture == null && renderFailure == null) {
-            drawList.addText(originX + unit() * 0.5f, originY + unit() * 0.5f,
+            ImGuiScreens.overlayText(drawList, originX + unit() * 0.5f, originY + unit() * 0.5f,
                     ImGui.getColorU32(ImGuiCol.TextDisabled), "Rendering...");
         }
     }

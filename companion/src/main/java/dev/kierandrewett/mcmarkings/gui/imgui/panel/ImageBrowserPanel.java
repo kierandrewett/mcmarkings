@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Theme;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -437,6 +438,15 @@ public final class ImageBrowserPanel implements Panel {
         // also clipped: a caption bleeding into the next cell is worse than a
         // truncated one.
         int limit = Math.max(4, (int) (width / Math.max(1.0f, characterWidth)));
+
+        // A band behind the name rather than an outline around it. The strip is
+        // already reserved in the cell, one filled rect is cheaper than five text
+        // draws per visible cell, and it reads as a caption rather than as text
+        // floating on the picture.
+        drawList.addRectFilled(x, y, x + width, y + height, ImGui.getColorU32(
+                Theme.red(Theme.CAPTION_BACKING), Theme.green(Theme.CAPTION_BACKING),
+                Theme.blue(Theme.CAPTION_BACKING), Theme.alpha(Theme.CAPTION_BACKING)));
+
         drawList.pushClipRect(x, y, x + width, y + height, true);
         try {
             drawList.addText(x, y, ImGui.getColorU32(ImGuiCol.Text),
@@ -722,7 +732,8 @@ public final class ImageBrowserPanel implements Panel {
     private void centredText(ImDrawList drawList, float x, float y,
             float width, float height, String text, int colour) {
         ImGui.calcTextSize(measurement, text);
-        drawList.addText(x + (width - measurement.x) * 0.5f, y + (height - measurement.y) * 0.5f, colour, text);
+        ImGuiScreens.overlayText(drawList, x + (width - measurement.x) * 0.5f,
+                y + (height - measurement.y) * 0.5f, colour, text);
     }
 
     private void measureText() {

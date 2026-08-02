@@ -3,6 +3,8 @@ package dev.kierandrewett.mcmarkings.gui.imgui;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -424,16 +426,63 @@ class ThemeTest {
         String source = java.nio.file.Files.readString(java.nio.file.Path.of(
                 "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/ImGuiScreens.java"));
 
-        for (String helper : java.util.List.of("overlayLine", "overlayRect")) {
-            int start = source.indexOf("public static void " + helper + "(");
-            assertTrue(start > 0, helper + " has gone; the overlays are unprotected");
+        // Every helper whose name says overlay, found rather than listed. I wrote this
+        // check with two names in it, added a third helper the next day, and the
+        // mutation that deleted its halo passed. A list of names is a thing to forget
+        // to update; asking the file which helpers exist is not.
+        java.util.regex.Matcher helpers = java.util.regex.Pattern
+                .compile("public static void (overlay\\w+)\\(").matcher(source);
 
-            String body = source.substring(start, source.indexOf("\n    }", start));
-            long haloed = body.lines().filter(line -> line.contains("haloColour()")).count();
-            long drawn = body.lines().filter(line -> line.contains("drawList.add")).count();
+        int found = 0;
+        while (helpers.find()) {
+            String helper = helpers.group(1);
+            found++;
 
-            assertEquals(2, drawn, helper + " should draw twice, the halo and the line");
-            assertEquals(1, haloed, helper + " should draw exactly one halo");
+            String body = source.substring(helpers.end(), source.indexOf("\n    }", helpers.end()));
+            // Draw calls, not lines mentioning a halo. Counting the latter failed on
+            // the helper that names the colour once and then uses it four times, which
+            // was this check being wrong rather than the drawing.
+            List<String> draws = body.lines().filter(line -> line.contains("drawList.add")).toList();
+            long haloDraws = draws.stream().filter(line -> line.contains("halo")).count();
+            long markDraws = draws.size() - haloDraws;
+
+            assertTrue(haloDraws >= 1, helper + " draws no halo, so nothing carries it on a light cell");
+            assertTrue(markDraws >= 1, helper + " draws only a halo and never the mark itself");
         }
+        assertTrue(found >= 3, "expected the overlay helpers to still be here, found " + found);
+    }
+
+    /**
+     * Labels sit on the chequerboard too, and that is the surface people read.
+     *
+     * <p>The chequerboard change took the browser caption from 8.69:1 to 1.37:1 on a
+     * light cell. Every image name in the grid, which is the main thing anyone looks
+     * at in this mod, wherever it crossed a light square. I found it by asking what
+     * else draws over that backdrop rather than by noticing it, which is the check
+     * the change itself should have carried, twice now.
+     *
+     * <p>The caption gets a band rather than an outline because the cell already
+     * reserves the strip, and one filled rect beats five text draws per visible cell.
+     */
+    @Test
+    @DisplayName("a caption is readable over either tone of the chequerboard")
+    void captionsAreReadableOnTheChequerboard() {
+        for (int tone : new int[] {Theme.CHEQUER_DARK, Theme.CHEQUER_LIGHT}) {
+            int band = Theme.over(Theme.CAPTION_BACKING, tone);
+            assertReadable("a caption on the chequerboard", Theme.TEXT, band, Theme.MINIMUM_TEXT_CONTRAST);
+        }
+    }
+
+    /**
+     * The band has to stay see-through enough to be worth the compromise. It sits
+     * over the image it names, and a solid bar hides part of what someone is trying
+     * to look at.
+     */
+    @Test
+    @DisplayName("the caption band does not become an opaque bar")
+    void theCaptionBandStaysPartlyTransparent() {
+        double opacity = Theme.alpha(Theme.CAPTION_BACKING);
+        assertTrue(opacity < 0.95, () -> "the band is effectively solid at " + opacity);
+        assertTrue(opacity > 0.6, () -> "the band is too faint to carry the text at " + opacity);
     }
 }

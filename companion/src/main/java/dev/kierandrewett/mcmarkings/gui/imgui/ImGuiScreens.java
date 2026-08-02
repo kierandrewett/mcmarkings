@@ -183,6 +183,26 @@ public final class ImGuiScreens {
         drawList.addLine(fromX, fromY, toX, toY, colour, OVERLAY_THICKNESS);
     }
 
+    /**
+     * Text that can be read whatever it lands on.
+     *
+     * <p>Drawn four times in near-black around itself before the text proper. ImGui
+     * has no outlined text, and the alternative was a filled box behind every string,
+     * which is right where there is a band reserved for it and wrong for a line
+     * floating in the middle of a canvas.
+     *
+     * <p>Same reasoning as {@link #overlayLine}: a label over a chequerboard meets
+     * both tones, and one colour cannot serve both.
+     */
+    public static void overlayText(imgui.ImDrawList drawList, float x, float y, int colour, String text) {
+        int halo = haloColour();
+        drawList.addText(x - 1.0f, y, halo, text);
+        drawList.addText(x + 1.0f, y, halo, text);
+        drawList.addText(x, y - 1.0f, halo, text);
+        drawList.addText(x, y + 1.0f, halo, text);
+        drawList.addText(x, y, colour, text);
+    }
+
     /** The same, for a rectangle. See {@link #overlayLine}. */
     public static void overlayRect(imgui.ImDrawList drawList, float left, float top,
             float right, float bottom, int colour) {
