@@ -51,7 +51,15 @@ public final class TemplateStore {
     }
 
     /** One template on disk. */
-    public record Entry(String name, Path file) {
+    /**
+     * A saved document.
+     *
+     * <p>{@code savedAtMillis} is read here rather than by whoever displays it,
+     * because asking the filesystem for a modification time is IO and the only place
+     * this is shown is a list being drawn. Zero when it could not be read, which the
+     * caller can treat as unknown rather than as 1970.
+     */
+    public record Entry(String name, Path file, long savedAtMillis) {
     }
 
     /**
@@ -77,13 +85,22 @@ public final class TemplateStore {
         try (Stream<Path> files = Files.list(directory)) {
             files.filter(Files::isRegularFile)
                     .filter(file -> file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(EXTENSION))
-                    .forEach(file -> entries.add(new Entry(displayNameOf(file), file)));
+                    .forEach(file -> entries.add(new Entry(displayNameOf(file), file, modifiedAt(file))));
         } catch (IOException exception) {
             return List.of();
         }
 
         entries.sort(Comparator.comparing(Entry::name, String.CASE_INSENSITIVE_ORDER));
         return List.copyOf(entries);
+    }
+
+    /** Zero rather than throwing: a template with an unreadable time is still openable. */
+    private static long modifiedAt(Path file) {
+        try {
+            return Files.getLastModifiedTime(file).toMillis();
+        } catch (IOException | RuntimeException unreadable) {
+            return 0L;
+        }
     }
 
     public Optional<Entry> byName(String name) {

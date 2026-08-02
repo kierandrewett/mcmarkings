@@ -6,6 +6,7 @@ import dev.kierandrewett.mcmarkings.command.Command;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.command.Shortcut;
 import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.RelativeTime;
 import dev.kierandrewett.mcmarkings.doc.BuilderLayout;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.DocumentJson;
@@ -109,6 +110,9 @@ public final class EditorFiles {
      * workers hop back before touching it.
      */
     private boolean busy;
+
+    /** What "now" is for this frame. Zero until the first draw. */
+    private long drawnAtMillis;
 
     private boolean openSavePopup;
 
@@ -232,9 +236,12 @@ public final class EditorFiles {
             return;
         }
 
-        Notice.warning(
-                "Unsaved work from a previous session: \"" + recovered.document().name() + "\", "
-                        + recovered.document().layers().size() + " layer(s).");
+        // How old it is decides whether it is worth taking. Work from ten minutes ago
+        // is almost certainly wanted; work from three weeks ago is almost certainly
+        // something already saved and forgotten about.
+        Notice.warning("Unsaved work from " + RelativeTime.describe(recovered.savedAtMillis(), nowMillis())
+                + ": \"" + recovered.document().name() + "\", "
+                + recovered.document().layers().size() + " layer(s).");
         ImGui.sameLine();
         if (ImGui.button("Restore##recovery")) {
             recoveryAnswered = true;
@@ -264,6 +271,10 @@ public final class EditorFiles {
      * ImGui popup closes the moment its owner stops submitting it.
      */
     public void drawPopups() {
+        // Read once for the frame, so every row agrees on what "now" is and nothing
+        // asks the system for the time once per template.
+        drawnAtMillis = System.currentTimeMillis();
+
         drawSavePopup();
         drawTemplatePopup();
     }
@@ -360,6 +371,11 @@ public final class EditorFiles {
                 if (ImGui.selectable(entry.name() + "##template-" + entry.file().getFileName())) {
                     ImGui.closeCurrentPopup();
                     open(entry);
+                }
+                if (entry.savedAtMillis() > 0) {
+                    // Usually the one you want is the one you were last working on.
+                    ImGui.sameLine();
+                    ImGui.textDisabled(RelativeTime.describe(entry.savedAtMillis(), nowMillis()));
                 }
             }
         }
@@ -643,6 +659,11 @@ public final class EditorFiles {
     private boolean existingTemplate(String name) {
         String wanted = name.toLowerCase(Locale.ROOT);
         return templates.stream().anyMatch(entry -> entry.name().toLowerCase(Locale.ROOT).equals(wanted));
+    }
+
+    /** Falls back to a live read for the banner, which is drawn before the popups. */
+    private long nowMillis() {
+        return drawnAtMillis == 0 ? System.currentTimeMillis() : drawnAtMillis;
     }
 
     private static Document withName(Document document, String name) {
