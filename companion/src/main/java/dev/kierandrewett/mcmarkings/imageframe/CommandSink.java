@@ -18,5 +18,8 @@ public interface CommandSink {
     /** Commands still queued behind the throttle. */
     int pending();
 
+    /** Changes how fast queued commands go out, while running. */
+    void setCommandsPerSecond(double rate);
+
     void clear();
 }

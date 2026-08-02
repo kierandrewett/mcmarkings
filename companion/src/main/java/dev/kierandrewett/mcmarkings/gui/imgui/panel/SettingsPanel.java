@@ -147,6 +147,9 @@ public final class SettingsPanel implements Panel {
         help("How fast commands are sent. Too fast and the server drops them; "
                 + "a large sign is many commands.");
         if (rateDone) {
+            // Told to the running sink, not only to the file. Until now the slider
+            // saved a number nothing read until the next restart.
+            services.commands.setCommandsPerSecond(services.config.commandsPerSecond);
             services.saveConfig();
         }
 
@@ -185,10 +188,13 @@ public final class SettingsPanel implements Panel {
         ImGui.setNextItemWidth(fieldWidth());
         ImGui.inputText("Generators folder##settings-generators", generatorDirectory);
         boolean generatorsDone = ImGui.isItemDeactivatedAfterEdit();
-        help("Where the mod looks for generator scripts in the repository.");
+        help("Where the mod looks for generator scripts in the repository. "
+                + "Changing it reopens every repository.");
         if (generatorsDone) {
             services.config.generatorDirectory = generatorDirectory.get().trim();
-            services.saveConfig();
+            // The script runtime is built with this path when a repository opens, so
+            // saving alone would leave the Generate tab reading the old folder.
+            persistAndRescan();
         }
     }
 

@@ -22,7 +22,15 @@ public class ClientCommandSink implements CommandSink {
     private static final int TICKS_PER_SECOND = 20;
 
     private final Deque<String> queue = new ArrayDeque<>();
-    private final double commandsPerSecond;
+
+    /**
+     * Read under the lock in {@link #tick}, so it changes cleanly between commands.
+     *
+     * <p>Not final, because it used to be. The rate is a setting with a slider, and a
+     * slider that saves a number the running sink never reads is a control that does
+     * nothing until the next restart without ever saying so.
+     */
+    private double commandsPerSecond;
 
     /** Notified when a command is dropped because there is no connection. */
     private final Consumer<String> onFailure;
@@ -32,6 +40,18 @@ public class ClientCommandSink implements CommandSink {
     public ClientCommandSink(double commandsPerSecond, Consumer<String> onFailure) {
         this.commandsPerSecond = Math.max(0.1, commandsPerSecond);
         this.onFailure = onFailure;
+    }
+
+    /**
+     * Changes the rate while running.
+     *
+     * <p>Takes effect from the next command rather than the one already counting
+     * down, which is close enough for a limiter and avoids a slider drag resetting
+     * the wait over and over.
+     */
+    @Override
+    public synchronized void setCommandsPerSecond(double rate) {
+        this.commandsPerSecond = Math.max(0.1, rate);
     }
 
     @Override
