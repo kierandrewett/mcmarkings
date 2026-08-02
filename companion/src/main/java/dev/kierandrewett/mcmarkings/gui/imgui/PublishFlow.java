@@ -7,6 +7,7 @@ import dev.kierandrewett.mcmarkings.core.PushState;
 import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.repo.GitException;
+import dev.kierandrewett.mcmarkings.render.ImageComposer;
 import dev.kierandrewett.mcmarkings.repo.RawUrls;
 import net.minecraft.client.Minecraft;
 
@@ -102,8 +103,18 @@ public final class PublishFlow {
             // commit happens moments later, so an interrupted write here does not
             // leave a half a file lying about, it gets committed and pushed to the
             // address a server fetches from.
+            // Fitted to the chosen grid here rather than left at whatever size it was
+            // rendered. The shape is kept and the rest is transparent, so the sign is
+            // never squashed to fill a wall it does not match, and because the PNG now
+            // has exactly the grid's proportions there is nothing left for the server
+            // to fit: it splits the image and that is all.
+            //
+            // ImageComposer has done this since it was written and nothing called it.
+            // Publishing wrote the image at its natural size and left the fitting to
+            // whatever ImageFrame does, which is why the frame size picker could only
+            // ever predict the result rather than decide it.
             Path pngPath = generatedDirectory.resolve(name + ".png");
-            if (!writePngAtomically(request.image(), pngPath)) {
+            if (!writePngAtomically(fitToGrid(request.image(), request.grid()), pngPath)) {
                 fail("No PNG writer available");
                 return;
             }
@@ -189,6 +200,29 @@ public final class PublishFlow {
      *
      * @return false when there is no PNG writer, matching {@link ImageIO#write}
      */
+    /**
+     * Squares the image up to the grid it is going onto.
+     *
+     * <p>Resolution chosen so nothing is thrown away: enough pixels per frame to hold
+     * the source at its own size, so the only change is the transparent margin. The
+     * server resamples to a map's 128 pixels itself and does a better job from more
+     * pixels than from fewer.
+     *
+     * <p>Cheap when they already agree. A sign whose proportions match its grid comes
+     * back with no margin at all, which is the common case.
+     */
+    private BufferedImage fitToGrid(BufferedImage image, GridSize grid) {
+        int perFrame = Math.max(GridSize.MAP_PIXELS, Math.max(
+                ceilDiv(image.getWidth(), grid.columns()),
+                ceilDiv(image.getHeight(), grid.rows())));
+
+        return services.composer.fitToGrid(image, grid, perFrame, ImageComposer.FitMode.CONTAIN);
+    }
+
+    private static int ceilDiv(int value, int by) {
+        return (value + by - 1) / by;
+    }
+
     private static boolean writePngAtomically(BufferedImage image, Path target) throws IOException {
         Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
         try {

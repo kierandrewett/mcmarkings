@@ -33,7 +33,12 @@ class GridDetailTest {
 
         // Stated rather than merely asserted-under, so a change to the recommender
         // shows up here as a number moving instead of a test quietly still passing.
-        assertEquals(28, detail, 2, "the three-destination sign lands at about 28%");
+        // It did move: this read 28% when the recommendation was chosen to keep the
+        // sign's proportions, and 18% now it is chosen to spend as few frames as the
+        // sign still covers most of. Both are the same fact, that placing a sign
+        // costs it resolution, and the second is the trade someone asked for after
+        // seeing the first on a wall.
+        assertEquals(18, detail, 2, "the three-destination sign lands at about 18%");
     }
 
     @Test

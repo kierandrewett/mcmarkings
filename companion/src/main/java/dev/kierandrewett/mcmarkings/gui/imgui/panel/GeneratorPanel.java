@@ -349,24 +349,37 @@ public final class GeneratorPanel implements Panel {
         }
 
         for (GridSuggestion suggestion : suggestions) {
-            int suggestionDetail = detailPercent(suggestion.grid());
+            // How much of the frames the sign lands on, rather than how stretched it
+            // would be. Publishing fits it to the grid keeping its shape, so nothing
+            // is ever stretched and the figure that was shown here described something
+            // that could not happen. What it costs to take a smaller grid is frames
+            // placed with nothing on them.
+            int coverage = previewImage == null ? 0
+                    : GridSuggestion.coveragePercent(suggestion.grid(), previewAspect());
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
-                    + (suggestionDetail > 0 ? "  " + suggestionDetail + "% detail" : "")
-                    + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
+                    + (coverage > 0 ? "  covers " + coverage + "%" : "");
             if (ImGui.button(label + "##grid-" + suggestion.grid())) {
                 grid = suggestion.grid();
                 gridPinned = true;
                 status.info("Frame size " + grid);
             }
             if (ImGui.isItemHovered() && previewImage != null) {
-                ImGui.setTooltip("Drawn at " + previewImage.getWidth() + "x" + previewImage.getHeight()
-                        + ", placed at " + suggestion.grid().pixelWidth() + "x"
-                        + suggestion.grid().pixelHeight() + " across "
-                        + suggestion.grid().frameCount() + " item frames.");
+                ImGui.setTooltip("The sign keeps its shape and sits in the middle of "
+                        + suggestion.grid().frameCount() + " item frames, covering "
+                        + coverage + "% of them.\nThe rest is transparent, so on a wall "
+                        + "it is not there at all.");
             }
             ImGuiScreens.flowTo(label);
         }
         ImGui.newLine();
+    }
+
+    /** The preview's proportions, for working out how much of a grid it covers. */
+    private double previewAspect() {
+        if (previewImage == null || previewImage.getHeight() <= 0) {
+            return 1.0;
+        }
+        return previewImage.getWidth() / (double) previewImage.getHeight();
     }
 
     /** Below this, the legend is small enough on the wall to be worth mentioning. */

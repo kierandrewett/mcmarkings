@@ -28,44 +28,64 @@ class GridRecommenderTest {
     @Test
     @DisplayName("a tall image takes two frames rather than six for a few percent")
     void tallImagePrefersTheCheaperGrid() {
-        // Regression, from real use. A 601x1024 image was recommended at 2x3 because
-        // 1x2 is 17% off and the threshold was 15%. Six frames to save four percent
-        // of stretch is a bad trade when every frame is placed by hand.
+        // Regression, from real use. A 601x1024 image was once recommended at 2x3,
+        // then at 1x2, and now sits on a single frame: it covers 59% of one, which is
+        // enough, and one frame is fewer than two.
         GridSize best = GridRecommender.best(601, 1024);
 
-        assertEquals(new GridSize(1, 2), best);
-        assertEquals(2, best.frameCount());
+        assertEquals(new GridSize(1, 1), best);
+        assertEquals(1, best.frameCount());
     }
 
     @Test
-    @DisplayName("a wide banner takes the smallest grid that is not obviously stretched")
+    @DisplayName("a wide banner takes the fewest frames it still covers most of")
     void wideBannerTakesSmallestReasonableGrid() {
-        // 450x170 is 2.65:1. On one map it would be squashed beyond recognition, so
-        // some frames are justified here, but only a few.
+        // 450x170 is 2.65:1. On one frame the sign would cover 38% of it, which is
+        // mostly empty wall; on two it covers 75%.
         GridSize best = GridRecommender.best(450, 170);
 
-        assertEquals(new GridSize(3, 1), best);
+        assertEquals(new GridSize(2, 1), best);
         assertTrue(best.frameCount() <= 4, "a small banner should not need a wall, got " + best);
     }
 
     @Test
-    @DisplayName("a typical sign trades a little stretch for far fewer frames")
+    @DisplayName("a nearly square sign fits on one frame rather than six")
     void typicalSignPrefersFewerFrames() {
-        // 1024x733 is roughly the shape of the warning signs here. 7x5 fits to within
-        // 0.2% but costs 35 frames; 3x2 is 7.4% off and costs 6.
+        // 1024x733 is roughly the shape of the warning signs here, 1.40:1. On a single
+        // frame the sign covers 71% of it. The old answer was 3x2, six frames, chosen
+        // to get the proportions within 7% back when the proportions decided whether
+        // the sign would be squashed. Publishing keeps the shape now, so they do not.
         GridSize best = GridRecommender.best(1024, 733);
 
-        assertEquals(new GridSize(3, 2), best);
-        assertTrue(best.frameCount() <= 6, "should not spend 35 frames chasing an exact fit");
+        assertEquals(new GridSize(1, 1), best);
     }
 
+    /**
+     * An exact fit no longer wins by being exact.
+     *
+     * <p>A 4:1 image on a 4x1 grid wastes nothing, and on a 2x1 it covers half. Both
+     * look the same on a wall, because the shape is kept either way and the spare
+     * space is transparent. One costs four item frames and the other two.
+     *
+     * <p>This is the trade the change was asked for. A square image still takes one
+     * frame, which is both the exact fit and the fewest.
+     */
     @Test
-    @DisplayName("exact fits are still taken when they are cheap")
+    @DisplayName("frames are spent only where the sign covers them")
     void exactFitsAreTakenWhenCheap() {
         assertEquals(new GridSize(1, 1), GridRecommender.best(1000, 1000));
-        assertEquals(new GridSize(4, 1), GridRecommender.best(2048, 512));
-        assertEquals(new GridSize(1, 4), GridRecommender.best(512, 2048));
-        assertEquals(new GridSize(3, 1), GridRecommender.best(1536, 512));
+        assertEquals(new GridSize(2, 1), GridRecommender.best(2048, 512));
+        assertEquals(new GridSize(1, 2), GridRecommender.best(512, 2048));
+        assertEquals(new GridSize(2, 1), GridRecommender.best(1536, 512));
+    }
+
+    /**
+     * The sign that prompted all this, at the size the generator makes it.
+     */
+    @Test
+    @DisplayName("a three destination direction sign takes two frames")
+    void aDirectionSignTakesTwoFrames() {
+        assertEquals(new GridSize(2, 1), GridRecommender.best(1601, 445));
     }
 
     @Test
@@ -126,15 +146,18 @@ class GridRecommenderTest {
     }
 
     @Test
-    @DisplayName("top() leads with the recommendation, not with a squashed 1x1")
+    @DisplayName("top() leads with the recommendation, not with a grid of mostly empty wall")
     void topLeadsWithTheRecommendation() {
         List<GridSuggestion> top = GridRecommender.top(1024, 733, 3);
 
         assertTrue(top.size() <= 3);
         assertEquals(GridRecommender.best(1024, 733), top.getFirst().grid());
+        double imageAspect = 1024 / 733.0;
         for (GridSuggestion suggestion : top) {
-            assertTrue(suggestion.distortion() <= GridRecommender.ACCEPTABLE,
-                    "top() offered an obviously stretched option: " + suggestion.grid());
+            int coverage = GridSuggestion.coveragePercent(suggestion.grid(), imageAspect);
+            assertTrue(coverage >= GridRecommender.MINIMUM_COVERAGE * 100.0,
+                    "top() offered a grid the sign barely covers: " + suggestion.grid()
+                            + " at " + coverage + "%");
         }
     }
 

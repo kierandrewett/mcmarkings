@@ -38,6 +38,23 @@ public final class GridRecommender {
      */
     public static final double ACCEPTABLE = 0.20;
 
+    /**
+     * How much of the frames a grid asks for the sign has to actually cover.
+     *
+     * <p>Publishing fits the image to the grid keeping its shape and centring it, so
+     * a grid whose proportions differ from the image's does not squash it, it leaves
+     * transparent space. On a wall that space is invisible, which changes what the
+     * choice is about: not how wrong the sign will look, but how many item frames
+     * you place and do not use.
+     *
+     * <p>So the recommendation is the fewest frames that still put the sign on most
+     * of them. Just under half, which for a 1601x445 direction sign is 2x1 rather
+     * than 4x1: two frames with the sign across the middle of them instead of four
+     * with the sign filling them. Fewer frames to place, and nobody standing in front
+     * of it can tell the difference.
+     */
+    public static final double MINIMUM_COVERAGE = 0.45;
+
     /** Fallback ceiling when nothing reaches {@link #ACCEPTABLE}. */
     public static final int DEFAULT_MAX_FRAMES = 16;
 
@@ -48,8 +65,15 @@ public final class GridRecommender {
     public static GridSize best(int imageWidth, int imageHeight) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
 
+        // Smallest first, so the first grid the sign covers enough of wins. This used
+        // to look for the first grid the sign would not be visibly squashed on, which
+        // was the right question while publishing left the fitting to the server.
+        // Publishing keeps the shape and centres it now, so nothing is ever squashed
+        // and the cost of a mismatch is frames placed and not used.
+        double imageAspect = imageWidth / (double) Math.max(1, imageHeight);
         for (GridSuggestion suggestion : frontier) {
-            if (suggestion.distortion() <= ACCEPTABLE) {
+            if (GridSuggestion.coveragePercent(suggestion.grid(), imageAspect)
+                    >= MINIMUM_COVERAGE * 100.0) {
                 return suggestion.grid();
             }
         }
@@ -115,8 +139,15 @@ public final class GridRecommender {
     public static List<GridSuggestion> top(int imageWidth, int imageHeight, int count) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
 
+        // Starts where best() would stop, so the first button offered is the one it
+        // recommends and the rest are the larger grids someone might want instead.
+        // Anything smaller is left out: it is offered as a choice, and a grid the sign
+        // sits on a third of is not one.
+        double imageAspect = imageWidth / (double) Math.max(1, imageHeight);
         int start = 0;
-        while (start < frontier.size() && frontier.get(start).distortion() > ACCEPTABLE) {
+        while (start < frontier.size()
+                && GridSuggestion.coveragePercent(frontier.get(start).grid(), imageAspect)
+                        < MINIMUM_COVERAGE * 100.0) {
             start++;
         }
         if (start == frontier.size()) {
