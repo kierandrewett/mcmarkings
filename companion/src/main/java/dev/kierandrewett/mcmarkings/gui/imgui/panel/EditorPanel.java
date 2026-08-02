@@ -1795,6 +1795,21 @@ public final class EditorPanel implements Panel {
     // Adding layers
     // -----------------------------------------------------------------------
 
+    /**
+     * Adds a repository image to the document, from outside the editor.
+     *
+     * <p>So the browser can put something on the canvas without you having to come
+     * here and find it again through a picker. Seeing a sign and wanting it are the
+     * same moment, and making that cost a tab change and a second search is how a
+     * session turns into admin.
+     *
+     * <p>Safe before the editor has ever been drawn: the document lives in the
+     * services, not in this panel.
+     */
+    public void addImage(RepoImage image) {
+        addImageLayer(image);
+    }
+
     private void addImageLayer(RepoImage image) {
         Document document = history.current();
         Layer.Bounds bounds = centred(document, image.width(), image.height());

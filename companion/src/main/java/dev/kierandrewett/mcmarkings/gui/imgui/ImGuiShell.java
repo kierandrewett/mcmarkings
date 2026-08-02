@@ -35,8 +35,12 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Map;
 
 /**
@@ -147,6 +151,41 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 new SettingsPanel(services));
 
         registerCommands();
+        warnAboutShortcutClashes();
+    }
+
+    /**
+     * Says so if two commands answer to the same keys.
+     *
+     * <p>The window dispatches before the visible tab, so a clash does not crash or
+     * misbehave: the window simply wins and the tab's command silently never fires.
+     * That is the worst shape a bug can take, because the shortcut appears in the
+     * palette next to the key that no longer works, and the only symptom is
+     * something not happening.
+     *
+     * <p>A log line rather than a failure. Nobody should lose the window over it, and
+     * it is the sort of thing that shows up the moment a panel adds a command.
+     */
+    private void warnAboutShortcutClashes() {
+        Map<String, String> claimed = new HashMap<>();
+        List<CommandRegistry> registries = new ArrayList<>();
+        registries.add(commands);
+        panels.stream().map(Panel::commands).filter(Objects::nonNull).forEach(registries::add);
+
+        for (CommandRegistry registry : registries) {
+            for (Command command : registry.all()) {
+                if (command.shortcut() == null) {
+                    continue;
+                }
+                String keys = command.shortcut().display();
+                String existing = claimed.putIfAbsent(keys, command.id());
+                if (existing != null) {
+                    McMarkingsCompanion.LOGGER.warn(
+                            "[mcmarkings] {} is claimed by both {} and {}; the first one wins",
+                            keys, existing, command.id());
+                }
+            }
+        }
     }
 
     /**
@@ -164,13 +203,19 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 .shortcut(Shortcut.control(KEY_P))
                 .does(palette::open));
 
-        for (Panel panel : panels) {
-            String title = panel.title();
-            commands.register(Command.of("shell.tab." + title.toLowerCase(Locale.ROOT), "Go to " + title)
+        for (int index = 0; index < panels.size(); index++) {
+            String title = panels.get(index).title();
+            Command.Builder command = Command.of("shell.tab." + title.toLowerCase(Locale.ROOT), "Go to " + title)
                     .category("Window")
                     .hint("Show the " + title + " tab")
-                    .enabledWhen(services::hasConfiguredRepositories)
-                    .does(() -> pendingTab = title));
+                    .enabledWhen(services::hasConfiguredRepositories);
+
+            // Ctrl and a digit, which is what tabs do everywhere else. Only for the
+            // first nine, because Ctrl+10 is not a key.
+            if (index < 9) {
+                command = command.shortcut(Shortcut.control('1' + index));
+            }
+            commands.register(command.does(() -> pendingTab = title));
         }
 
         commands.register(Command.of("shell.pull", "Pull").category("Repository")
@@ -512,10 +557,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
         boolean frames = ImGui.button("Get frames", -1.0f, 0.0f);
 
+        boolean toEditor = ImGui.button("Add to editor", -1.0f, 0.0f);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Puts this on the editor's canvas, centred, and takes you there.");
+        }
+
         ImGui.beginDisabled(!pinnable);
         boolean copy = ImGui.button("Copy command", -1.0f, 0.0f);
         ImGui.endDisabled();
 
+        if (toEditor) {
+            editor.addImage(image);
+            pendingTab = "Editor";
+            status.good("Added " + image.displayName() + " to the editor");
+        }
         if (create) {
             createMap(image);
         }
