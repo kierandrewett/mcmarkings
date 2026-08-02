@@ -302,6 +302,16 @@ public final class EditorPanel implements Panel {
     private String renderFailure;
 
     /**
+     * An edit that was refused, and why.
+     *
+     * <p>Its own field rather than borrowed from the render failure, because nothing
+     * failed: the document is exactly as it was and the request was the problem.
+     * Reading "Render failed" after typing a number would send someone looking in the
+     * wrong place entirely.
+     */
+    private String refusedEdit;
+
+    /**
      * Font families, resolved off-thread.
      *
      * <p>The first call to {@link FontRegistry#availableFamilies()} enumerates every
@@ -454,6 +464,10 @@ public final class EditorPanel implements Panel {
      * because a line that shows all four at once is a line nobody reads.
      */
     private void drawStatusLine() {
+        if (refusedEdit != null) {
+            Notice.warningWrapped(refusedEdit);
+            return;
+        }
         if (renderFailure != null) {
             Notice.error(
                     "Render failed: " + ImGuiScreens.truncate(renderFailure, 90));
@@ -1916,16 +1930,34 @@ public final class EditorPanel implements Panel {
             apply(document.withBackground(toArgb(rgba)), "Change background", "background");
         }
 
+        // Clamped here rather than trusted from the field. ImGui treats a drag's range
+        // as a soft limit and a control click types straight past it, which this mod's
+        // own tooltips tell people to do, so the number arriving back can be anything
+        // at all. Document refuses an unrenderable size by throwing, and throwing is
+        // the wrong shape mid-frame: it would take out the panel rather than the edit.
         pair[0] = document.grid().columns();
         pair[1] = document.grid().rows();
         if (field("Frames (columns, rows)", () -> ImGui.dragInt2("##grid", pair, 0.1f, 1, 64))) {
-            apply(document.withGrid(new GridSize(Math.max(1, pair[0]), Math.max(1, pair[1])),
-                    document.pixelsPerFrame()), "Change frame grid", "grid");
+            GridSize wanted = new GridSize(Math.clamp(pair[0], 1, 64), Math.clamp(pair[1], 1, 64));
+            if (Document.fits(wanted, document.pixelsPerFrame())) {
+                refusedEdit = null;
+                apply(document.withGrid(wanted, document.pixelsPerFrame()), "Change frame grid", "grid");
+            } else {
+                refusedEdit = wanted + " frames at " + document.pixelsPerFrame()
+                        + " pixels each is more than this can render. Lower the pixels per frame first.";
+            }
         }
 
         single[0] = document.pixelsPerFrame();
         if (field("Pixels per frame", () -> ImGui.dragInt("##pixels-per-frame", single, 1.0f, 16, 2048))) {
-            apply(document.withGrid(document.grid(), Math.max(16, single[0])), "Change resolution", "resolution");
+            int wanted = Math.clamp(single[0], 16, 2048);
+            if (Document.fits(document.grid(), wanted)) {
+                refusedEdit = null;
+                apply(document.withGrid(document.grid(), wanted), "Change resolution", "resolution");
+            } else {
+                refusedEdit = document.grid() + " frames at " + wanted
+                        + " pixels each is more than this can render. Use a smaller frame grid first.";
+            }
         }
 
         drawGridSuggestions(document);

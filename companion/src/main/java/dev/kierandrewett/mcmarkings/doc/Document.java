@@ -28,11 +28,52 @@ public record Document(
     /** Fully transparent, so an unfilled canvas composites onto anything. */
     public static final int TRANSPARENT = 0x00000000;
 
+    /**
+     * The most pixels a document may be, across the whole canvas.
+     *
+     * <p>The renderer allocates width by height as ARGB, so this is the number that
+     * decides whether rendering costs 256MB or takes the game down with it. Nothing
+     * bounded it: the grid and the resolution were each range-limited in the
+     * interface and their product was not, and 64 frames square at 2048 pixels each
+     * is 131072 by 131072, which is 68GB.
+     *
+     * <p>Reachable, too, and not only by a corrupt file. ImGui's drag fields treat
+     * their range as a soft limit and let you type past it with a control click, and
+     * this mod's own tooltips tell people that is how you enter an exact number.
+     *
+     * <p>Eight thousand square. That is 64 frames at map resolution, or 16 frames
+     * square at four times the detail, either of which is far beyond anything the
+     * grid recommender will suggest, and it costs 256MB rather than everything.
+     */
+    public static final long MAX_PIXELS = 8192L * 8192L;
+
     public Document {
         layers = layers == null ? List.of() : List.copyOf(layers);
         if (pixelsPerFrame <= 0) {
             throw new IllegalArgumentException("pixelsPerFrame must be positive, got " + pixelsPerFrame);
         }
+        if (grid == null) {
+            throw new IllegalArgumentException("a document needs a frame grid");
+        }
+
+        // In longs, because the product is what overflows. Multiplied as ints, a big
+        // enough grid comes back negative and the failure turns into a confusing
+        // complaint about a negative image size from somewhere much further away.
+        long pixels = (long) grid.columns() * grid.rows() * pixelsPerFrame * pixelsPerFrame;
+        if (pixels > MAX_PIXELS) {
+            throw new IllegalArgumentException(grid + " frames at " + pixelsPerFrame
+                    + " pixels each is " + (long) grid.columns() * pixelsPerFrame + " by "
+                    + (long) grid.rows() * pixelsPerFrame
+                    + ", which is more than this can render. Fewer frames, or fewer pixels per frame.");
+        }
+    }
+
+    /** Whether a grid and resolution can be rendered, for callers that must not throw. */
+    public static boolean fits(GridSize grid, int pixelsPerFrame) {
+        if (grid == null || pixelsPerFrame <= 0) {
+            return false;
+        }
+        return (long) grid.columns() * grid.rows() * pixelsPerFrame * pixelsPerFrame <= MAX_PIXELS;
     }
 
     public static Document blank(String name, GridSize grid, int pixelsPerFrame) {
