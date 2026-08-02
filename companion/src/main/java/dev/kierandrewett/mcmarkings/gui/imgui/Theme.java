@@ -64,6 +64,31 @@ public final class Theme {
 
     public static final int CHEQUER_LIGHT = 0xFFBFBFBF;
 
+    /**
+     * Marks drawn over the canvas, and the dark line carried under them.
+     *
+     * <p>All four used to be single pale lines, chosen against a backdrop that was
+     * uniformly near-black. Giving the chequerboard a genuinely light tone, so that
+     * dark artwork could be seen at all, left them between 1.01:1 and 1.35:1 against
+     * half the cells. The canvas edge vanished outright, and so did the guides that
+     * say where a layer is about to land.
+     *
+     * <p>Darkening them only moves the problem onto the dark cells, so they are
+     * drawn over a near-black halo instead: the halo carries the light cells and the
+     * colour carries the dark ones. Neither backdrop can swallow both.
+     */
+    public static final int OVERLAY_HALO = 0xB0000000;
+
+    public static final int CANVAS_EDGE = 0xE6BFBFC7;
+
+    /** Faint on purpose. It is a reference, not something to read. */
+    public static final int FRAME_GRID = 0x47BFBFC7;
+
+    public static final int SELECTION = 0xFF66B8FF;
+
+    /** Where a dragged layer will land. The one overlay that is watched, not glanced at. */
+    public static final int SNAP_GUIDE = 0xE6FF73BF;
+
     /** Panels sit over the game, so they are dark and mostly opaque. */
     public static final int WINDOW_BACKGROUND = 0xF00F0F0F;
 

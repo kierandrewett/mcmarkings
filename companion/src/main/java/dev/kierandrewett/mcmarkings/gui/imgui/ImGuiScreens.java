@@ -146,6 +146,51 @@ public final class ImGuiScreens {
     }
 
     /**
+     * The dark line drawn under an overlay so it survives a light backdrop.
+     *
+     * <p>Near-black and slightly transparent, so it reads as a shadow rather than as
+     * a second line of its own.
+     */
+    private static final float HALO_ALPHA = Theme.alpha(Theme.OVERLAY_HALO);
+
+    private static final float HALO_THICKNESS = 3.0f;
+
+    private static final float OVERLAY_THICKNESS = 1.0f;
+
+    private static int haloColour() {
+        return ImGui.getColorU32(0.0f, 0.0f, 0.0f, HALO_ALPHA);
+    }
+
+    /**
+     * An overlay line that can be seen whatever it crosses.
+     *
+     * <p>The canvas edge, the frame grid, the selection box and the snap guides are
+     * all drawn over a chequerboard, and every one of them was a single pale line
+     * chosen against a backdrop that used to be uniformly near-black. Once the board
+     * gained a genuinely light tone, so that dark artwork could be seen at all, those
+     * lines measured between 1.01:1 and 1.35:1 against half the cells: the canvas
+     * edge disappeared entirely, and so did the guides that say where a layer is
+     * about to snap.
+     *
+     * <p>Making them darker only moves the problem to the dark cells. A dark line
+     * under a light one is the way out, and it is what image editors do for exactly
+     * this reason: the halo carries the light cells and the colour carries the dark
+     * ones, so neither backdrop can swallow it.
+     */
+    public static void overlayLine(imgui.ImDrawList drawList, float fromX, float fromY,
+            float toX, float toY, int colour) {
+        drawList.addLine(fromX, fromY, toX, toY, haloColour(), HALO_THICKNESS);
+        drawList.addLine(fromX, fromY, toX, toY, colour, OVERLAY_THICKNESS);
+    }
+
+    /** The same, for a rectangle. See {@link #overlayLine}. */
+    public static void overlayRect(imgui.ImDrawList drawList, float left, float top,
+            float right, float bottom, int colour) {
+        drawList.addRect(left, top, right, bottom, haloColour(), 0.0f, 0, HALO_THICKNESS);
+        drawList.addRect(left, top, right, bottom, colour, 0.0f, 0, OVERLAY_THICKNESS);
+    }
+
+    /**
      * Keeps the next control on this row while there is room, and starts a new one
      * when there is not.
      *

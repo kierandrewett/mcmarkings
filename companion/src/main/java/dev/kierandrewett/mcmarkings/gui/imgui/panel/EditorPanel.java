@@ -21,6 +21,7 @@ import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
 import dev.kierandrewett.mcmarkings.gui.imgui.Notice;
+import dev.kierandrewett.mcmarkings.gui.imgui.Theme;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
@@ -767,7 +768,8 @@ public final class EditorPanel implements Panel {
 
         ImGuiScreens.chequerboard(drawList, left, top, right, bottom);
 
-        drawList.addRect(left, top, right, bottom, ImGui.getColorU32(0.75f, 0.75f, 0.78f, 0.9f));
+        ImGuiScreens.overlayRect(drawList, left, top, right, bottom,
+                ImGui.getColorU32(Theme.red(Theme.CANVAS_EDGE), Theme.green(Theme.CANVAS_EDGE), Theme.blue(Theme.CANVAS_EDGE), Theme.alpha(Theme.CANVAS_EDGE)));
     }
 
     private void drawPreviewTexture(ImDrawList drawList, Document document, float originX, float originY) {
@@ -797,22 +799,22 @@ public final class EditorPanel implements Panel {
         float top = originY + panY;
         float right = left + (float) (document.width() * zoom);
         float bottom = top + (float) (document.height() * zoom);
-        int colour = ImGui.getColorU32(0.75f, 0.75f, 0.78f, 0.28f);
+        int colour = ImGui.getColorU32(Theme.red(Theme.FRAME_GRID), Theme.green(Theme.FRAME_GRID), Theme.blue(Theme.FRAME_GRID), Theme.alpha(Theme.FRAME_GRID));
 
         for (int column = 1; column < document.grid().columns(); column++) {
             float x = left + column * spacing;
-            drawList.addLine(x, top, x, bottom, colour);
+            ImGuiScreens.overlayLine(drawList, x, top, x, bottom, colour);
         }
         for (int row = 1; row < document.grid().rows(); row++) {
             float y = top + row * spacing;
-            drawList.addLine(left, y, right, y, colour);
+            ImGuiScreens.overlayLine(drawList, left, y, right, y, colour);
         }
     }
 
     /** Selection outlines, resize handles, snap guides, the marquee and the empty state. */
     private void drawOverlay(ImDrawList drawList, Document document, float originX, float originY,
             float width, float height) {
-        int selectedColour = ImGui.getColorU32(0.40f, 0.72f, 1.00f, 1.0f);
+        int selectedColour = ImGui.getColorU32(Theme.red(Theme.SELECTION), Theme.green(Theme.SELECTION), Theme.blue(Theme.SELECTION), Theme.alpha(Theme.SELECTION));
 
         for (String id : selection) {
             Layer layer = document.byId(id).orElse(null);
@@ -820,7 +822,7 @@ public final class EditorPanel implements Panel {
                 continue;
             }
             Layer.Bounds bounds = layer.bounds();
-            drawList.addRect(screenX(bounds.x(), originX), screenY(bounds.y(), originY),
+            ImGuiScreens.overlayRect(drawList, screenX(bounds.x(), originX), screenY(bounds.y(), originY),
                     screenX(bounds.right(), originX), screenY(bounds.bottom(), originY), selectedColour);
         }
 
@@ -829,15 +831,15 @@ public final class EditorPanel implements Panel {
             drawHandles(drawList, focused.bounds(), originX, originY, selectedColour);
         }
 
-        int guideColour = ImGui.getColorU32(1.00f, 0.45f, 0.75f, 0.9f);
+        int guideColour = ImGui.getColorU32(Theme.red(Theme.SNAP_GUIDE), Theme.green(Theme.SNAP_GUIDE), Theme.blue(Theme.SNAP_GUIDE), Theme.alpha(Theme.SNAP_GUIDE));
         for (Snapping.Guide guide : guides) {
             if (guide.vertical()) {
                 float x = screenX(guide.position(), originX);
-                drawList.addLine(x, originY, x, originY + height, guideColour);
+                ImGuiScreens.overlayLine(drawList, x, originY, x, originY + height, guideColour);
                 continue;
             }
             float y = screenY(guide.position(), originY);
-            drawList.addLine(originX, y, originX + width, y, guideColour);
+            ImGuiScreens.overlayLine(drawList, originX, y, originX + width, y, guideColour);
         }
 
         if (drag != null && drag.handle() == Handle.MARQUEE) {

@@ -236,10 +236,13 @@ class ThemeTest {
                 continue;
             }
             String name = field.getName();
-            // Either shape of use counts: an argument in the middle of a call, or the
-            // last one. The comma alone was the assertReadable shape and nothing else,
-            // so a colour checked any other way read as unchecked.
-            boolean used = source.contains("Theme." + name + ",") || source.contains("Theme." + name + ")");
+            // Any mention of the constant in this file counts. The original test asked
+            // for the name followed by a comma, which was the shape of one assertion
+            // helper and nothing else, so a colour checked any other way read as
+            // unchecked. I widened that to allow a closing bracket, then hit the same
+            // wall again on the last element of an array. A word boundary is the thing
+            // actually meant: is this colour referred to here at all.
+            boolean used = java.util.regex.Pattern.compile("Theme\\." + name + "\\b").matcher(source).find();
             if (DECORATIVE.contains(name) || used) {
                 continue;
             }
@@ -329,5 +332,108 @@ class ThemeTest {
         double between = Theme.contrastRatio(Theme.CHEQUER_DARK, Theme.CHEQUER_LIGHT);
         assertTrue(between >= Theme.MINIMUM_MUTED_CONTRAST,
                 () -> String.format("the two tones are %.2f:1 apart, which reads as one colour", between));
+    }
+
+    /**
+     * Overlays are drawn over the chequerboard, so they meet both of its tones.
+     *
+     * <p>All four were single pale lines chosen when the board was uniformly
+     * near-black. Giving it a light tone, so dark artwork could be seen at all,
+     * dropped them to between 1.01:1 and 1.35:1 against half the cells: the canvas
+     * edge went, and so did the guides that say where a dragged layer will land.
+     * That was a regression introduced by the fix before it, which is the argument
+     * for checking what a colour change does to everything drawn on top.
+     *
+     * <p>A mark carries on a backdrop if either its own colour or the halo under it
+     * stands out against that backdrop. Darkening the colours instead would only
+     * move the failure onto the dark cells.
+     */
+    @Test
+    @DisplayName("every canvas overlay survives both tones of the chequerboard")
+    void overlaysSurviveTheChequerboard() {
+        int halo = Theme.over(Theme.OVERLAY_HALO, Theme.CHEQUER_LIGHT);
+        int haloOnDark = Theme.over(Theme.OVERLAY_HALO, Theme.CHEQUER_DARK);
+
+        // The frame grid is not here on purpose. It is a quarter opaque and meant to
+        // be, because it marks where item frames divide and a bold line across the
+        // artwork someone is composing would be worse than a faint one. It is held to
+        // its own floor below rather than to a reading threshold it should not meet.
+        for (int overlay : new int[] {Theme.CANVAS_EDGE, Theme.SELECTION, Theme.SNAP_GUIDE}) {
+            for (int tone : new int[] {Theme.CHEQUER_DARK, Theme.CHEQUER_LIGHT}) {
+                int drawn = Theme.over(overlay, tone == Theme.CHEQUER_LIGHT ? halo : haloOnDark);
+                double best = Math.max(Theme.contrastRatio(drawn, tone),
+                        Theme.contrastRatio(tone == Theme.CHEQUER_LIGHT ? halo : haloOnDark, tone));
+                assertTrue(best >= Theme.MINIMUM_MUTED_CONTRAST,
+                        () -> String.format("overlay %08X on tone %06X is %.2f:1, needs %.1f:1",
+                                overlay, tone & 0xFFFFFF, best, Theme.MINIMUM_MUTED_CONTRAST));
+            }
+        }
+    }
+
+    /**
+     * The halo only works if the line still reads against it. A dark overlay over a
+     * dark halo is one shape, not a line with an outline.
+     */
+    @Test
+    @DisplayName("an overlay stands out from its own halo")
+    void overlaysStandOutFromTheirHalo() {
+        int halo = Theme.over(Theme.OVERLAY_HALO, Theme.CHEQUER_LIGHT);
+
+        for (int overlay : new int[] {Theme.CANVAS_EDGE, Theme.SELECTION, Theme.SNAP_GUIDE}) {
+            double ratio = Theme.contrastRatio(Theme.over(overlay, halo), halo);
+            assertTrue(ratio >= Theme.MINIMUM_MUTED_CONTRAST,
+                    () -> String.format("overlay %08X is %.2f:1 against its own halo", overlay, ratio));
+        }
+    }
+
+    /**
+     * The frame grid is faint on purpose, which is not the same as absent.
+     *
+     * <p>Held to a floor rather than to the reading threshold. Something has to stop
+     * it drifting to invisible, and something has to stop the next person "fixing"
+     * it up to a bold line across the artwork.
+     */
+    @Test
+    @DisplayName("the frame grid stays faint, and stays there")
+    void theFrameGridIsFaintButPresent() {
+        double onDark = Theme.contrastRatio(
+                Theme.over(Theme.FRAME_GRID, Theme.CHEQUER_DARK), Theme.CHEQUER_DARK);
+        double onLight = Theme.contrastRatio(
+                Theme.over(Theme.FRAME_GRID, Theme.CHEQUER_LIGHT), Theme.CHEQUER_LIGHT);
+
+        assertTrue(Math.max(onDark, onLight) > 1.25,
+                () -> String.format("the grid is invisible on both tones: %.2f:1 and %.2f:1", onDark, onLight));
+        assertTrue(Math.max(onDark, onLight) < Theme.MINIMUM_TEXT_CONTRAST,
+                () -> "the grid is now loud enough to compete with the artwork under it");
+    }
+
+    /**
+     * The colours above are only right if the halo is actually drawn.
+     *
+     * <p>Written after removing the halo from the line helper and watching every
+     * assertion above still pass. They check the palette, which is maths, and the
+     * halo is a draw call, which needs a running ImGui context and cannot be called
+     * here. So this reads the helper instead.
+     *
+     * <p>Structural and slightly crude, and better than the alternative, which was a
+     * set of green tests describing a guard that was no longer there.
+     */
+    @Test
+    @DisplayName("the overlay helpers draw the halo as well as the line")
+    void theHaloIsActuallyDrawn() throws Exception {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/ImGuiScreens.java"));
+
+        for (String helper : java.util.List.of("overlayLine", "overlayRect")) {
+            int start = source.indexOf("public static void " + helper + "(");
+            assertTrue(start > 0, helper + " has gone; the overlays are unprotected");
+
+            String body = source.substring(start, source.indexOf("\n    }", start));
+            long haloed = body.lines().filter(line -> line.contains("haloColour()")).count();
+            long drawn = body.lines().filter(line -> line.contains("drawList.add")).count();
+
+            assertEquals(2, drawn, helper + " should draw twice, the halo and the line");
+            assertEquals(1, haloed, helper + " should draw exactly one halo");
+        }
     }
 }
