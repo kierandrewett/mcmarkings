@@ -212,8 +212,12 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("New", "editor.file.new"),
             new ToolbarItem("Open", "editor.file.open"),
             new ToolbarItem("Save", "editor.file.save"),
-            new ToolbarItem("Place as map", "editor.file.publish"),
-            new ToolbarItem("Get frames", "editor.file.frames"),
+            // Short, because the toolbar is a row of seventeen things in a monospace
+            // font and the long ones pushed the end of it off a narrow window. Every
+            // one of these carries a tooltip with its full name and its shortcut, so
+            // the words are still there for anyone who wants them.
+            new ToolbarItem("Place", "editor.file.publish"),
+            new ToolbarItem("Frames", "editor.file.frames"),
             new ToolbarItem("|", null),
             new ToolbarItem("Undo", "editor.undo"),
             new ToolbarItem("Redo", "editor.redo"),
@@ -222,8 +226,8 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("Delete", "editor.delete"),
             new ToolbarItem("Group", "editor.group"),
             new ToolbarItem("Ungroup", "editor.ungroup"),
-            new ToolbarItem("Front", "editor.front"),
-            new ToolbarItem("Back", "editor.back"),
+            new ToolbarItem("\u2191##front", "editor.front"),
+            new ToolbarItem("\u2193##back", "editor.back"),
             new ToolbarItem("|", null),
             new ToolbarItem("Align", null),
             new ToolbarItem("L##align-left", "editor.align.left"),
@@ -530,13 +534,20 @@ public final class EditorPanel implements Panel {
         int wallWidth = document.grid().columns() * GridSize.MAP_PIXELS;
         int wallHeight = document.grid().rows() * GridSize.MAP_PIXELS;
 
-        ImGui.textDisabled(document.grid() + " frames, " + document.width() + " x " + document.height() + " px"
+        // Wrapped, and worded tight. This is seven facts on one row and the font is
+        // monospace, so it ran past the edge of the window and the end of it, which is
+        // whether there is unsaved work, was the part that went. Wrapping costs a
+        // second row only when there is no room for one.
+        ImGui.pushTextWrapPos(ImGui.getContentRegionMaxX());
+        ImGui.textDisabled(document.grid()
+                + "  " + document.width() + "x" + document.height() + "px"
                 + (document.pixelsPerFrame() == GridSize.MAP_PIXELS
-                        ? "" : " (" + wallWidth + " x " + wallHeight + " on the wall)")
-                + "   zoom " + Math.round(zoom * 100.0) + "%"
-                + "   " + document.layers().size() + " layer(s)"
-                + (selection.isEmpty() ? "" : ", " + selection.size() + " selected")
-                + (files.hasUnsavedChanges() ? "   unsaved" : ""));
+                        ? "" : " (" + wallWidth + "x" + wallHeight + " wall)")
+                + "  " + Math.round(zoom * 100.0) + "%"
+                + "  " + document.layers().size() + " layers"
+                + (selection.isEmpty() ? "" : ", " + selection.size() + " sel")
+                + (files.hasUnsavedChanges() ? "  unsaved" : ""));
+        ImGui.popTextWrapPos();
     }
 
     // -----------------------------------------------------------------------
@@ -1717,13 +1728,13 @@ public final class EditorPanel implements Panel {
         if (idle() && !layer.name().equals(nameBuffer.get())) {
             nameBuffer.set(layer.name());
         }
+        ImGui.textDisabled("Name");
         ImGui.setNextItemWidth(-1.0f);
         ImGui.inputText("##layer-name", nameBuffer);
         if (ImGui.isItemDeactivatedAfterEdit() && !nameBuffer.get().isBlank()) {
             apply(document.replace(rebuilt(layer, nameBuffer.get().trim(), layer.visible(), layer.locked(),
                     layer.opacity(), layer.margins())), "Rename layer", null);
         }
-        ImGui.textDisabled("Name");
 
         // What it becomes, when that differs. This name is not the one the sign ends
         // up with: placing lowercases it and replaces anything outside a small set,
@@ -1866,6 +1877,7 @@ public final class EditorPanel implements Panel {
         if (idle() && !text.text().equals(textBuffer.get())) {
             textBuffer.set(text.text());
         }
+        ImGui.textDisabled("Text");
         ImGui.inputTextMultiline("##text", textBuffer, -1.0f, unit() * 5.0f, ImGuiInputTextFlags.AllowTabInput);
         if (ImGui.isItemEdited()) {
             apply(document.replace(restyled(text, textBuffer.get(), text.font(), text.size(), text.colour(),
@@ -1873,7 +1885,6 @@ public final class EditorPanel implements Panel {
                     text.verticalScale())), "Edit text", "text:" + text.id());
         }
         settle();
-        ImGui.textDisabled("Text");
 
         drawFontCombo(document, text);
 
@@ -2051,12 +2062,12 @@ public final class EditorPanel implements Panel {
         if (idle() && !document.name().equals(documentNameBuffer.get())) {
             documentNameBuffer.set(document.name());
         }
+        ImGui.textDisabled("Name");
         ImGui.setNextItemWidth(-1.0f);
         ImGui.inputText("##document-name", documentNameBuffer);
         if (ImGui.isItemDeactivatedAfterEdit() && !documentNameBuffer.get().isBlank()) {
             apply(document.withName(documentNameBuffer.get().trim()), "Rename document", null);
         }
-        ImGui.textDisabled("Name");
 
         toRgba(document.background(), rgba);
         if (field("Background", () -> ImGui.colorEdit4("##background", rgba, ImGuiColorEditFlags.AlphaBar))) {

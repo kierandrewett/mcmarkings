@@ -108,6 +108,8 @@ public final class ImGuiFonts {
             0x0020, 0x00FF,   // Basic Latin and Latin-1, which was all there was
             0x0100, 0x017F,   // Latin Extended-A, for Welsh and the rest of Europe
             0x2000, 0x206F,   // General Punctuation: en and em dashes, quotes, ellipsis
+            0x2190, 0x21FF,   // Arrows, for toolbar buttons with no room for a word
+            0x25A0, 0x25FF,   // Geometric shapes, same reason
             0,                // Dear ImGui reads until a zero
         };
     }

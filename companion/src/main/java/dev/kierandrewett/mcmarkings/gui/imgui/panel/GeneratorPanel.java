@@ -243,11 +243,11 @@ public final class GeneratorPanel implements Panel {
         drawGridChoice();
 
         ImGui.separator();
+        ImGui.textDisabled("Map name");
         ImGui.setNextItemWidth(-1.0f);
         if (ImGui.inputText("##name", name)) {
             nameAutoFilled = false;
         }
-        ImGui.textDisabled("Map name");
 
         // The same disclosure the editor's document name got. Publishing lowercases
         // this and replaces anything outside a small set, and the field is labelled

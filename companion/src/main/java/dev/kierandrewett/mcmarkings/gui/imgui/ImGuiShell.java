@@ -485,6 +485,15 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             return;
         }
         Notice.errorWrapped("The window failed to draw: " + ImGuiScreens.truncate(renderError, 140));
+
+        // The one failure worth naming, because it is the one everybody who updates
+        // this mod will meet and the message it comes with names a class nobody has
+        // heard of. The banner used to suggest reopening the window, which does not
+        // help: the window is fine and the game has half a mod loaded.
+        String advice = dev.kierandrewett.mcmarkings.core.Diagnosis.adviceFor(renderError);
+        if (!advice.isEmpty()) {
+            Notice.warningWrapped(advice);
+        }
         ImGui.textDisabled("The full stack trace is in the log. Closing and reopening usually clears it.");
         ImGui.separator();
     }
@@ -921,7 +930,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] pull failed", exception);
                 Minecraft.getInstance().execute(() -> {
                     pulling = false;
-                    status.bad("Pull failed: " + exception.getMessage());
+                    String advice = dev.kierandrewett.mcmarkings.core.Diagnosis
+                            .adviceFor(exception.getMessage());
+                    status.bad("Pull failed: " + exception.getMessage()
+                            + (advice.isEmpty() ? "" : "  " + advice));
                 });
             }
         });
