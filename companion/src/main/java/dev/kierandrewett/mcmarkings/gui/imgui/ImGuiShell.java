@@ -395,7 +395,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (ImGui.isItemHovered()) {
             // A palette nobody can find is a palette nobody uses, and the shortcut is
             // only obvious to people who already expected it to be there.
-            ImGui.setTooltip("Search everything this window and the visible tab can do (Ctrl+P)");
+            // The binding, not a copy of it. A tooltip naming a key it does not read
+            // is right until the day the key moves, and then it is wrong in the one
+            // place someone looks to find out what the key is.
+            String keys = commands.byId("shell.palette")
+                    .map(command -> command.shortcut() == null ? "" : "  (" + command.shortcut().display() + ")")
+                    .orElse("");
+            ImGui.setTooltip("Search everything this window and the visible tab can do" + keys);
         }
 
         ImGui.sameLine();
