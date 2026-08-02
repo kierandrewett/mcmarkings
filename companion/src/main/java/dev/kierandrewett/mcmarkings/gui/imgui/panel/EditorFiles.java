@@ -526,10 +526,12 @@ public final class EditorFiles {
                 // an empty canvas, reported as a successful conversion, which is the
                 // worst way to lose a sign.
                 if (!BuilderLayout.looksLikeLayout(json)) {
-                    Document document = DocumentJson.read(json);
+                    DocumentJson.Result result = DocumentJson.readWithReport(json);
                     Minecraft.getInstance().execute(() -> {
-                        onOpened(document);
-                        status.good("Opened " + name + ". Save it to keep it as a template.");
+                        onOpened(result.document());
+                        if (!reportLosses(name, result.warnings())) {
+                            status.good("Opened " + name + ". Save it to keep it as a template.");
+                        }
                     });
                     return;
                 }
@@ -643,8 +645,11 @@ public final class EditorFiles {
         Thread.ofVirtual().name("mcmarkings-editor-open").start(() -> {
             try {
                 TemplateStore store = services.current().templates();
-                Document document = store.load(entry);
-                Minecraft.getInstance().execute(() -> onOpened(document));
+                DocumentJson.Result result = store.readWithReport(entry.file());
+                Minecraft.getInstance().execute(() -> {
+                    onOpened(result.document());
+                    reportLosses(entry.name(), result.warnings());
+                });
             } catch (IOException | RuntimeException failure) {
                 report("Could not open " + entry.name(), failure);
             }
@@ -660,6 +665,30 @@ public final class EditorFiles {
         history.endGesture();
         services.markSaved(document);
         status.good("Opened " + document.name() + ".");
+    }
+
+    /**
+     * Says on screen when a document did not come back whole.
+     *
+     * <p>The reader has always collected this and every caller threw it away, so a
+     * template that lost a layer left a line in a log nobody reads and an editor that
+     * looked fine. Anything written by a newer build, or with a layer kind this one
+     * does not know, comes back quietly short.
+     *
+     * <p>It matters most at exactly the wrong moment: saving straight afterwards
+     * writes the shortened version back over the file, and then it really is gone.
+     *
+     * @return true when something was said, so the caller does not also report success
+     */
+    private boolean reportLosses(String name, List<String> warnings) {
+        if (warnings.isEmpty()) {
+            return false;
+        }
+
+        String first = ImGuiScreens.truncate(warnings.getFirst(), 70);
+        String more = warnings.size() > 1 ? " (+" + (warnings.size() - 1) + " more)" : "";
+        status.bad(name + " did not open whole: " + first + more + ". Saving would make that permanent.");
+        return true;
     }
 
     private void save() {

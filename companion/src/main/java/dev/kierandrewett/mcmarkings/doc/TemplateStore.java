@@ -115,13 +115,28 @@ public final class TemplateStore {
     }
 
     public Document load(Path file) throws IOException {
+        return readWithReport(file).document();
+    }
+
+    /**
+     * Loads a template along with anything it could not read.
+     *
+     * <p>The report is the point: a template written by a newer build, or holding a
+     * layer kind this one does not know, comes back short. Callers with a status line
+     * should say so, because saving straight afterwards writes the shortened version
+     * back over the file.
+     *
+     * <p>The guards live here rather than in {@code load}, so nothing can reach the
+     * file by asking for the report and skip them on the way past.
+     */
+    public DocumentJson.Result readWithReport(Path file) throws IOException {
         if (!Files.isRegularFile(file)) {
             throw new IOException("no template at " + file.getFileName());
         }
         if (Files.size(file) > MAX_BYTES) {
             throw new IOException(file.getFileName() + " is too large to be a template");
         }
-        return DocumentJson.read(Files.readString(file, StandardCharsets.UTF_8));
+        return DocumentJson.readWithReport(Files.readString(file, StandardCharsets.UTF_8));
     }
 
     /**

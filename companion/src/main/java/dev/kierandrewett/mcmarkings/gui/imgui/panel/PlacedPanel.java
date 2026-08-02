@@ -325,12 +325,23 @@ public final class PlacedPanel implements Panel {
                     return;
                 }
 
-                Document opened = DocumentJson.read(Files.readString(document, StandardCharsets.UTF_8));
+                DocumentJson.Result result = DocumentJson.readWithReport(
+                        Files.readString(document, StandardCharsets.UTF_8));
                 Minecraft.getInstance().execute(() -> {
                     // Pushed, so whatever was on the canvas is one undo away.
-                    services.editing.push(opened, "Open " + entry.imageFrameName(), null);
+                    services.editing.push(result.document(), "Open " + entry.imageFrameName(), null);
                     services.editing.endGesture();
-                    status.good("Opened " + entry.imageFrameName() + " in the editor.");
+
+                    if (result.warnings().isEmpty()) {
+                        status.good("Opened " + entry.imageFrameName() + " in the editor.");
+                    } else {
+                        // A sign published by a newer build can hold a layer kind this
+                        // one does not know. Opening it short and saying nothing would
+                        // invite a save that makes the loss permanent.
+                        status.bad(entry.imageFrameName() + " did not open whole: "
+                                + ImGuiScreens.truncate(result.warnings().getFirst(), 60)
+                                + ". Placing it again would make that permanent.");
+                    }
                     showEditor.run();
                 });
             } catch (IOException | RuntimeException failure) {
