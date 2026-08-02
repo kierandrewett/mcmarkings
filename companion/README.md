@@ -202,10 +202,16 @@ frames it wants. That 128 is also the resolution a sign actually has on a wall,
 whatever `exportPixelsPerFrame` says: exporting at 256 buys a better downsample,
 not a sharper sign. The editor's **View at map resolution** shows it at the
 density it will really have, which is the only way to tell before placing it
-whether small text survives. The recommender scores every grid up to 8x8 by aspect error and
-prefers the smallest grid whose distortion is imperceptible, since a wall of
-frames is expensive to build. A 1x1 grid gets a plain map item; anything larger
-is requested with `combined` so it arrives as one placeable item.
+whether small text survives. Which grid is recommended depends on who fits the image. Publishing squares the
+PNG up to the grid itself, keeping the shape and centring it, so nothing it places
+can be squashed and the only cost of a small grid is item frames placed with
+nothing on them: there it takes the fewest frames the sign still covers most of.
+Placing an image straight from a repository does not, because the mod hands
+ImageFrame a URL and a grid and the server fits it, so there the grid is chosen to
+match the image's shape and is capped at four frames, since chasing a shape with
+no budget once recommended twelve frames for one sign. A 1x1 grid gets a plain map
+item; anything larger is requested with `combined` so it arrives as one placeable
+item.
 
 **Generators.** Parameterised images are JavaScript, run on Rhino, and live in
 the repository's own `generators/` folder rather than inside this mod, so adding

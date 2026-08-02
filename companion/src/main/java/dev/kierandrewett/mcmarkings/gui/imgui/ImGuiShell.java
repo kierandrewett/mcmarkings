@@ -765,7 +765,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (frames) {
             services.commands.send(ImageFrameCommands.giveInvisibleFrames(
                     services.config.commandAlias, services.config.glowingFrames, grid.frameCount()));
-            status.good("Requested " + grid.frameCount() + " invisible frames");
+            status.good("Requested " + grid.frameCount() + " invisible frames, for a "
+                    + grid + " wall.");
         }
         if (copy) {
             copyCommand(image);
@@ -805,7 +806,12 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         saveRegistry();
 
 
-        status.good((exists ? "Refreshing " : "Creating ") + name + " at " + grid);
+        // What happens next, not only what happened. The command goes to the server
+        // and an item comes back, and somebody who has not used ImageFrame before has
+        // no way to know that from "Creating no_entry at 2x1".
+        status.good(exists
+                ? "Refreshing " + name + ". The map already on the wall updates itself."
+                : "Creating " + name + " at " + grid + ". It arrives as one placeable item.");
     }
 
     /**
