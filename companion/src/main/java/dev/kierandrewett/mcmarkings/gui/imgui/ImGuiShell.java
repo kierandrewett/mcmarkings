@@ -648,14 +648,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                 // The newest commit known to be on the remote, not HEAD: the server
                 // fetches these URLs over HTTP, so an unpushed commit is a 404.
                 String head = services.git().pinnableCommit();
+
+                // Never shown until now, and the mod commits and pushes to whatever
+                // branch is checked out. Working on one branch while believing you are
+                // on another is how a sign ends up pushed somewhere nobody looks.
+                String branch = branchOrBlank();
                 Minecraft.getInstance().execute(() -> {
                     if (!repoId.equals(services.activeRepositoryId())) {
                         return;
                     }
                     rawUrls = target;
                     headSha = head;
-                    status.info(services.repo().images().size() + " images, at " + shortSha(head)
-                            + " via " + target.describe());
+                    status.info(services.repo().images().size() + " images, "
+                            + (branch.isEmpty() ? "" : "on " + branch + ", ")
+                            + "at " + shortSha(head) + " via " + target.describe());
                 });
             } catch (GitException exception) {
                 Minecraft.getInstance().execute(() -> {
@@ -673,6 +679,22 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
      * <p>Without the second half the server keeps serving the old image, because
      * ImageFrame only fetches when it is told to.
      */
+    /**
+     * The checked-out branch, or blank when it cannot be read.
+     *
+     * <p>A detached head or a repository mid-rebase has no branch name, and that is
+     * not worth failing the whole identity lookup over: the commit and the URL
+     * template are the parts that actually matter for placing a sign.
+     */
+    private String branchOrBlank() {
+        try {
+            String branch = services.git().currentBranch();
+            return branch == null ? "" : branch.trim();
+        } catch (GitException unavailable) {
+            return "";
+        }
+    }
+
     private void pull() {
         pulling = true;
         status.info("Pulling...");
