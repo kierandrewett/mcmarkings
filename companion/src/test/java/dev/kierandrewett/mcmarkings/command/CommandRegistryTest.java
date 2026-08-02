@@ -212,4 +212,78 @@ class CommandRegistryTest {
         assertFalse(shortcut.matches('z', true, false, false),
                 "lowercase is a different code; GLFW reports the uppercase one");
     }
+
+    @Test
+    @DisplayName("a shortcut claimed in two registries is reported")
+    void clashesAcrossRegistriesAreFound() {
+        // The case that actually happens. The window and the visible tab each keep
+        // their own commands, keys go to the window first, and a tab command sharing
+        // a shortcut with a window one silently never fires.
+        CommandRegistry window = new CommandRegistry();
+        window.register(Command.of("window.palette", "Palette")
+                .shortcut(Shortcut.control('P')).does(() -> { }));
+
+        CommandRegistry panel = new CommandRegistry();
+        panel.register(Command.of("panel.paste", "Paste")
+                .shortcut(Shortcut.control('P')).does(() -> { }));
+
+        List<List<Command>> clashes = CommandRegistry.conflictsAcross(List.of(window, panel));
+
+        assertEquals(1, clashes.size());
+        assertEquals(List.of("window.palette", "panel.paste"),
+                clashes.getFirst().stream().map(Command::id).toList(),
+                "in dispatch order, so the first is the one that wins");
+    }
+
+    @Test
+    @DisplayName("the same key with different modifiers is not a clash")
+    void modifiersArePartOfTheKey() {
+        CommandRegistry first = new CommandRegistry();
+        first.register(Command.of("a", "A").shortcut(Shortcut.control('Z')).does(() -> { }));
+
+        CommandRegistry second = new CommandRegistry();
+        second.register(Command.of("b", "B").shortcut(Shortcut.controlShift('Z')).does(() -> { }));
+
+        assertTrue(CommandRegistry.conflictsAcross(List.of(first, second)).isEmpty(),
+                "undo and redo would otherwise be reported as a clash");
+    }
+
+    @Test
+    @DisplayName("a panel with no commands of its own is normal, not a failure")
+    void nullRegistriesAreSkipped() {
+        CommandRegistry window = new CommandRegistry();
+        window.register(Command.of("a", "A").shortcut(Shortcut.control('P')).does(() -> { }));
+
+        List<CommandRegistry> registries = new java.util.ArrayList<>();
+        registries.add(window);
+        registries.add(null);
+
+        assertTrue(CommandRegistry.conflictsAcross(registries).isEmpty());
+    }
+
+    @Test
+    @DisplayName("commands without shortcuts never clash")
+    void shortcutlessCommandsAreIgnored() {
+        CommandRegistry first = new CommandRegistry();
+        first.register(Command.of("a", "A").does(() -> { }));
+
+        CommandRegistry second = new CommandRegistry();
+        second.register(Command.of("b", "B").does(() -> { }));
+
+        assertTrue(CommandRegistry.conflictsAcross(List.of(first, second)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("three registries claiming one key report all three")
+    void everyClaimantIsReported() {
+        // Reporting only the first two would leave someone fixing it twice.
+        List<CommandRegistry> registries = List.of(
+                new CommandRegistry(), new CommandRegistry(), new CommandRegistry());
+        for (int index = 0; index < registries.size(); index++) {
+            registries.get(index).register(
+                    Command.of("r" + index, "R").shortcut(Shortcut.control('G')).does(() -> { }));
+        }
+
+        assertEquals(3, CommandRegistry.conflictsAcross(registries).getFirst().size());
+    }
 }

@@ -134,13 +134,40 @@ public final class CommandRegistry {
      * from the outside.
      */
     public List<List<Command>> conflicts() {
+        return conflictsAcross(List.of(this));
+    }
+
+    /**
+     * Commands answering to the same keys, across several registries.
+     *
+     * <p>The interesting case is between registries rather than inside one. Keys are
+     * dispatched to them in order, so the first registry wins and the later command
+     * silently never fires. That is the worst shape a bug can take: the shortcut is
+     * still listed next to the key that no longer works, and the only symptom is
+     * something not happening.
+     *
+     * <p>Registries are given in dispatch order, and each returned group is in that
+     * same order, so the first element of a group is the one that will actually run.
+     * Nulls are skipped, because a panel with no commands of its own is normal.
+     */
+    public static List<List<Command>> conflictsAcross(List<CommandRegistry> registries) {
         Map<Shortcut, List<Command>> byShortcut = new LinkedHashMap<>();
-        for (Command command : byId.values()) {
-            if (command.shortcut() != null) {
-                byShortcut.computeIfAbsent(command.shortcut(), key -> new ArrayList<>()).add(command);
+
+        for (CommandRegistry registry : registries) {
+            if (registry == null) {
+                continue;
+            }
+            for (Command command : registry.byId.values()) {
+                if (command.shortcut() != null) {
+                    byShortcut.computeIfAbsent(command.shortcut(), key -> new ArrayList<>()).add(command);
+                }
             }
         }
-        return byShortcut.values().stream().filter(commands -> commands.size() > 1).map(List::copyOf).toList();
+
+        return byShortcut.values().stream()
+                .filter(commands -> commands.size() > 1)
+                .map(List::copyOf)
+                .toList();
     }
 
     private record Ranked(Command command, int score) {

@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Map;
 
 /**
@@ -168,28 +167,6 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
      * <p>A log line rather than a failure. Nobody should lose the window over it, and
      * it is the sort of thing that shows up the moment a panel adds a command.
      */
-    private void warnAboutShortcutClashes() {
-        Map<String, String> claimed = new HashMap<>();
-        List<CommandRegistry> registries = new ArrayList<>();
-        registries.add(commands);
-        panels.stream().map(Panel::commands).filter(Objects::nonNull).forEach(registries::add);
-
-        for (CommandRegistry registry : registries) {
-            for (Command command : registry.all()) {
-                if (command.shortcut() == null) {
-                    continue;
-                }
-                String keys = command.shortcut().display();
-                String existing = claimed.putIfAbsent(keys, command.id());
-                if (existing != null) {
-                    McMarkingsCompanion.LOGGER.warn(
-                            "[mcmarkings] {} is claimed by both {} and {}; the first one wins",
-                            keys, existing, command.id());
-                }
-            }
-        }
-    }
-
     /**
      * The window's own actions.
      *
@@ -233,6 +210,28 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         commands.register(Command.of("shell.close", "Close the window").category("Window")
                 .hint("Back to the game")
                 .does(this::onClose));
+    }
+
+    /**
+     * Says so if two commands answer to the same keys.
+     *
+     * <p>A log line rather than a failure. Nobody should lose the window over a
+     * shortcut, and it is the sort of thing that shows up the moment a panel adds a
+     * command rather than something anyone would go looking for.
+     */
+    private void warnAboutShortcutClashes() {
+        List<CommandRegistry> registries = new ArrayList<>();
+        registries.add(commands);
+        panels.stream().map(Panel::commands).forEach(registries::add);
+
+        for (List<Command> clash : CommandRegistry.conflictsAcross(registries)) {
+            // The first is the one that actually runs, since registries are given in
+            // dispatch order.
+            McMarkingsCompanion.LOGGER.warn("[mcmarkings] {} is claimed by {}; only {} will fire",
+                    clash.getFirst().shortcut().display(),
+                    clash.stream().map(Command::id).toList(),
+                    clash.getFirst().id());
+        }
     }
 
     /**
