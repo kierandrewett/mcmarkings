@@ -343,12 +343,25 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             ImGuiScreens.fullViewportWindow(WINDOW_ID, this::drawBody);
             renderError = null;
         } catch (Throwable throwable) {
-            renderError = String.valueOf(throwable);
-            McMarkingsCompanion.LOGGER.error("[mcmarkings] shell render failed", throwable);
+            String message = String.valueOf(throwable);
+            // Logged on change only, as the per-panel handler already did. A window
+            // that fails once fails sixty times a second, and a line per frame buries
+            // the first one, which is the only one that says where it started.
+            if (!message.equals(renderError)) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] shell render failed", throwable);
+            }
+            renderError = message;
         }
     }
 
     private void drawBody() {
+        // First, deliberately. It used to sit at the end of the top bar, which is fine
+        // for a failure in a tab and useless for one in the top bar itself: that would
+        // throw at the same place every frame, never reach the line that reports it,
+        // and leave a half-drawn window explaining nothing. Reporting before anything
+        // that can fail means the message survives whatever comes after it.
+        drawRenderError();
+
         drawTopBar();
         ImGui.separator();
 
@@ -447,11 +460,15 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                         + "Closing this window does not stop them.");
             }
         }
-        if (renderError != null) {
-            ImGui.sameLine();
-            Notice.error(
-                    "render error: " + ImGuiScreens.truncate(renderError, 100));
+    }
+
+    private void drawRenderError() {
+        if (renderError == null) {
+            return;
         }
+        Notice.errorWrapped("The window failed to draw: " + ImGuiScreens.truncate(renderError, 140));
+        ImGui.textDisabled("The full stack trace is in the log. Closing and reopening usually clears it.");
+        ImGui.separator();
     }
 
     /**
