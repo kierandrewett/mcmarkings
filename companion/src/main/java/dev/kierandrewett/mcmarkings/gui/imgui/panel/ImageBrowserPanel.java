@@ -97,7 +97,6 @@ public final class ImageBrowserPanel implements Panel {
     /** Which image's source was last copied, so the note follows the selection. */
     private String copiedSourceFor = "";
 
-    private Consumer<RepoImage> chooseListener;
     private Consumer<RepoImage> detailExtras;
 
     private Consumer<RepoImage> pickerListener;
@@ -133,15 +132,6 @@ public final class ImageBrowserPanel implements Panel {
     }
 
     /**
-     * Called when an image is committed rather than merely highlighted: a double
-     * click on a cell, or the button under the preview.
-     */
-    public ImageBrowserPanel onChoose(Consumer<RepoImage> listener) {
-        this.chooseListener = listener;
-        return this;
-    }
-
-    /**
      * Extra widgets drawn under the preview, given the selected image.
      *
      * <p>This is how a caller adds actions that mean something to it without the
@@ -156,11 +146,6 @@ public final class ImageBrowserPanel implements Panel {
     @Override
     public String title() {
         return title;
-    }
-
-    /** The highlighted image, or null when nothing has been picked yet. */
-    public RepoImage selected() {
-        return selected;
     }
 
     /**
@@ -549,10 +534,8 @@ public final class ImageBrowserPanel implements Panel {
         drawPreview(image, previewWidth, previewHeight);
 
         ImGui.separator();
-        if (pickerActive || chooseListener != null) {
-            if (ImGui.button("Use this image", -1.0f, 0.0f)) {
-                choose(image);
-            }
+        if (pickerActive && ImGui.button("Use this image", -1.0f, 0.0f)) {
+            choose(image);
         }
         if (!pickerActive && detailExtras != null) {
             detailExtras.accept(image);
@@ -613,9 +596,6 @@ public final class ImageBrowserPanel implements Panel {
             return;
         }
 
-        if (chooseListener != null) {
-            chooseListener.accept(image);
-        }
     }
 
     /**

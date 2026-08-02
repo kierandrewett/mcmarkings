@@ -26,8 +26,4 @@ public record Insets(int top, int right, int bottom, int left) {
     public int vertical() {
         return top + bottom;
     }
-
-    public boolean isNone() {
-        return top == 0 && right == 0 && bottom == 0 && left == 0;
-    }
 }

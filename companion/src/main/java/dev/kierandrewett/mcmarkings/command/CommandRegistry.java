@@ -43,10 +43,6 @@ public final class CommandRegistry {
         }
     }
 
-    public void registerAll(List<Command> commands) {
-        commands.forEach(this::register);
-    }
-
     /** Replaces any command with the same id, for rebinding at runtime. */
     /**
      * Swaps a command out, or adds it if there is none.

@@ -108,21 +108,6 @@ public final class FontRegistry {
     }
 
     /**
-     * The file a font was loaded from, when it came from a scanned directory.
-     *
-     * <p>Needed because some consumers cannot use a {@link Font}: ImGui rasterises
-     * its own atlas and wants a path on disk. Empty for fonts the platform resolved
-     * internally, which have no file this registry knows about.
-     */
-    public synchronized Optional<Path> fileFor(String name) {
-        ensureScanned();
-        if (name == null || name.isBlank()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(fileByName.get(normalise(name)));
-    }
-
-    /**
      * Any readable scalable font file, preferring a plain sans.
      *
      * <p>A last resort for callers that need some font file and do not care which.

@@ -53,10 +53,6 @@ public final class CommandPalette {
         openRequested = true;
     }
 
-    public boolean isOpen() {
-        return ImGui.isPopupOpen(id);
-    }
-
     /**
      * Draws the palette. Call unconditionally: an ImGui popup exists only while
      * whoever opened it is still submitting.
