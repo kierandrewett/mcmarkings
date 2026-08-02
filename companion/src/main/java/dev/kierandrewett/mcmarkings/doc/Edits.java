@@ -126,10 +126,31 @@ public final class Edits {
      * <p>The group takes the position of the topmost member in the stack, so
      * grouping does not reorder anything visually.
      */
+    /**
+     * How deep groups may nest.
+     *
+     * <p>Gson stops reading at 255 levels, so a document nested past that writes
+     * without complaint and cannot be opened again. That is the worst way for this to
+     * fail: the save looks like it worked and the loss only shows up the next time
+     * someone reaches for the file.
+     *
+     * <p>Well under the limit rather than at it, because the number that matters is
+     * the one where nesting stops meaning anything. Nobody composes a sign
+     * thirty-two groups deep on purpose; they get there by grouping a group, over and
+     * over, without noticing.
+     */
+    public static final int MAX_GROUP_DEPTH = 32;
+
     public static Result group(Document document, List<String> ids, Insets padding) {
         List<Layer> members = ordered(document, ids);
         if (members.size() < 2) {
             // A group of one is just an extra level to click through.
+            return new Result(document, List.of());
+        }
+        if (members.stream().anyMatch(member -> depthOf(member) + 1 > MAX_GROUP_DEPTH)) {
+            // Refused rather than made, because the document this would produce cannot
+            // be read back. The caller reports it: an empty result means nothing
+            // happened, which is what the group command checks before offering itself.
             return new Result(document, List.of());
         }
 
@@ -156,6 +177,25 @@ public final class Edits {
         layers.add(Math.clamp(insertAt - countBelow(document, ids, insertAt), 0, layers.size()), created);
 
         return new Result(document.withLayers(layers), List.of(groupId));
+    }
+
+    /** How many levels of group sit inside this layer, zero for anything else. */
+    public static int depthOf(Layer layer) {
+        if (!(layer instanceof Layer.Group group)) {
+            return 0;
+        }
+        int deepest = 0;
+        for (Layer child : group.children()) {
+            deepest = Math.max(deepest, depthOf(child));
+        }
+        return deepest + 1;
+    }
+
+    /** Whether grouping these would produce a document that cannot be opened again. */
+    public static boolean canGroup(Document document, List<String> ids) {
+        List<Layer> members = ordered(document, ids);
+        return members.size() >= 2
+                && members.stream().allMatch(member -> depthOf(member) + 1 <= MAX_GROUP_DEPTH);
     }
 
     /** Unwraps a group, restoring its children's absolute positions. */

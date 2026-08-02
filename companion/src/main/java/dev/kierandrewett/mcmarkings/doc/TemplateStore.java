@@ -154,7 +154,18 @@ public final class TemplateStore {
         Path file = directory.resolve(fileNameFor(document.name()));
         Path temporary = directory.resolve(file.getFileName() + ".tmp");
 
-        Files.writeString(temporary, DocumentJson.write(document), StandardCharsets.UTF_8);
+        // Checked here as well as on the way in. Reading has always refused anything
+        // over this, and writing never looked, so a document that had grown past it
+        // saved without complaint and would not open again. Failing now, with the
+        // file untouched, is the version of this someone can do something about.
+        String json = DocumentJson.write(document);
+        if (json.length() > MAX_BYTES) {
+            throw new IOException(document.name() + " is too large to save as a template ("
+                    + (json.length() / (1024 * 1024)) + "MB). Ungrouping or removing a few layers "
+                    + "will bring it back under " + (MAX_BYTES / (1024 * 1024)) + "MB.");
+        }
+
+        Files.writeString(temporary, json, StandardCharsets.UTF_8);
         try {
             Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException atomicNotSupported) {
