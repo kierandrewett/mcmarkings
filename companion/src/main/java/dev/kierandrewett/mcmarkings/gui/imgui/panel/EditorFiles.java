@@ -258,9 +258,37 @@ public final class EditorFiles {
         Notice.warning("Unsaved work from " + RelativeTime.describe(recovered.savedAtMillis(), nowMillis())
                 + ": \"" + recovered.document().name() + "\", "
                 + recovered.document().layers().size() + " layer(s).");
+        // Which repository it came from was recorded from the beginning and never
+        // read. It matters: restoring work made against another repository resolves
+        // every image layer against the wrong root, so the document comes back with
+        // its pictures missing and no explanation of why.
+        String from = recovered.repositoryId();
+        boolean elsewhere = !from.isBlank() && !from.equals(services.activeRepositoryId());
+        String name = elsewhere
+                ? services.byId(from).map(workspace -> workspace.entry().displayName()).orElse("")
+                : "";
+
+        if (elsewhere) {
+            ImGui.sameLine();
+            ImGui.textDisabled(name.isEmpty()
+                    ? "from a repository that is no longer set up"
+                    : "from " + name);
+        }
+
         ImGui.sameLine();
-        if (ImGui.button("Restore##recovery")) {
+        String restore = elsewhere && !name.isEmpty()
+                ? "Restore and switch to " + name + "##recovery"
+                : "Restore##recovery";
+        if (ImGui.button(restore)) {
             recoveryAnswered = true;
+
+            // Switched before the document lands, so the first render already resolves
+            // against the right repository rather than flashing a screen of missing
+            // images on the way through.
+            if (elsewhere && !name.isEmpty()) {
+                services.setActive(from);
+            }
+
             history.push(recovered.document(), "Restore recovered work", null);
             history.endGesture();
 
@@ -271,7 +299,13 @@ public final class EditorFiles {
             // risk in the gap.
             services.recovery.clear();
 
-            status.good("Restored \"" + recovered.document().name() + "\". Save it to keep it.");
+            if (elsewhere && name.isEmpty()) {
+                status.bad("Restored \"" + recovered.document().name()
+                        + "\", but the repository it was made in is not set up here, "
+                        + "so its images will not resolve.");
+            } else {
+                status.good("Restored \"" + recovered.document().name() + "\". Save it to keep it.");
+            }
         }
         ImGui.sameLine();
         if (ImGui.button("Discard##recovery")) {
