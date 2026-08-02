@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "name": "motorway_begins",
+  "grid": {
+    "columns": 1,
+    "rows": 1
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "shape",
+      "id": "plate",
+      "name": "Plate",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 18,
+        "right": 18,
+        "bottom": 18,
+        "left": 18
+      },
+      "fill": "#0079C1",
+      "cornerRadius": 10,
+      "borderColour": "#FFFFFF",
+      "borderWidth": 5
+    },
+    {
+      "kind": "image",
+      "id": "image-3",
+      "name": "UK traffic sign symbol for motorway, with the blue background that it always appears on.",
+      "bounds": {
+        "x": 18,
+        "y": 21,
+        "width": 220,
+        "height": 215
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/symbol_motorway_with_the_blue_background_that_it_always_appears.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "image",
+      "id": "image-4",
+      "name": "UK traffic sign: End of motorway regulations, including the national speed limit (TSRGDNO 2931)",
+      "bounds": {
+        "x": 0,
+        "y": 1,
+        "width": 256,
+        "height": 255
+      },
+      "visible": false,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/end_of_motorway_regulations_including_the_national_speed_limit_2931.png",
+      "fit": "contain"
+    }
+  ]
+}
