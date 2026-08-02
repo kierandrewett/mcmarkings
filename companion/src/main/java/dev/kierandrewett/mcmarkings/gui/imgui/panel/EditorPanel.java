@@ -2846,7 +2846,7 @@ public final class EditorPanel implements Panel {
 
             // upload converts the pixels on the calling thread and only hops to the
             // render thread for the GL call, which is exactly why it is called here.
-            services.thumbnails.upload(key, downscaleForPreview(rendered))
+            services.thumbnails.uploadPinned(key, downscaleForPreview(rendered))
                     .thenAccept(handle -> Minecraft.getInstance()
                             .execute(() -> onRendered(sequence, key, handle, problems)))
                     .exceptionally(throwable -> {

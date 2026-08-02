@@ -38,6 +38,24 @@ public interface ThumbnailCache {
     /** Upload an image the caller already has in memory, e.g. a generator preview. */
     CompletableFuture<TextureHandle> upload(String key, BufferedImage image);
 
+    /**
+     * The same, for an image a panel will hold on to and free itself.
+     *
+     * <p>An ordinary upload joins the least-recently-used pool, which is right for a
+     * thumbnail nobody is looking at any more and wrong for anything a panel keeps a
+     * handle to. The editor's canvas and the generator's preview both do: they hold
+     * the handle for as long as the panel lives and drop it in onRemoved.
+     *
+     * <p>Without this the pool evicts them. Browsing a few hundred images pushes the
+     * preview off the end, the texture is released, and the handle the panel is still
+     * drawing points at whatever the graphics driver put in that slot next. It shows
+     * as another image entirely: a generator preview drawn as somebody else's road
+     * sign, on returning to the tab.
+     *
+     * <p>The caller owns it and must evict it. Nothing else will.
+     */
+    CompletableFuture<TextureHandle> uploadPinned(String key, BufferedImage image);
+
     /** Drop a single entry, e.g. after its source PNG changed. */
     void evict(String key);
 

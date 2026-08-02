@@ -741,7 +741,7 @@ public final class GeneratorPanel implements Panel {
         String key = "generator-preview/" + generatorId + "/" + (++previewSequence);
         previewKey = key;
 
-        services.thumbnails.upload(key, image)
+        services.thumbnails.uploadPinned(key, image)
                 .thenAccept(handle -> Minecraft.getInstance().execute(() -> {
                     if (!key.equals(previewKey)) {
                         services.thumbnails.evict(key);

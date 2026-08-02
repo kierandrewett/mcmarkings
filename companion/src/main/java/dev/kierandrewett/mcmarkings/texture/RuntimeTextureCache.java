@@ -100,6 +100,11 @@ public class RuntimeTextureCache implements ThumbnailCache {
      * Records an already-uploaded texture, so the eviction rules can be exercised
      * without a GPU. Package-private: the real path in is an upload.
      */
+    synchronized Entry retainPinnedForTest(String key, Entry entry) {
+        pinned.add(key);
+        return retainForTest(key, entry);
+    }
+
     synchronized Entry retainForTest(String key, Entry entry) {
         resident.put(key, entry);
         trim();
@@ -211,6 +216,24 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return uploadOnRenderThread(key, image);
     }
 
+    @Override
+    public CompletableFuture<TextureHandle> uploadPinned(String key, BufferedImage image) {
+        evict(key);
+        synchronized (this) {
+            pinned.add(key);
+        }
+        return uploadOnRenderThread(key, image);
+    }
+
+    /**
+     * Keys the trim must leave alone.
+     *
+     * <p>Small by construction: one per panel that keeps a preview, and each replaces
+     * its own on every render. It is not a leak waiting to happen, it is the opposite,
+     * since the alternative was freeing a texture somebody was still drawing.
+     */
+    private final java.util.Set<String> pinned = new java.util.HashSet<>();
+
     /**
      * Converts pixels off-thread and only hops to the render thread to upload.
      *
@@ -276,15 +299,25 @@ public class RuntimeTextureCache implements ThumbnailCache {
 
     /** Evict from the eldest end until back within the cap. */
     private void trim() {
-        while (resident.size() > maxResident) {
-            var eldest = resident.entrySet().iterator().next();
-            resident.remove(eldest.getKey());
+        if (resident.size() <= maxResident) {
+            return;
+        }
+        // Walked rather than repeatedly taking the first, because the first may be
+        // pinned and taking it again forever is a hang rather than a wrong picture.
+        var entries = resident.entrySet().iterator();
+        while (resident.size() > maxResident && entries.hasNext()) {
+            var eldest = entries.next();
+            if (pinned.contains(eldest.getKey())) {
+                continue;
+            }
+            entries.remove();
             releaseTexture(eldest.getValue());
         }
     }
 
     @Override
     public synchronized void evict(String key) {
+        pinned.remove(key);
         Entry removed = resident.remove(key);
         if (removed != null) {
             releaseTexture(removed);
@@ -293,6 +326,7 @@ public class RuntimeTextureCache implements ThumbnailCache {
 
     @Override
     public synchronized void evictAll() {
+        pinned.clear();
         resident.values().forEach(this::releaseTexture);
         resident.clear();
         previews.values().forEach(this::releaseTexture);

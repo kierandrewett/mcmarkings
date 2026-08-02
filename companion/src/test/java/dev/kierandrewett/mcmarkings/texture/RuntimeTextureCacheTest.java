@@ -137,4 +137,67 @@ class RuntimeTextureCacheTest {
         assertEquals(2, released.size(), "everything held should be freed, once each");
         assertTrue(cache.decodePoolIsShutDown(), "the decode workers should have stopped");
     }
+
+    /**
+     * A texture a panel is still drawing is not freed underneath it.
+     *
+     * <p>Reported from use: switching to the Generate tab showed somebody else's road
+     * sign instead of the preview. That is not a stale render, it is a released
+     * texture whose id the driver handed to the next upload. Browsing a few hundred
+     * images pushes the preview off the end of the pool, the texture goes, and the
+     * handle the panel is still holding now points at whatever took the slot.
+     *
+     * <p>The editor's canvas had the same exposure and would have shown it the same
+     * way. Both panels free their own on the way out; what they needed was for
+     * nothing else to.
+     */
+    @Test
+    @DisplayName("a pinned texture survives a pool that has turned over completely")
+    void pinnedTexturesAreNotEvicted() {
+        List<RuntimeTextureCache.Entry> released = new ArrayList<>();
+        int cap = 8;
+        RuntimeTextureCache cache = cacheHolding(released, cap);
+
+        RuntimeTextureCache.Entry preview = entry("generator-preview");
+        cache.retainPinnedForTest("editor-preview/1", preview);
+
+        for (int n = 0; n < cap * 4; n++) {
+            cache.retainForTest("signs/thumb-" + n + ".png", entry("thumb-" + n));
+        }
+
+        assertFalse(released.contains(preview),
+                "the preview a panel is still drawing was freed after " + released.size() + " evictions");
+        assertTrue(cache.isResident("editor-preview/1"), "and it is gone from the pool entirely");
+    }
+
+    /**
+     * The trim still has to finish. Taking the eldest repeatedly is the obvious way
+     * to write it and hangs the moment the eldest is one it may not take.
+     */
+    @Test
+    @org.junit.jupiter.api.Timeout(value = 5,
+            threadMode = org.junit.jupiter.api.Timeout.ThreadMode.SEPARATE_THREAD)
+    @DisplayName("a pool full of pinned textures does not hang the trim")
+    void aFullyPinnedPoolTerminates() {
+        List<RuntimeTextureCache.Entry> released = new ArrayList<>();
+        RuntimeTextureCache cache = cacheHolding(released, 4);
+
+        for (int n = 0; n < 10; n++) {
+            cache.retainPinnedForTest("pinned-" + n, entry("pinned-" + n));
+        }
+        assertEquals(0, released.size(), "pinned textures were freed");
+    }
+
+    @Test
+    @DisplayName("the panel that pinned it can still let it go")
+    void pinningDoesNotPreventTheOwnerFreeingIt() {
+        List<RuntimeTextureCache.Entry> released = new ArrayList<>();
+        RuntimeTextureCache cache = cacheHolding(released, 8);
+
+        RuntimeTextureCache.Entry preview = entry("preview");
+        cache.retainPinnedForTest("editor-preview/1", preview);
+        cache.evict("editor-preview/1");
+
+        assertTrue(released.contains(preview), "the owner could not free its own texture");
+    }
 }
