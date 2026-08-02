@@ -784,6 +784,21 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // lying about what it does, and the two are not close: refreshing a map the
         // server does not have is silent and gives you nothing, so it looks exactly
         // like the mod ignoring the click.
+        // First when the map exists, because it is what somebody is nearly always
+        // after. The browser could create a map and it could update one, and the one
+        // thing it could not do was hand you the map it had already made: for that you
+        // had to know it lived on another tab. Refreshing does not give you an item,
+        // so a map placed once and lost was unreachable from the screen you found it
+        // on.
+        boolean getMap = false;
+        if (known.isPresent()) {
+            getMap = ImGui.button("Get the map", -1.0f, 0.0f);
+            if (ImGuiScreens.explaining()) {
+                ImGui.setTooltip("Asks the server for " + wanted + " as an item, so you can put "
+                        + "it up. It already exists; this does not make another.");
+            }
+        }
+
         ImGui.beginDisabled(!pinnable);
         boolean create = ImGui.button(known.isPresent() ? "Refresh map" : "Create map", -1.0f, 0.0f);
         ImGui.endDisabled();
@@ -832,6 +847,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             editor.addImage(image);
             pendingTab = "Editor";
             status.good("Added " + image.displayName() + " to the editor");
+        }
+        if (getMap) {
+            // The grid the map was actually made with, not whatever is chosen above.
+            // ImageFrame needs "combined" to match how it was created, and the picker
+            // is about the next one rather than the one already on the server.
+            MapEntry entry = known.orElseThrow();
+            services.commands.send(ImageFrameCommands.get(
+                    services.config.commandAlias, entry.imageFrameName(), entry.grid()));
+            status.good("Asked for " + entry.imageFrameName() + " at " + entry.grid()
+                    + ". It arrives as one placeable item.");
         }
         if (create) {
             createMap(image, false);
