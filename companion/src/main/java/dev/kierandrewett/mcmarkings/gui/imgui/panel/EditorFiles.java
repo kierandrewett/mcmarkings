@@ -115,6 +115,9 @@ public final class EditorFiles {
     /** What "now" is for this frame. Zero until the first draw. */
     private long drawnAtMillis;
 
+    /** Which template is asking to be deleted, so the confirm is inline per row. */
+    private String confirmingDelete = "";
+
     private boolean openSavePopup;
 
     private boolean openTemplatePopup;
@@ -381,18 +384,81 @@ public final class EditorFiles {
                 ImGui.textDisabled("Nothing matches that.");
             }
             for (TemplateStore.Entry entry : found) {
-                if (ImGui.selectable(entry.name() + "##template-" + entry.file().getFileName())) {
-                    ImGui.closeCurrentPopup();
-                    open(entry);
-                }
-                if (entry.savedAtMillis() > 0) {
-                    // Usually the one you want is the one you were last working on.
-                    ImGui.sameLine();
-                    ImGui.textDisabled(RelativeTime.describe(entry.savedAtMillis(), nowMillis()));
-                }
+                drawTemplateRow(entry);
             }
         }
         ImGui.endChild();
+    }
+
+    /**
+     * One template, with a way to get rid of it.
+     *
+     * <p>Saving has always been possible and deleting never was, so the list only ever
+     * grew. For a tool meant for long sessions that is the wrong direction: every
+     * experiment stays in the way of the things worth keeping.
+     *
+     * <p>The confirm says it removes the file, because unlike forgetting a placed map
+     * this one genuinely deletes something. It is a working tree change like any
+     * other, so it is not pushed anywhere and git will show it.
+     */
+    private void drawTemplateRow(TemplateStore.Entry entry) {
+        ImGui.pushID(entry.file().toString());
+
+        if (confirmingDelete.equals(entry.file().toString())) {
+            Notice.warning("Delete " + entry.name() + "?");
+            ImGui.sameLine();
+            if (ImGui.button("Delete")) {
+                confirmingDelete = "";
+                delete(entry);
+            }
+            ImGui.sameLine();
+            if (ImGui.button("Keep")) {
+                confirmingDelete = "";
+            }
+            ImGui.textDisabled("Removes the file from " + TemplateStore.DIRECTORY + "/.");
+            ImGui.popID();
+            return;
+        }
+
+        if (ImGui.selectable(entry.name() + "##open")) {
+            ImGui.closeCurrentPopup();
+            open(entry);
+        }
+        if (entry.savedAtMillis() > 0) {
+            // Usually the one you want is the one you were last working on.
+            ImGui.sameLine();
+            ImGui.textDisabled(RelativeTime.describe(entry.savedAtMillis(), nowMillis()));
+        }
+        ImGui.sameLine();
+        if (ImGui.smallButton("x")) {
+            confirmingDelete = entry.file().toString();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Delete this template");
+        }
+
+        ImGui.popID();
+    }
+
+    private void delete(TemplateStore.Entry entry) {
+        busy = true;
+        status.info("Deleting " + entry.name() + "...");
+
+        TemplateStore store = services.current().templates();
+        Thread.ofVirtual().name("mcmarkings-editor-delete").start(() -> {
+            try {
+                store.delete(entry);
+                Minecraft.getInstance().execute(() -> {
+                    busy = false;
+                    status.good("Deleted " + entry.name() + ".");
+                    // Straight away, so the row goes rather than lingering until the
+                    // popup is next opened.
+                    refreshTemplates();
+                });
+            } catch (IOException | RuntimeException failure) {
+                report("Could not delete " + entry.name(), failure);
+            }
+        });
     }
 
     private List<TemplateStore.Entry> matchingTemplates() {
@@ -544,6 +610,7 @@ public final class EditorFiles {
     private void beginOpen() {
         openTemplatePopup = true;
         templateQuery.set("");
+        confirmingDelete = "";
         listingProblem = null;
         refreshTemplates();
     }
