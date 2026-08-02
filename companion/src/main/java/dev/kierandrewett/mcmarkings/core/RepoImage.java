@@ -6,9 +6,9 @@ import java.util.Locale;
  * One PNG in the backing repository.
  *
  * <p>{@code path} is always repo-relative with forward slashes, because it is
- * also the path component of the raw.githubusercontent URL handed to ImageFrame.
- * {@code description} and {@code reference} come from signs/signs.json where the
- * image has an entry there, and are null otherwise.
+ * also the path component of the URL handed to ImageFrame.
+ * {@code description} and {@code reference} come from whatever JSON sidecar in the
+ * repository describes this image, and are null when nothing does.
  */
 public record RepoImage(
         String path,

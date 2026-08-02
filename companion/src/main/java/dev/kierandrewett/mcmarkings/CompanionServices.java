@@ -194,7 +194,7 @@ public final class CompanionServices {
     private Workspace open(RepositoryEntry entry) {
         RepositoryCheck check = RepositoryCheck.inspect(entry.root());
 
-        RepoScanner repo = new RepoScanner(entry.root());
+        RepoScanner repo = new RepoScanner(entry.root(), config.ignoredDirectories);
         String warning = null;
 
         if (!check.usable()) {

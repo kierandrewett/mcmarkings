@@ -1,10 +1,7 @@
 package dev.kierandrewett.mcmarkings.repo;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 
@@ -13,6 +10,8 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -20,8 +19,10 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,10 +32,15 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Walks the local clone for PNGs and merges what the sign metadata files know
- * about them.
+ * Walks a local clone for PNGs and merges whatever metadata the repository keeps
+ * alongside them.
  *
- * <p>The repository holds well over a thousand images, so the scan never decodes
+ * <p>Nothing here knows what the images are of. A repository is a folder of PNGs,
+ * optionally described by JSON sidecars that are recognised by their shape rather
+ * than by their name, so a set of road signs, safety symbols, album art or map
+ * tiles all work the same way.
+ *
+ * <p>A repository holds well over a thousand images, so the scan never decodes
  * pixel data: dimensions come straight out of the PNG IHDR chunk, which is a
  * 24-byte read per file rather than a full inflate. ImageIO is only reached for
  * when a file does not look like a normal PNG.
@@ -45,13 +51,37 @@ import java.util.Set;
  */
 public class RepoScanner implements RepoService {
 
-    /** Directories that never contain repository images and are expensive to walk. */
-    private static final Set<String> SKIPPED_DIRECTORIES = Set.of(".git", "companion", "build", "node_modules");
+    /**
+     * Folder names skipped when no caller supplies a list.
+     *
+     * <p>The editable copy lives in the config; this is only the fallback for
+     * callers that have no config to hand, such as tests. Anything beginning with
+     * a dot is skipped regardless of this list.
+     */
+    public static final List<String> DEFAULT_IGNORED_DIRECTORIES =
+            List.of("node_modules", "build", "target", "out", "dist");
 
-    /** Metadata sidecars, as directory to JSON file. Both share the same shape. */
-    private static final Map<String, String> METADATA_SOURCES = Map.of(
-            "signs", "signs/signs.json",
-            "iso", "iso/iso.json");
+    /**
+     * Largest JSON the scan will open looking for metadata.
+     *
+     * <p>Every JSON near the images is a candidate, so a repository that happens to
+     * contain a huge lockfile or data dump must not drag the scan down. Sidecars for
+     * a few thousand images run to well under a megabyte, so this is generous.
+     */
+    static final long MAX_METADATA_BYTES = 8L * 1024L * 1024L;
+
+    /**
+     * Entry fields consulted for the image a metadata entry describes, in
+     * preference order. Highest priority first.
+     */
+    private static final List<String> FILE_KEYS = List.of("file", "filename", "path", "image", "src");
+
+    /** Entry fields consulted for the human-readable label, in preference order. */
+    private static final List<String> DESCRIPTION_KEYS =
+            List.of("description", "desc", "title", "caption", "summary");
+
+    /** Entry fields consulted for a catalogue code, in preference order. */
+    private static final List<String> REFERENCE_KEYS = List.of("reference", "diagram", "code", "id", "ref");
 
     private static final byte[] PNG_SIGNATURE = {
             (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n',
@@ -60,9 +90,14 @@ public class RepoScanner implements RepoService {
     /** Signature (8) + chunk length (4) + chunk type (4) + width (4) + height (4). */
     private static final int IHDR_HEADER_BYTES = 24;
 
-    private static final Gson GSON = new Gson();
+    private static final String PNG_SUFFIX = ".png";
+
+    private static final String JSON_SUFFIX = ".json";
 
     private final Path root;
+
+    /** Lowercased, because a folder called Build should be skipped as readily as build. */
+    private final Set<String> ignoredDirectories;
 
     /**
      * Both views of the last scan behind one reference, so a reader can never catch
@@ -71,7 +106,21 @@ public class RepoScanner implements RepoService {
     private volatile Snapshot snapshot = new Snapshot(List.of(), Map.of());
 
     public RepoScanner(Path root) {
+        this(root, DEFAULT_IGNORED_DIRECTORIES);
+    }
+
+    public RepoScanner(Path root, Collection<String> ignoredDirectories) {
         this.root = root.toAbsolutePath().normalize();
+
+        Set<String> ignored = new HashSet<>();
+        if (ignoredDirectories != null) {
+            for (String name : ignoredDirectories) {
+                if (name != null && !name.isBlank()) {
+                    ignored.add(name.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        this.ignoredDirectories = Set.copyOf(ignored);
     }
 
     @Override
@@ -137,17 +186,17 @@ public class RepoScanner implements RepoService {
             throw new IOException("[mcmarkings] repository root is not a directory: " + root);
         }
 
-        Map<String, Metadata> metadata = readMetadata();
-        List<RepoImage> found = new ArrayList<>();
+        List<Scanned> found = new ArrayList<>();
+        Set<Path> imageDirectories = new HashSet<>();
+        Map<Path, List<Path>> jsonByDirectory = new HashMap<>();
 
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
-                String name = directory.getFileName() == null ? "" : directory.getFileName().toString();
                 if (directory.equals(root)) {
                     return FileVisitResult.CONTINUE;
                 }
-                if (SKIPPED_DIRECTORIES.contains(name) || name.startsWith(".")) {
+                if (isIgnored(directory)) {
                     return FileVisitResult.SKIP_SUBTREE;
                 }
                 return FileVisitResult.CONTINUE;
@@ -158,8 +207,17 @@ public class RepoScanner implements RepoService {
                 if (!attributes.isRegularFile()) {
                     return FileVisitResult.CONTINUE;
                 }
-                String fileName = file.getFileName().toString();
-                if (!fileName.toLowerCase(Locale.ROOT).endsWith(".png")) {
+                String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
+
+                if (fileName.endsWith(JSON_SUFFIX)) {
+                    // Filtered on size here rather than later so an oversized file
+                    // costs one stat that the walk has already paid for.
+                    if (attributes.size() > 0 && attributes.size() <= MAX_METADATA_BYTES) {
+                        jsonByDirectory.computeIfAbsent(file.getParent(), key -> new ArrayList<>()).add(file);
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+                if (!fileName.endsWith(PNG_SUFFIX)) {
                     return FileVisitResult.CONTINUE;
                 }
 
@@ -170,15 +228,10 @@ public class RepoScanner implements RepoService {
                     return FileVisitResult.CONTINUE;
                 }
 
-                String name = fileName.substring(0, fileName.length() - ".png".length());
-                Metadata entry = metadata.get(repoPath);
-                found.add(new RepoImage(
-                        repoPath,
-                        name,
-                        size[0],
-                        size[1],
-                        entry == null ? null : entry.description(),
-                        entry == null ? null : entry.reference()));
+                String name = file.getFileName().toString();
+                name = name.substring(0, name.length() - PNG_SUFFIX.length());
+                found.add(new Scanned(repoPath, name, size[0], size[1]));
+                imageDirectories.add(file.getParent());
                 return FileVisitResult.CONTINUE;
             }
 
@@ -189,15 +242,257 @@ public class RepoScanner implements RepoService {
             }
         });
 
-        found.sort(Comparator.comparing(RepoImage::path));
+        Map<String, Metadata> metadata = readMetadata(imageDirectories, jsonByDirectory);
+
+        List<RepoImage> images = new ArrayList<>(found.size());
+        for (Scanned scanned : found) {
+            Metadata entry = metadata.get(scanned.repoPath());
+            images.add(new RepoImage(
+                    scanned.repoPath(),
+                    scanned.name(),
+                    scanned.width(),
+                    scanned.height(),
+                    entry == null ? null : entry.description(),
+                    entry == null ? null : entry.reference()));
+        }
+        images.sort(Comparator.comparing(RepoImage::path));
 
         Map<String, RepoImage> index = new LinkedHashMap<>();
-        for (RepoImage image : found) {
+        for (RepoImage image : images) {
             index.put(image.path(), image);
         }
 
-        this.snapshot = new Snapshot(List.copyOf(found), Map.copyOf(index));
-        McMarkingsCompanion.LOGGER.info("[mcmarkings] scanned {} images under {}", found.size(), root);
+        this.snapshot = new Snapshot(List.copyOf(images), Map.copyOf(index));
+        McMarkingsCompanion.LOGGER.info("[mcmarkings] scanned {} images under {}", images.size(), root);
+    }
+
+    /** Whether a directory should not be walked. Dotted folders go regardless of the list. */
+    private boolean isIgnored(Path directory) {
+        Path name = directory.getFileName();
+        if (name == null) {
+            return false;
+        }
+        String text = name.toString();
+        return text.startsWith(".") || ignoredDirectories.contains(text.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Repo path to whatever the sidecars say about it.
+     *
+     * <p>Sidecars are found by position rather than by name: a JSON file counts as a
+     * candidate when it sits in a directory holding images, or anywhere above one on
+     * the way back to the repository root. That covers a sidecar next to its images
+     * and a manifest at the root describing the whole tree, without either being a
+     * special case. A repository with no images parses no JSON at all.
+     */
+    private Map<String, Metadata> readMetadata(Set<Path> imageDirectories, Map<Path, List<Path>> jsonByDirectory) {
+        if (imageDirectories.isEmpty() || jsonByDirectory.isEmpty()) {
+            return Map.of();
+        }
+
+        Set<Path> searched = new HashSet<>();
+        List<Path> candidates = new ArrayList<>();
+        for (Path directory : imageDirectories) {
+            for (Path current = directory; current != null && searched.add(current); current = current.getParent()) {
+                List<Path> files = jsonByDirectory.get(current);
+                if (files != null) {
+                    candidates.addAll(files);
+                }
+                if (current.equals(root)) {
+                    break;
+                }
+            }
+        }
+
+        // Deepest first, so a sidecar sitting with the images beats a root manifest
+        // that also mentions them. Ties break on the path so two scans of the same
+        // tree agree with each other.
+        candidates.sort(Comparator.comparingInt(Path::getNameCount).reversed().thenComparing(Path::toString));
+
+        Map<String, Metadata> merged = new HashMap<>();
+        for (Path candidate : candidates) {
+            readSidecarFile(candidate, merged);
+        }
+        return merged;
+    }
+
+    /**
+     * Reads one candidate JSON, treating anything that is not metadata as a
+     * non-event. Most repositories carry JSON that has nothing to do with images, so
+     * a config, a package manifest or a half-written file must cost a rejection and
+     * nothing more.
+     */
+    private void readSidecarFile(Path file, Map<String, Metadata> target) {
+        Path directory = file.getParent();
+        if (directory == null) {
+            return;
+        }
+        // Caught wide on purpose. This is the boundary where a file nobody promised
+        // was metadata gets parsed, so bad encoding, a truncated document and a
+        // number where a string was expected all mean the same thing: not for us.
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            readEntries(reader, root, directory, target);
+        } catch (IOException | RuntimeException exception) {
+            // Debug, not warn: being handed a JSON that is not metadata is the
+            // normal case, and a repository owner should not see a log line for it.
+            McMarkingsCompanion.LOGGER.debug(
+                    "[mcmarkings] not usable as metadata: {} ({})", file, exception.toString());
+        }
+    }
+
+    /**
+     * Reads one sidecar document held in memory. The seam tests use, so a document
+     * shape can be checked without writing a file.
+     */
+    static void readSidecar(Map<String, Metadata> target, Path root, Path directory, String json) {
+        try (Reader reader = new StringReader(json)) {
+            readEntries(reader, root.toAbsolutePath().normalize(), directory.toAbsolutePath().normalize(), target);
+        } catch (IOException | RuntimeException exception) {
+            // Same reasoning as readSidecarFile: rubbish in, nothing out.
+            McMarkingsCompanion.LOGGER.debug("[mcmarkings] not usable as metadata ({})", exception.toString());
+        }
+    }
+
+    /**
+     * Pulls metadata entries out of one JSON document, if it holds any.
+     *
+     * <p>Metadata is recognised by shape, never by file name, so a repository can
+     * call its sidecar whatever it likes. The shape is an array of objects that name
+     * a file, which is either the whole document or the first top-level property
+     * holding one.
+     *
+     * <p>Read as a token stream rather than as a tree. A package.json or a lockfile
+     * is then rejected by walking past its top-level values instead of building an
+     * object graph for a document that was never going to match, and a real sidecar
+     * stops being read the moment its array runs out.
+     */
+    private static void readEntries(Reader source, Path root, Path directory, Map<String, Metadata> target)
+            throws IOException {
+        try (JsonReader json = new JsonReader(source)) {
+            JsonToken token = json.peek();
+            if (token == JsonToken.BEGIN_ARRAY) {
+                readArray(json, root, directory, target);
+                return;
+            }
+            if (token != JsonToken.BEGIN_OBJECT) {
+                return;
+            }
+
+            json.beginObject();
+            while (json.hasNext()) {
+                json.nextName();
+                if (json.peek() != JsonToken.BEGIN_ARRAY) {
+                    json.skipValue();
+                    continue;
+                }
+                // An array that yields nothing was the wrong array, so keep looking.
+                // That is more forgiving than taking the first array of objects: a
+                // "files": ["a.txt"] sitting above the real entries does not win.
+                if (readArray(json, root, directory, target) > 0) {
+                    return;
+                }
+            }
+        }
+    }
+
+    /** @return how many entries the array contributed */
+    private static int readArray(JsonReader json, Path root, Path directory, Map<String, Metadata> target)
+            throws IOException {
+        int added = 0;
+        json.beginArray();
+        while (json.hasNext()) {
+            if (json.peek() != JsonToken.BEGIN_OBJECT) {
+                json.skipValue();
+                continue;
+            }
+            if (readEntry(json, root, directory, target)) {
+                added++;
+            }
+        }
+        json.endArray();
+        return added;
+    }
+
+    /**
+     * Reads one entry object.
+     *
+     * <p>Field names arrive in document order but are wanted in preference order, so
+     * each candidate carries the rank of the alias that supplied it and only a better
+     * rank replaces it.
+     */
+    private static boolean readEntry(JsonReader json, Path root, Path directory, Map<String, Metadata> target)
+            throws IOException {
+        String file = null;
+        String description = null;
+        String reference = null;
+        int fileRank = Integer.MAX_VALUE;
+        int descriptionRank = Integer.MAX_VALUE;
+        int referenceRank = Integer.MAX_VALUE;
+
+        json.beginObject();
+        while (json.hasNext()) {
+            String key = json.nextName().toLowerCase(Locale.ROOT);
+            JsonToken token = json.peek();
+            // Numbers are read as text so a numeric catalogue code still works.
+            if (token != JsonToken.STRING && token != JsonToken.NUMBER) {
+                json.skipValue();
+                continue;
+            }
+            String value = json.nextString();
+
+            int rank = FILE_KEYS.indexOf(key);
+            if (rank >= 0 && rank < fileRank) {
+                fileRank = rank;
+                file = value;
+            }
+            rank = DESCRIPTION_KEYS.indexOf(key);
+            if (rank >= 0 && rank < descriptionRank) {
+                descriptionRank = rank;
+                description = value;
+            }
+            rank = REFERENCE_KEYS.indexOf(key);
+            if (rank >= 0 && rank < referenceRank) {
+                referenceRank = rank;
+                reference = value;
+            }
+        }
+        json.endObject();
+
+        if (file == null || file.isBlank()) {
+            return false;
+        }
+        if (description == null && reference == null) {
+            return false;
+        }
+
+        String repoPath = toRepoPath(root, directory, file);
+        if (repoPath == null) {
+            return false;
+        }
+        target.putIfAbsent(repoPath, new Metadata(description, reference));
+        return true;
+    }
+
+    /**
+     * Turns an entry's file field into a repo path.
+     *
+     * <p>Resolved against the JSON's own directory, which makes a bare name in a
+     * sidecar and a repo-relative path in a root manifest the same rule. Separators
+     * are normalised because a manifest written on Windows should still read here.
+     *
+     * @return the repo-relative path, or null when the entry points outside the repo
+     */
+    private static String toRepoPath(Path root, Path directory, String file) {
+        Path resolved;
+        try {
+            resolved = directory.resolve(file.replace('\\', '/')).normalize();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+        if (!resolved.startsWith(root)) {
+            return null;
+        }
+        return toRepoPath(root, resolved);
     }
 
     /**
@@ -299,7 +594,7 @@ public class RepoScanner implements RepoService {
      * narrows rather than widens. Ranking then favours whole-query matches on the
      * file name and reference code, which is what people actually type.
      *
-     * <p>File names are snake_case throughout the repository but nobody types
+     * <p>File names are snake_case in most repositories but nobody types
      * underscores, so the name is also compared with underscores read as spaces.
      * Without that, "give way" would rank no better than any incidental match.
      */
@@ -326,67 +621,11 @@ public class RepoScanner implements RepoService {
         return 3;
     }
 
-    /** Repo path to the metadata the sidecar JSON files carry for it. */
-    private Map<String, Metadata> readMetadata() {
-        Map<String, Metadata> merged = new HashMap<>();
-        for (Map.Entry<String, String> source : METADATA_SOURCES.entrySet()) {
-            Path file = root.resolve(source.getValue());
-            if (!Files.isRegularFile(file)) {
-                continue;
-            }
-            try {
-                String json = Files.readString(file, StandardCharsets.UTF_8);
-                readMetadataInto(merged, source.getKey(), json);
-            } catch (IOException | JsonSyntaxException | IllegalStateException exception) {
-                McMarkingsCompanion.LOGGER.warn(
-                        "[mcmarkings] could not read metadata {}: {}", source.getValue(), exception.getMessage());
-            }
-        }
-        return merged;
-    }
-
-    /**
-     * Reads one sidecar document. Both sidecars are an object with a {@code signs}
-     * array whose {@code file} field is a basename inside the sidecar's directory;
-     * ISO calls its reference a {@code code} rather than a {@code reference}.
-     */
-    static void readMetadataInto(Map<String, Metadata> target, String directory, String json) {
-        JsonElement parsed = GSON.fromJson(json, JsonElement.class);
-        if (parsed == null || !parsed.isJsonObject()) {
-            return;
-        }
-        JsonElement signs = parsed.getAsJsonObject().get("signs");
-        if (signs == null || !signs.isJsonArray()) {
-            return;
-        }
-
-        JsonArray array = signs.getAsJsonArray();
-        for (JsonElement element : array) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
-            JsonObject sign = element.getAsJsonObject();
-            String file = string(sign, "file");
-            if (file == null || file.isBlank()) {
-                continue;
-            }
-            String reference = string(sign, "reference");
-            if (reference == null) {
-                reference = string(sign, "code");
-            }
-            target.put(directory + "/" + file, new Metadata(string(sign, "description"), reference));
-        }
-    }
-
-    private static String string(JsonObject object, String member) {
-        JsonElement value = object.get(member);
-        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
-            return null;
-        }
-        return value.getAsString();
-    }
-
     record Metadata(String description, String reference) {
+    }
+
+    /** One PNG as the walk found it, before any metadata is known. */
+    private record Scanned(String repoPath, String name, int width, int height) {
     }
 
     private record Scored(RepoImage image, int rank) {

@@ -88,8 +88,8 @@ public class CompanionConfig {
      * expensive to walk. Editable, because one repository's junk is another's
      * content.
      */
-    public List<String> ignoredDirectories = new ArrayList<>(List.of(
-            "node_modules", "build", "target", "out", "dist"));
+    public List<String> ignoredDirectories =
+            new ArrayList<>(dev.kierandrewett.mcmarkings.repo.RepoScanner.DEFAULT_IGNORED_DIRECTORIES);
 
     /** Directory generated PNGs are written into, relative to a repository root. */
     public String generatedDirectory = "generated";

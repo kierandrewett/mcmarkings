@@ -92,15 +92,12 @@ class RepoScannerTest {
     @Test
     void scanFindsPngsAndSkipsIgnoredDirectories(@TempDir Path root) throws IOException {
         writePng(root.resolve("zebra.png"), 100, 50);
-        Files.createDirectories(root.resolve("signs"));
         writePng(root.resolve("signs/give_way.png"), 200, 200);
-        Files.createDirectories(root.resolve("companion/src"));
-        writePng(root.resolve("companion/src/icon.png"), 16, 16);
-        Files.createDirectories(root.resolve("build"));
         writePng(root.resolve("build/output.png"), 16, 16);
-        Files.createDirectories(root.resolve("node_modules/pkg"));
         writePng(root.resolve("node_modules/pkg/logo.png"), 16, 16);
-        Files.createDirectories(root.resolve(".git"));
+        writePng(root.resolve("target/classes/logo.png"), 16, 16);
+        writePng(root.resolve("out/logo.png"), 16, 16);
+        writePng(root.resolve("dist/logo.png"), 16, 16);
         writePng(root.resolve(".git/blob.png"), 16, 16);
         Files.writeString(root.resolve("readme.txt"), "ignored");
 
@@ -114,8 +111,56 @@ class RepoScannerTest {
     }
 
     @Test
-    void scanMergesSignsMetadata(@TempDir Path root) throws IOException {
-        Files.createDirectories(root.resolve("signs"));
+    void ignoredDirectoriesComeFromTheCallerNotAFixedList(@TempDir Path root) throws IOException {
+        writePng(root.resolve("keep.png"), 10, 10);
+        writePng(root.resolve("vendor/skip.png"), 10, 10);
+        // Nothing about node_modules is baked in, so a caller that does not name it
+        // gets its images. That is the whole point of taking the list from config.
+        writePng(root.resolve("node_modules/pkg/keep_too.png"), 10, 10);
+
+        RepoScanner scanner = new RepoScanner(root, List.of("vendor"));
+        scanner.rescan();
+
+        assertEquals(
+                List.of("keep.png", "node_modules/pkg/keep_too.png"),
+                scanner.images().stream().map(RepoImage::path).toList());
+    }
+
+    @Test
+    void ignoredDirectoriesAreMatchedCaseInsensitively(@TempDir Path root) throws IOException {
+        writePng(root.resolve("keep.png"), 10, 10);
+        writePng(root.resolve("Vendor/skip.png"), 10, 10);
+
+        RepoScanner scanner = new RepoScanner(root, List.of("VENDOR"));
+        scanner.rescan();
+
+        assertEquals(List.of("keep.png"), scanner.images().stream().map(RepoImage::path).toList());
+    }
+
+    @Test
+    void dottedDirectoriesAreSkippedWhateverTheCallerAsksFor(@TempDir Path root) throws IOException {
+        writePng(root.resolve("keep.png"), 10, 10);
+        writePng(root.resolve(".git/blob.png"), 10, 10);
+        writePng(root.resolve(".cache/thumb.png"), 10, 10);
+
+        RepoScanner scanner = new RepoScanner(root, List.of());
+        scanner.rescan();
+
+        assertEquals(List.of("keep.png"), scanner.images().stream().map(RepoImage::path).toList());
+    }
+
+    @Test
+    void aNullIgnoreListIsTreatedAsEmpty(@TempDir Path root) throws IOException {
+        writePng(root.resolve("build/output.png"), 10, 10);
+
+        RepoScanner scanner = new RepoScanner(root, null);
+        scanner.rescan();
+
+        assertEquals(List.of("build/output.png"), scanner.images().stream().map(RepoImage::path).toList());
+    }
+
+    @Test
+    void scanMergesASidecarSittingWithItsImages(@TempDir Path root) throws IOException {
         writePng(root.resolve("signs/stop_and_give_way.png"), 1024, 733);
         Files.writeString(root.resolve("signs/signs.json"), """
                 {
@@ -143,41 +188,207 @@ class RepoScannerTest {
     }
 
     @Test
-    void scanLeavesMetadataNullWhenTheSidecarHasNoEntry(@TempDir Path root) throws IOException {
-        writePng(root.resolve("zebra.png"), 64, 32);
+    void scanReadsASidecarWhoseNamesAreNothingLikeThisRepository(@TempDir Path root) throws IOException {
+        writePng(root.resolve("artwork/harbour_noir.png"), 800, 600);
+        Files.writeString(root.resolve("artwork/catalogue.json"), """
+                {
+                  "generated": "2026-01-01",
+                  "items": [
+                    {
+                      "filename": "harbour_noir.png",
+                      "title": "Harbour at night",
+                      "ref": "ART-014"
+                    }
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
 
         RepoScanner scanner = new RepoScanner(root);
         scanner.rescan();
 
-        RepoImage image = scanner.byPath("zebra.png").orElseThrow();
+        RepoImage image = scanner.byPath("artwork/harbour_noir.png").orElseThrow();
+        assertEquals("Harbour at night", image.description());
+        assertEquals("ART-014", image.reference());
+        assertEquals(1, scanner.search("harbour at night", 10).size());
+    }
+
+    @Test
+    void scanReadsAManifestAtTheRepositoryRoot(@TempDir Path root) throws IOException {
+        writePng(root.resolve("tiles/grass.png"), 64, 64);
+        writePng(root.resolve("tiles/stone.png"), 64, 64);
+        Files.writeString(root.resolve("manifest.json"), """
+                {
+                  "tiles": [
+                    {"path": "tiles/grass.png", "summary": "Grass tile", "id": "T-1"},
+                    {"path": "tiles/stone.png", "summary": "Stone tile", "id": "T-2"}
+                  ]
+                }
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals("Grass tile", scanner.byPath("tiles/grass.png").orElseThrow().description());
+        assertEquals("T-2", scanner.byPath("tiles/stone.png").orElseThrow().reference());
+    }
+
+    @Test
+    void aSidecarBeatsARootManifestForTheSameImage(@TempDir Path root) throws IOException {
+        writePng(root.resolve("tiles/grass.png"), 64, 64);
+        Files.writeString(root.resolve("manifest.json"), """
+                {"tiles": [{"path": "tiles/grass.png", "description": "From the manifest"}]}
+                """, StandardCharsets.UTF_8);
+        Files.writeString(root.resolve("tiles/tiles.json"), """
+                {"tiles": [{"file": "grass.png", "description": "From the sidecar"}]}
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals("From the sidecar", scanner.byPath("tiles/grass.png").orElseThrow().description());
+    }
+
+    @Test
+    void scanIgnoresJsonThatIsNotMetadata(@TempDir Path root) throws IOException {
+        writePng(root.resolve("a.png"), 10, 10);
+        Files.writeString(root.resolve("package.json"), """
+                {
+                  "name": "some-project",
+                  "version": "1.0.0",
+                  "files": ["dist"],
+                  "keywords": ["images", "png"],
+                  "scripts": {"build": "node build.js"},
+                  "dependencies": {"left-pad": "^1.3.0"}
+                }
+                """, StandardCharsets.UTF_8);
+        Files.writeString(root.resolve("tsconfig.json"), """
+                {"references": [{"path": "./sub"}], "compilerOptions": {"strict": true}}
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        RepoImage image = scanner.byPath("a.png").orElseThrow();
         assertNull(image.description());
         assertNull(image.reference());
-        assertEquals("zebra", image.displayName());
     }
 
     @Test
-    void metadataReaderAcceptsIsoCodeAsTheDiagram() {
+    void anEntryForAMissingFileDoesNotInventAnImage(@TempDir Path root) throws IOException {
+        writePng(root.resolve("real.png"), 10, 10);
+        Files.writeString(root.resolve("data.json"), """
+                {"images": [
+                  {"file": "real.png", "description": "Really here"},
+                  {"file": "ghost.png", "description": "Never existed"}
+                ]}
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals(List.of("real.png"), scanner.images().stream().map(RepoImage::path).toList());
+        assertEquals("Really here", scanner.byPath("real.png").orElseThrow().description());
+        assertTrue(scanner.byPath("ghost.png").isEmpty());
+    }
+
+    @Test
+    void aMalformedJsonDoesNotFailTheScan(@TempDir Path root) throws IOException {
+        writePng(root.resolve("a.png"), 10, 10);
+        writePng(root.resolve("b.png"), 10, 10);
+        Files.writeString(root.resolve("broken.json"), "{ \"images\": [ { \"file\": ", StandardCharsets.UTF_8);
+        Files.writeString(root.resolve("good.json"), """
+                {"images": [{"file": "b.png", "description": "Still read"}]}
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals(List.of("a.png", "b.png"), scanner.images().stream().map(RepoImage::path).toList());
+        assertEquals("Still read", scanner.byPath("b.png").orElseThrow().description());
+    }
+
+    @Test
+    void aRepositoryWithNoMetadataStillScansAndSearchesByFilename(@TempDir Path root) throws IOException {
+        writePng(root.resolve("zebra_crossing.png"), 64, 32);
+        writePng(root.resolve("bus_stop.png"), 64, 32);
+        writePng(root.resolve("nested/give_way.png"), 64, 32);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals(3, scanner.images().size());
+        RepoImage image = scanner.byPath("zebra_crossing.png").orElseThrow();
+        assertNull(image.description());
+        assertNull(image.reference());
+        assertEquals("zebra crossing", image.displayName());
+
+        assertEquals(
+                List.of("zebra_crossing.png"),
+                scanner.search("zebra crossing", 10).stream().map(RepoImage::path).toList());
+        assertEquals(
+                List.of("nested/give_way.png"),
+                scanner.search("give_way", 10).stream().map(RepoImage::path).toList());
+    }
+
+    @Test
+    void referenceIsReadFromWhicheverAliasTheRepositoryUses(@TempDir Path root) throws IOException {
+        writePng(root.resolve("arc_flash_hazard.png"), 10, 10);
+        writePng(root.resolve("wait_here.png"), 10, 10);
+        writePng(root.resolve("numbered.png"), 10, 10);
+        Files.writeString(root.resolve("data.json"), """
+                {"entries": [
+                  {"file": "arc_flash_hazard.png", "code": "W042", "description": "Arc flash hazard"},
+                  {"file": "wait_here.png", "diagram": "7011.1-V1", "description": "Wait here"},
+                  {"file": "numbered.png", "code": 42, "description": "Numbered"}
+                ]}
+                """, StandardCharsets.UTF_8);
+
+        RepoScanner scanner = new RepoScanner(root);
+        scanner.rescan();
+
+        assertEquals("W042", scanner.byPath("arc_flash_hazard.png").orElseThrow().reference());
+        assertEquals("7011.1-V1", scanner.byPath("wait_here.png").orElseThrow().reference());
+        assertEquals("42", scanner.byPath("numbered.png").orElseThrow().reference());
+    }
+
+    @Test
+    void aSidecarCannotDescribeAFileOutsideTheRepository(@TempDir Path root) {
         Map<String, RepoScanner.Metadata> target = new HashMap<>();
 
-        RepoScanner.readMetadataInto(target, "iso", """
-                {"signs": [{"file": "arc_flash_hazard.png", "code": "W042", "description": "Arc flash hazard"}]}
+        RepoScanner.readSidecar(target, root, root, """
+                {"images": [{"file": "../escaped.png", "description": "Somewhere else"}]}
                 """);
 
-        RepoScanner.Metadata metadata = target.get("iso/arc_flash_hazard.png");
-        assertNotNull(metadata);
-        assertEquals("W042", metadata.reference());
-        assertEquals("Arc flash hazard", metadata.description());
+        assertTrue(target.isEmpty());
     }
 
     @Test
-    void metadataReaderIgnoresRubbish() {
+    void metadataReaderIgnoresRubbish(@TempDir Path root) {
         Map<String, RepoScanner.Metadata> target = new HashMap<>();
 
-        RepoScanner.readMetadataInto(target, "signs", "[1, 2, 3]");
-        RepoScanner.readMetadataInto(target, "signs", "{\"signs\": \"not an array\"}");
-        RepoScanner.readMetadataInto(target, "signs", "{\"signs\": [{\"description\": \"no file field\"}]}");
+        RepoScanner.readSidecar(target, root, root, "[1, 2, 3]");
+        RepoScanner.readSidecar(target, root, root, "\"just a string\"");
+        RepoScanner.readSidecar(target, root, root, "{\"signs\": \"not an array\"}");
+        RepoScanner.readSidecar(target, root, root, "{\"signs\": [{\"description\": \"no file field\"}]}");
+        RepoScanner.readSidecar(target, root, root, "{\"signs\": [{\"file\": \"a.png\"}]}");
+        RepoScanner.readSidecar(target, root, root, "");
 
         assertTrue(target.isEmpty());
+    }
+
+    @Test
+    void metadataReaderSkipsPastAnArrayThatYieldsNothing(@TempDir Path root) {
+        Map<String, RepoScanner.Metadata> target = new HashMap<>();
+
+        RepoScanner.readSidecar(target, root, root, """
+                {
+                  "files": ["a.txt", "b.txt"],
+                  "authors": [{"name": "Someone"}],
+                  "images": [{"file": "a.png", "description": "The real entries"}]
+                }
+                """);
+
+        assertEquals("The real entries", target.get("a.png").description());
     }
 
     @Test
