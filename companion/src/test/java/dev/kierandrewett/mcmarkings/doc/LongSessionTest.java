@@ -236,4 +236,152 @@ class LongSessionTest {
         }
         throw new AssertionError("grouping never refused, so the cap is not enforced");
     }
+
+    /**
+     * Undo takes you back, all the way, after a long run of edits.
+     *
+     * <p>The soak above checks the document stays coherent and says nothing about
+     * whether undo means anything, which is the whole promise of an editor: you can
+     * try something because you can take it back. Coalescing is where that would go
+     * wrong, since it rewrites the present entry rather than pushing a new one, and
+     * a run of moves on one layer is exactly what someone does all afternoon.
+     *
+     * <p>Under the history limit on purpose. Past a hundred entries the oldest are
+     * dropped by design and walking back to the start is no longer the contract.
+     */
+    @Test
+    @DisplayName("undoing everything returns exactly the document you started with")
+    void undoWalksAllTheWayBack() {
+        Document start = new Document("undo", new GridSize(2, 2), 128, Document.TRANSPARENT,
+                List.of(shape("keep", 5, 5)));
+        History history = new History(start);
+        Random random = new Random(99L);
+
+        int pushed = 0;
+        long clock = 1_000_000L;
+        for (int step = 0; step < 60; step++) {
+            Document document = history.current();
+            List<String> ids = document.layers().stream().map(Layer::id).toList();
+            String id = ids.get(random.nextInt(ids.size()));
+
+            Document next;
+            String key = null;
+            if (random.nextInt(3) == 0) {
+                next = document.add(shape("N" + step, random.nextInt(100), random.nextInt(100)));
+            } else {
+                next = Edits.nudge(document, List.of(id), 1 + random.nextInt(3), 1 + random.nextInt(3));
+                key = "move:" + id;
+            }
+
+            // Each edit a clear minute apart, so nothing coalesces and every push is
+            // its own step. The coalescing case is checked separately below.
+            clock += 60_000L;
+            int before = history.depth();
+            history.push(next, "Edit " + step, key, clock);
+            if (history.depth() > before) {
+                pushed++;
+            }
+        }
+
+        assertTrue(pushed > 40, "not enough distinct edits to be a useful walk back: " + pushed);
+        while (history.canUndo()) {
+            history.undo();
+        }
+        assertEquals(start, history.current(), "undoing everything did not return the starting document");
+    }
+
+    /**
+     * And forward again. Redo is the half people reach for when they undo one step
+     * too many, which is a thing that happens constantly.
+     */
+    @Test
+    @DisplayName("redoing everything returns exactly where undo started from")
+    void redoWalksAllTheWayForward() {
+        Document start = new Document("redo", new GridSize(2, 2), 128, Document.TRANSPARENT,
+                List.of(shape("keep", 5, 5)));
+        History history = new History(start);
+
+        long clock = 2_000_000L;
+        for (int step = 0; step < 40; step++) {
+            clock += 60_000L;
+            history.push(history.current().add(shape("R" + step, step, step)), "Add " + step, null, clock);
+        }
+        Document ended = history.current();
+
+        while (history.canUndo()) {
+            history.undo();
+        }
+        assertEquals(start, history.current(), "undo did not reach the start");
+
+        while (history.canRedo()) {
+            history.redo();
+        }
+        assertEquals(ended, history.current(), "redo did not reach where undo started");
+    }
+
+    /**
+     * A run of small moves on one layer is one undo, not forty.
+     *
+     * <p>That is the point of coalescing and it is also where undo could quietly stop
+     * meaning anything: if the window merged edits on different layers, one undo
+     * would take back work somewhere the person was not looking.
+     */
+    @Test
+    @DisplayName("a drag is one undo, and a drag of something else is another")
+    void coalescingMergesOneLayerAtATime() {
+        Document start = new Document("drag", new GridSize(2, 2), 128, Document.TRANSPARENT,
+                List.of(shape("a", 0, 0), shape("b", 60, 0)));
+        History history = new History(start);
+
+        long clock = 3_000_000L;
+        for (int step = 0; step < 20; step++) {
+            clock += 10L;
+            history.push(Edits.nudge(history.current(), List.of("a"), 1, 0), "Move", "move:a", clock);
+        }
+        assertEquals(1, history.depth(), "a single drag filled the stack");
+
+        for (int step = 0; step < 20; step++) {
+            clock += 10L;
+            history.push(Edits.nudge(history.current(), List.of("b"), 1, 0), "Move", "move:b", clock);
+        }
+        assertEquals(2, history.depth(), "dragging a second layer merged into the first layer's undo");
+
+        history.undo();
+        history.undo();
+        assertEquals(start, history.current(), "two undos did not take back two drags");
+    }
+
+    /**
+     * The cap has to protect both stores, not just the one it was found in.
+     *
+     * <p>The unopenable document turned up through TemplateStore, and recovery writes
+     * the same documents through a different file with no size or depth checks of its
+     * own. Capping where the nesting is made rather than where it is written is what
+     * makes that safe, and this is the check that it actually is.
+     */
+    @Test
+    @DisplayName("a document at the nesting cap survives both ways of saving it")
+    void theCapProtectsEveryWayOut(@org.junit.jupiter.api.io.TempDir java.nio.file.Path directory)
+            throws Exception {
+        Document document = new Document("deep", new GridSize(1, 1), 128, Document.TRANSPARENT,
+                List.of(shape("a", 0, 0)));
+        for (int round = 0; round < Edits.MAX_GROUP_DEPTH + 10; round++) {
+            document = document.add(shape("extra" + round, round, round));
+            List<String> ids = document.layers().stream().map(Layer::id).toList();
+            document = Edits.group(document, ids, Insets.NONE).document();
+        }
+
+        assertTrue(depthOf(document.layers()) <= Edits.MAX_GROUP_DEPTH,
+                "the cap did not hold, so neither store is protected");
+
+        TemplateStore templates = new TemplateStore(directory);
+        java.nio.file.Path saved = templates.save(document);
+        assertEquals(List.of(), templates.readWithReport(saved).warnings(),
+                "the template did not come back whole");
+
+        RecoveryStore recovery = new RecoveryStore(directory.resolve("recovery.json"));
+        recovery.record(document, "repo-1");
+        recovery.flushNow(1L);
+        assertTrue(recovery.pending().isPresent(), "the recovery snapshot could not be read back");
+    }
 }
