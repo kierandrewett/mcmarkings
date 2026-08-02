@@ -38,10 +38,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The generator form: pick a script, fill in its parameters, watch the sign
  * redraw, then publish it.
  *
- * <p>This exists in ImGui rather than owo because of one widget. Generated images
- * are commonly a stack of text lines, and a real multiline text box with a caret
- * is what makes that bearable to type; Minecraft's own toolkit has nothing like
- * it.
+ * <p>Still its own screen rather than a panel in the shell, which is the last
+ * place the tab bar disappears. Porting it is worth doing for that reason alone.
  *
  * <p>The form is built entirely from {@link ParamDef}, so a generator can add a
  * field by editing its script and reloading, with no Java change.
