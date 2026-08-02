@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.gui.imgui.panel;
 import dev.kierandrewett.mcmarkings.CompanionServices;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
+import dev.kierandrewett.mcmarkings.gui.imgui.Persist;
 import imgui.ImGui;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Settings, in the window rather than instead of it.
@@ -56,10 +56,7 @@ public final class SettingsPanel implements Panel {
 
     private final ImInt pixelsPerFrame = new ImInt();
 
-    /** One save at a time, with a re-check afterwards so nothing is lost. */
-    private final AtomicBoolean saving = new AtomicBoolean();
-
-    private volatile boolean savePending;
+    private final Persist persist;
 
     /**
      * Which font folders actually exist, worked out on a worker.
@@ -76,6 +73,7 @@ public final class SettingsPanel implements Panel {
 
     public SettingsPanel(CompanionServices services) {
         this.services = services;
+        this.persist = new Persist("the config", services.config::save);
         readFromConfig();
         refreshFontPathChecks();
     }
@@ -132,7 +130,7 @@ public final class SettingsPanel implements Panel {
                 alias.set(services.config.commandAlias);
             } else {
                 services.config.commandAlias = value;
-                saveSoon();
+                persist.request();
             }
         }
 
@@ -145,12 +143,12 @@ public final class SettingsPanel implements Panel {
         help("How fast commands are sent. Too fast and the server drops them; "
                 + "a large sign is many commands.");
         if (rateDone) {
-            saveSoon();
+            persist.request();
         }
 
         if (ImGui.checkbox("Give glowing item frames##settings-glowing", services.config.glowingFrames)) {
             services.config.glowingFrames = !services.config.glowingFrames;
-            saveSoon();
+            persist.request();
         }
         help("Glowing frames keep the image bright in the dark. Otherwise it dims like a block.");
     }
@@ -168,7 +166,7 @@ public final class SettingsPanel implements Panel {
             int value = (int) clamp(pixelsPerFrame.get(), MINIMUM_PIXELS, MAXIMUM_PIXELS);
             pixelsPerFrame.set(value);
             services.config.exportPixelsPerFrame = value;
-            saveSoon();
+            persist.request();
         }
 
         ImGui.setNextItemWidth(fieldWidth());
@@ -177,7 +175,7 @@ public final class SettingsPanel implements Panel {
         help("Where rendered images are written inside the repository, before being committed.");
         if (generatedDone) {
             services.config.generatedDirectory = generatedDirectory.get().trim();
-            saveSoon();
+            persist.request();
         }
 
         ImGui.setNextItemWidth(fieldWidth());
@@ -186,7 +184,7 @@ public final class SettingsPanel implements Panel {
         help("Where the mod looks for generator scripts in the repository.");
         if (generatorsDone) {
             services.config.generatorDirectory = generatorDirectory.get().trim();
-            saveSoon();
+            persist.request();
         }
     }
 
@@ -205,7 +203,7 @@ public final class SettingsPanel implements Panel {
 
             if (ImGui.button("Remove")) {
                 paths.remove(index);
-                saveSoon();
+                persist.request();
                 refreshFontPathChecks();
                 warn("Removed. Font changes take effect after a reload.");
                 ImGui.popID();
@@ -270,7 +268,7 @@ public final class SettingsPanel implements Panel {
 
         paths.add(trimmed);
         fontPath.set("");
-        saveSoon();
+        persist.request();
 
         // Said plainly rather than hidden: adding a folder that is not there is a
         // typo most of the time, and finding out later means hunting for a font that
@@ -301,33 +299,6 @@ public final class SettingsPanel implements Panel {
                         new dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell(McMarkingsCompanion.services()));
             } catch (RuntimeException failure) {
                 McMarkingsCompanion.LOGGER.error("[mcmarkings] reload failed", failure);
-            }
-        });
-    }
-
-    /**
-     * Writes the config, off the client thread, at most once at a time.
-     *
-     * <p>Called whenever a field is left. Saves collapse rather than queue: if a save
-     * is already running, the one that follows is flagged and runs after it, so a
-     * burst of edits costs one extra write rather than one per edit.
-     */
-    private void saveSoon() {
-        savePending = true;
-        if (!saving.compareAndSet(false, true)) {
-            return;
-        }
-
-        Thread.ofVirtual().name("mcmarkings-settings-save").start(() -> {
-            try {
-                while (savePending) {
-                    savePending = false;
-                    services.config.save();
-                }
-            } catch (RuntimeException failure) {
-                McMarkingsCompanion.LOGGER.error("[mcmarkings] could not save the config", failure);
-            } finally {
-                saving.set(false);
             }
         });
     }

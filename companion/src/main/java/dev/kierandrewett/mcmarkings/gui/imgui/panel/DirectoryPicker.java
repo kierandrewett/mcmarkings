@@ -79,7 +79,7 @@ public final class DirectoryPicker {
      * Opens the picker.
      *
      * @param prompt    what the caller is asking for, shown at the top
-     * @param start     where to begin; the home directory when null or unusable
+     * @param start     where to begin; the home directory when null
      * @param onChosen  run on the client thread with the chosen folder
      */
     public void open(String prompt, Path start, Consumer<Path> onChosen) {
@@ -87,7 +87,12 @@ public final class DirectoryPicker {
         this.onChosen = onChosen;
         this.openRequested = true;
 
-        Path from = usable(start) ? start : home();
+        // Deliberately not checked here. Asking whether the folder exists is file IO,
+        // and open() runs on the render thread; a stale network mount can block on a
+        // question that small. navigateTo reads it on a worker anyway, and a start
+        // that turns out to be gone shows the same "no folder at that path" as any
+        // other bad path rather than being a special case.
+        Path from = start != null ? start : home();
         typedPath.set(from.toString());
         navigateTo(from);
     }
@@ -293,14 +298,6 @@ public final class DirectoryPicker {
         try {
             Path marker = directory.resolve(".git");
             return Files.isDirectory(marker) || Files.isRegularFile(marker);
-        } catch (RuntimeException unreadable) {
-            return false;
-        }
-    }
-
-    private static boolean usable(Path path) {
-        try {
-            return path != null && Files.isDirectory(path);
         } catch (RuntimeException unreadable) {
             return false;
         }
