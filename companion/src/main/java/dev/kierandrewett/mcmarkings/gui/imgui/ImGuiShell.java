@@ -1,0 +1,545 @@
+package dev.kierandrewett.mcmarkings.gui.imgui;
+
+import cn.enaium.fabric.imgui.ImGuiRenderable;
+import dev.kierandrewett.mcmarkings.CompanionServices;
+import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
+import dev.kierandrewett.mcmarkings.Workspace;
+import dev.kierandrewett.mcmarkings.core.GridSize;
+import dev.kierandrewett.mcmarkings.core.GridSuggestion;
+import dev.kierandrewett.mcmarkings.core.MapEntry;
+import dev.kierandrewett.mcmarkings.core.RepoImage;
+import dev.kierandrewett.mcmarkings.gui.RepositoriesScreen;
+import dev.kierandrewett.mcmarkings.gui.SettingsScreen;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
+import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
+import dev.kierandrewett.mcmarkings.render.GridRecommender;
+import dev.kierandrewett.mcmarkings.repo.GitException;
+import dev.kierandrewett.mcmarkings.repo.PullResult;
+import dev.kierandrewett.mcmarkings.repo.RawUrls;
+import imgui.ImGui;
+import imgui.ImGuiIO;
+import imgui.flag.ImGuiTabBarFlags;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * The whole companion in one ImGui window.
+ *
+ * <p>There is a single key binding for the mod, so the screen it opens has to be
+ * the map of everything else. The tab bar is therefore the one thing that is always
+ * on screen: it is drawn before the panel body, the body lives in a child region
+ * that scrolls inside itself, and a panel that throws is caught where it draws.
+ * None of those three is decoration. Between them they mean nothing a panel does
+ * can take the navigation away, which is what happened with the editors that
+ * replaced the whole screen and left no way back.
+ *
+ * <p>Panels are held as {@link Panel}, so this class knows a title and a draw call
+ * and nothing else about them. The Browse tab is an {@link ImageBrowserPanel}; the
+ * remaining three are shortcuts to the screens that still do those jobs, until they
+ * are ported in turn.
+ */
+public class ImGuiShell extends Screen implements ImGuiRenderable {
+
+    private static final String WINDOW_ID = "##mcmarkings-shell";
+    private static final String TAB_BAR_ID = "##mcmarkings-tabs";
+
+    /**
+     * Tabs shrink to fit rather than scrolling out of reach. A scrolling tab bar
+     * hides destinations behind an arrow, which is the problem this screen exists
+     * to fix.
+     */
+    private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.FittingPolicyResizeDown
+            | ImGuiTabBarFlags.DrawSelectedOverline;
+
+    private final CompanionServices services;
+    private final ImGuiScreens.Status status = new ImGuiScreens.Status();
+
+    private final ImageBrowserPanel browser;
+    private final List<Panel> panels;
+
+    /** Last message reported per panel, so a failing panel logs on change, not per frame. */
+    private final Map<String, String> panelErrors = new HashMap<>();
+
+    /** Whichever image the action buttons were last built for, and its grid choices. */
+    private RepoImage actionImage;
+    private GridSize grid;
+    private List<GridSuggestion> suggestions = List.of();
+
+    /**
+     * Both halves of a pinned raw URL, resolved off-thread on open.
+     *
+     * <p>Null until they land, which is why every action that needs a URL is
+     * disabled rather than merely failing when pressed.
+     */
+    private RawUrls.Target rawUrls;
+    private String headSha;
+
+    private boolean pulling;
+
+    private ImGuiIO io;
+    private String renderError;
+
+    public ImGuiShell(CompanionServices services) {
+        super(Component.literal("MCMarkings"));
+        this.services = services;
+
+        this.browser = new ImageBrowserPanel(services, "browse", "Browse")
+                .onDetail(this::drawImageActions);
+
+        this.panels = List.of(
+                browser,
+                new ShortcutPanel("Editor",
+                        "Generating and laying out images still live in their own screens. "
+                                + "They move into this tab next.",
+                        List.of(
+                                new Shortcut("Generator", "Build an image from a generator script",
+                                        () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))),
+                                new Shortcut("Builder", "Lay several images out on one canvas",
+                                        () -> Minecraft.getInstance().setScreen(new BuilderScreen(services))))),
+                new ShortcutPanel("Repositories",
+                        "Adding, switching, renaming and repairing repositories is still on its own screen.",
+                        List.of(new Shortcut("Manage repositories", "Add, switch, rename or repair a repository",
+                                () -> Minecraft.getInstance().setScreen(new RepositoriesScreen(services))))),
+                new ShortcutPanel("Settings",
+                        "Command alias, export size, fonts and folders are still on their own screen.",
+                        List.of(new Shortcut("Open settings", "Command alias, export size, fonts and folders",
+                                () -> Minecraft.getInstance().setScreen(new SettingsScreen(services))))));
+    }
+
+    @Override
+    protected void init() {
+        // Opening runs in the background, so the first frames may have no images at
+        // all. whenReady fires straight away when there is nothing left to wait for,
+        // which is also what makes this correct on a resize.
+        services.whenReady(() -> {
+            browser.refresh();
+            resolveIdentity();
+        });
+    }
+
+    /**
+     * The wrapper chains GLFW callbacks rather than consuming them, so Minecraft
+     * still sees keys typed into an ImGui text box. Escape is the one that hurts:
+     * it would close the screen mid-search.
+     */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (io != null && io.getWantCaptureKeyboard()) {
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        if (io != null && io.getWantCaptureMouse()) {
+            return true;
+        }
+        return super.mouseClicked(event, doubled);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+        if (io != null && io.getWantCaptureMouse()) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
+    }
+
+    /**
+     * Called by the wrapper's mixin at the end of each frame. Nothing may escape:
+     * an exception here is thrown into the game's frame loop.
+     */
+    @Override
+    public void render(ImGuiIO frameIo) {
+        ImGuiScreens.applyMinecraftTheme();
+        ImGuiScreens.matchGameGuiScale();
+        this.io = frameIo;
+        try {
+            ImGuiScreens.fullViewportWindow(WINDOW_ID, this::drawBody);
+            renderError = null;
+        } catch (Throwable throwable) {
+            renderError = String.valueOf(throwable);
+            McMarkingsCompanion.LOGGER.error("[mcmarkings] shell render failed", throwable);
+        }
+    }
+
+    private void drawBody() {
+        drawTopBar();
+        ImGui.separator();
+        drawTabs();
+        status.draw();
+    }
+
+    private void drawTopBar() {
+        drawRepositoryPicker();
+
+        // The press is acted on after the disabled block closes, not inside it. An
+        // action that threw would otherwise leave ImGui's disabled stack unbalanced
+        // and take out the following frame.
+        ImGui.sameLine();
+        ImGui.beginDisabled(pulling || !services.hasRepositories());
+        boolean pullPressed = ImGui.button("Pull");
+        ImGui.endDisabled();
+
+        ImGui.sameLine();
+        ImGui.beginDisabled(services.isLoading() || !services.hasRepositories());
+        boolean rescanPressed = ImGui.button("Rescan");
+        ImGui.endDisabled();
+
+        if (pullPressed) {
+            pull();
+        }
+        if (rescanPressed) {
+            rescan();
+        }
+
+        ImGui.sameLine();
+        if (ImGui.button("Close")) {
+            onClose();
+        }
+
+        if (services.isLoading()) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Opening repositories...");
+        }
+        if (pulling) {
+            ImGui.sameLine();
+            ImGui.textDisabled("Pulling...");
+        }
+        if (renderError != null) {
+            ImGui.sameLine();
+            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f,
+                    "render error: " + ImGuiScreens.truncate(renderError, 100));
+        }
+    }
+
+    /**
+     * Which repository everything acts on, and how to change it.
+     *
+     * <p>Deliberately the first thing in the bar. The most confusing state in a
+     * multi-repository tool is doing the right thing to the wrong folder.
+     */
+    private void drawRepositoryPicker() {
+        String activeId = services.activeRepositoryId();
+        // Spelled out rather than left as a bare name, because a folder name on its
+        // own does not tell anyone what the control does.
+        String label = services.active()
+                .map(workspace -> "Repository: " + displayName(workspace))
+                .orElse(services.isLoading() ? "Opening repositories..." : "No repository yet");
+
+        ImGui.setNextItemWidth(Math.max(160.0f, ImGui.getTextLineHeight() * 20.0f));
+        if (!ImGui.beginCombo("##repository", ImGuiScreens.truncate(label, 40))) {
+            return;
+        }
+        try {
+            List<Workspace> workspaces = services.workspaces();
+            if (workspaces.isEmpty()) {
+                ImGui.textDisabled(services.isLoading() ? "Still opening..." : "Nothing set up yet");
+                return;
+            }
+            for (Workspace workspace : workspaces) {
+                boolean current = workspace.id().equals(activeId);
+                String name = displayName(workspace) + (workspace.hasWarning() ? "  (needs attention)" : "");
+                if (ImGui.selectable(ImGuiScreens.truncate(name, 40) + "##repo-" + workspace.id(), current)
+                        && !current) {
+                    switchTo(workspace);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip(workspace.entry().root().toString());
+                }
+            }
+        } finally {
+            ImGui.endCombo();
+        }
+    }
+
+    /** The configured name wins, since renaming does not rebuild the workspace. */
+    private String displayName(Workspace workspace) {
+        return services.config.byId(workspace.id())
+                .map(entry -> entry.displayName())
+                .orElseGet(() -> workspace.entry().displayName());
+    }
+
+    private void switchTo(Workspace workspace) {
+        services.setActive(workspace.id());
+        browser.refresh();
+        actionImage = null;
+        resolveIdentity();
+        status.info("Now acting on " + displayName(workspace));
+    }
+
+    private void drawTabs() {
+        if (!ImGui.beginTabBar(TAB_BAR_ID, TAB_BAR_FLAGS)) {
+            return;
+        }
+        try {
+            for (Panel panel : panels) {
+                drawTab(panel);
+            }
+        } finally {
+            ImGui.endTabBar();
+        }
+    }
+
+    private void drawTab(Panel panel) {
+        if (!ImGui.beginTabItem(panel.title())) {
+            return;
+        }
+        try {
+            // Reserves the status line, and gives the panel a child that scrolls
+            // inside itself rather than scrolling the window and taking the tab bar
+            // with it.
+            float bodyHeight = Math.max(64.0f,
+                    ImGui.getContentRegionAvailY() - ImGui.getFrameHeightWithSpacing());
+            ImGuiScreens.child("##panel-" + panel.title(), 0.0f, bodyHeight, () -> drawPanel(panel));
+        } finally {
+            ImGui.endTabItem();
+        }
+    }
+
+    /**
+     * Draws a panel, reporting a failure as text instead of letting it out.
+     *
+     * <p>Letting it out would abort the loop over the panels and the tabs after this
+     * one would not be submitted at all, so a bug in one panel would take the
+     * navigation off screen. That is the exact failure the tab bar is here to avoid.
+     */
+    private void drawPanel(Panel panel) {
+        try {
+            panel.draw();
+            panelErrors.remove(panel.title());
+        } catch (Throwable throwable) {
+            String message = String.valueOf(throwable);
+            // Logged on change only. A panel that fails once fails sixty times a
+            // second, and a log line per frame buries the first one.
+            String previous = panelErrors.put(panel.title(), message);
+            if (!message.equals(previous)) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] panel {} failed to draw", panel.title(), throwable);
+            }
+            ImGui.textColored(0.95f, 0.45f, 0.45f, 1.0f, "This panel failed to draw.");
+            ImGui.textWrapped(message);
+        }
+    }
+
+    /**
+     * The actions the browser's preview offers for the selected image.
+     *
+     * <p>Passed to the browser as a callback rather than built into it: putting an
+     * image on a wall is this screen's business, and the browser has to stay usable
+     * anywhere an image needs choosing.
+     */
+    private void drawImageActions(RepoImage image) {
+        if (!image.equals(actionImage)) {
+            actionImage = image;
+            grid = GridRecommender.best(image.width(), image.height());
+            suggestions = GridRecommender.top(image.width(), image.height(), 3);
+        }
+
+        ImGui.text("Frame size " + grid + ", " + grid.frameCount() + " frames");
+        for (GridSuggestion suggestion : suggestions) {
+            String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
+                    + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
+            if (ImGui.button(label + "##grid-" + suggestion.grid(), -1.0f, 0.0f)) {
+                grid = suggestion.grid();
+                status.info("Frame size " + grid);
+            }
+        }
+
+        ImGui.separator();
+
+        // Presses are collected first and acted on below, so an action that threw
+        // cannot leave ImGui's disabled stack unbalanced for the next frame.
+        boolean pinnable = rawUrls != null && headSha != null;
+        ImGui.beginDisabled(!pinnable);
+        boolean create = ImGui.button("Create map", -1.0f, 0.0f);
+        ImGui.endDisabled();
+
+        boolean frames = ImGui.button("Get frames", -1.0f, 0.0f);
+
+        ImGui.beginDisabled(!pinnable);
+        boolean copy = ImGui.button("Copy command", -1.0f, 0.0f);
+        ImGui.endDisabled();
+
+        if (create) {
+            createMap(image);
+        }
+        if (frames) {
+            services.commands.send(ImageFrameCommands.giveInvisibleFrames(
+                    services.config.commandAlias, services.config.glowingFrames, grid.frameCount()));
+            status.good("Requested " + grid.frameCount() + " invisible frames");
+        }
+        if (copy) {
+            copyCommand(image);
+        }
+
+        if (!pinnable) {
+            ImGui.textDisabled("Waiting on this repository's git identity");
+        }
+    }
+
+    private void createMap(RepoImage image) {
+        String name = ImageFrameCommands.sanitiseName(image.name());
+        String url = rawUrls.pinned(headSha, image.path());
+
+        services.commands.send(ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
+        services.registry.put(new MapEntry(name, services.activeRepositoryId(), image.path(), grid, headSha,
+                System.currentTimeMillis()));
+        saveRegistry();
+
+        status.good("Creating " + name + " at " + grid);
+    }
+
+    private void copyCommand(RepoImage image) {
+        String command = "/" + ImageFrameCommands.create(services.config.commandAlias,
+                ImageFrameCommands.sanitiseName(image.name()),
+                rawUrls.pinned(headSha, image.path()),
+                grid);
+        Minecraft.getInstance().keyboardHandler.setClipboard(command);
+        status.good("Copied to clipboard");
+    }
+
+    private void saveRegistry() {
+        try {
+            services.registry.save();
+        } catch (Exception exception) {
+            McMarkingsCompanion.LOGGER.error("[mcmarkings] could not save registry", exception);
+        }
+    }
+
+    /**
+     * Works out which forge serves this repository and which commit a URL may pin
+     * to.
+     *
+     * <p>Both shell out to git, so neither may happen on the render thread. The
+     * result is discarded if the repository was switched while it was resolving,
+     * because it would then describe the wrong folder.
+     */
+    private void resolveIdentity() {
+        rawUrls = null;
+        headSha = null;
+        if (!services.hasRepositories()) {
+            return;
+        }
+
+        String repoId = services.activeRepositoryId();
+        Thread.ofVirtual().name("mcmarkings-identity").start(() -> {
+            try {
+                RawUrls.Target target = services.rawUrls();
+                // The newest commit known to be on the remote, not HEAD: the server
+                // fetches these URLs over HTTP, so an unpushed commit is a 404.
+                String head = services.git().pinnableCommit();
+                Minecraft.getInstance().execute(() -> {
+                    if (!repoId.equals(services.activeRepositoryId())) {
+                        return;
+                    }
+                    rawUrls = target;
+                    headSha = head;
+                    status.info(services.repo().images().size() + " images, at " + shortSha(head)
+                            + " via " + target.describe());
+                });
+            } catch (GitException exception) {
+                Minecraft.getInstance().execute(() -> {
+                    if (repoId.equals(services.activeRepositoryId())) {
+                        status.bad("git: " + exception.output());
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Pull, then re-issue a refresh for every map whose backing PNG moved.
+     *
+     * <p>Without the second half the server keeps serving the old image, because
+     * ImageFrame only fetches when it is told to.
+     */
+    private void pull() {
+        pulling = true;
+        status.info("Pulling...");
+
+        RawUrls.Target target = rawUrls;
+        Thread.ofVirtual().name("mcmarkings-pull").start(() -> {
+            try {
+                PullResult result = services.git().pull();
+                services.repo().rescan();
+
+                List<String> commands = target == null ? List.of() : result.changedPaths().stream()
+                        .flatMap(path -> services.registry.byRepoPath(path).stream())
+                        .map(entry -> ImageFrameCommands.refresh(services.config.commandAlias,
+                                entry.imageFrameName(),
+                                target.pinned(result.newHead(), entry.repoPath())))
+                        .toList();
+
+                Minecraft.getInstance().execute(() -> {
+                    pulling = false;
+                    headSha = result.newHead();
+                    browser.refresh();
+                    services.commands.sendAll(commands);
+                    status.good(result.changed()
+                            ? result.changedPaths().size() + " images changed, refreshing "
+                                    + commands.size() + " maps"
+                            : "Already up to date");
+                });
+            } catch (GitException exception) {
+                Minecraft.getInstance().execute(() -> {
+                    pulling = false;
+                    status.bad("git: " + exception.output());
+                });
+            } catch (Exception exception) {
+                McMarkingsCompanion.LOGGER.error("[mcmarkings] pull failed", exception);
+                Minecraft.getInstance().execute(() -> {
+                    pulling = false;
+                    status.bad("Pull failed: " + exception.getMessage());
+                });
+            }
+        });
+    }
+
+    /** Picks up images added or removed outside the game. Walks the tree, so off-thread. */
+    private void rescan() {
+        status.info("Rescanning...");
+        services.reloadAsync(services.activeRepositoryId());
+        services.whenReady(() -> {
+            browser.refresh();
+            status.good("Rescanned, " + services.repo().images().size() + " images");
+        });
+    }
+
+    private static String shortSha(String sha) {
+        return sha.length() > 7 ? sha.substring(0, 7) : sha;
+    }
+
+    /**
+     * A tab for a job that has not been ported into this window yet.
+     *
+     * <p>Says so plainly and opens the screen that still does it, because a tab that
+     * exists but does nothing is worse than no tab at all.
+     */
+    private record ShortcutPanel(String title, String summary, List<Shortcut> shortcuts) implements Panel {
+
+        @Override
+        public void draw() {
+            ImGui.textWrapped(summary);
+            ImGui.separator();
+            for (Shortcut shortcut : shortcuts) {
+                if (ImGui.button(shortcut.label(), Math.max(160.0f, ImGui.getTextLineHeight() * 14.0f), 0.0f)) {
+                    shortcut.open().run();
+                }
+                ImGui.sameLine();
+                ImGui.textDisabled(shortcut.help());
+            }
+        }
+    }
+
+    private record Shortcut(String label, String help, Runnable open) {
+    }
+}

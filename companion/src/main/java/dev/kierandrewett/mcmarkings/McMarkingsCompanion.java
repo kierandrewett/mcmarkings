@@ -2,8 +2,8 @@ package dev.kierandrewett.mcmarkings;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
-import dev.kierandrewett.mcmarkings.gui.BrowserScreen;
 import dev.kierandrewett.mcmarkings.gui.WelcomeScreen;
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -76,7 +76,7 @@ public class McMarkingsCompanion implements ClientModInitializer {
         // opening. Opening runs in the background, and treating "not ready yet" as
         // "nothing set up" would flash the first-run screen at an existing user.
         client.setScreen(resolved.hasConfiguredRepositories()
-                ? new BrowserScreen(resolved)
+                ? new ImGuiShell(resolved)
                 : new WelcomeScreen(resolved));
     }
 

@@ -6,7 +6,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.GridSuggestion;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
-import dev.kierandrewett.mcmarkings.gui.BrowserScreen;
+import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiShell;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.js.GeneratorDef;
 import dev.kierandrewett.mcmarkings.js.GeneratorException;
@@ -194,7 +194,7 @@ public class GeneratorScreen extends Screen implements ImGuiRenderable {
         // screen. Without a way back the only exit is closing the game's screen
         // entirely, which reads as being stranded.
         if (ImGui.button("< Back")) {
-            Minecraft.getInstance().setScreen(new BrowserScreen(services));
+            Minecraft.getInstance().setScreen(new ImGuiShell(services));
         }
         ImGui.sameLine();
         ImGui.text("Generator");
