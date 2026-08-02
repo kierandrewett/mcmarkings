@@ -2181,10 +2181,16 @@ public final class EditorPanel implements Panel {
 
         Document document = history.current();
 
-        // Offset only when pasting back into a document that already has the
-        // originals. Into anything else it belongs where it was, which is almost
-        // always right when the two canvases are the same size.
-        boolean overlapping = layers.stream().anyMatch(layer -> document.byId(layer.id()).isPresent());
+        // Offset when the paste would land exactly on top of something already there,
+        // by position rather than by identity.
+        //
+        // Matching on the original ids was the obvious rule and it only covered
+        // pasting back into the same document. Pasting twice into a different one
+        // produced two copies in precisely the same place, since the first copy has a
+        // new id and the originals are still absent, and two perfectly stacked layers
+        // look exactly like one.
+        boolean overlapping = layers.stream().anyMatch(layer ->
+                document.layers().stream().anyMatch(existing -> existing.bounds().equals(layer.bounds())));
 
         Edits.Result result = Edits.paste(document, layers, overlapping);
         apply(result.document(), "Paste", null);

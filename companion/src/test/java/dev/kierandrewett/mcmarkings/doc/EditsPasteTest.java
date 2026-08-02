@@ -113,4 +113,20 @@ class EditsPasteTest {
         assertEquals(target, result.document());
         assertTrue(result.createdIds().isEmpty());
     }
+
+    @Test
+    @DisplayName("an offset paste lands clear of what is already there")
+    void offsetIsWhatSeparatesRepeatedPastes() {
+        // The editor decides whether to offset by looking for a layer already at those
+        // bounds. This pins the half Edits owns: given offset, the copy must not land
+        // on the original, or two perfectly stacked layers look exactly like one.
+        Document once = Edits.paste(of(), List.of(image("a", 20, 30)), false).document();
+        Document twice = Edits.paste(once, List.of(image("a", 20, 30)), true).document();
+
+        Layer.Bounds first = twice.layers().get(0).bounds();
+        Layer.Bounds second = twice.layers().get(1).bounds();
+
+        assertNotEquals(first, second, "the second copy is exactly on top of the first");
+        assertTrue(second.x() > first.x() && second.y() > first.y());
+    }
 }
