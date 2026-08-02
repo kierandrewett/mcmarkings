@@ -217,12 +217,12 @@ public final class PlacedPanel implements Panel {
             // Says what it does not do. "Forget" next to a map on a wall reads like it
             // might take the map down, and it does not: this list is a client-side note.
             Notice.warning("Forget this one?");
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Forget");
             if (ImGui.button("Forget")) {
                 confirming = "";
                 forget(entry);
             }
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Keep");
             if (ImGui.button("Keep")) {
                 confirming = "";
             }
@@ -284,7 +284,7 @@ public final class PlacedPanel implements Panel {
         }
 
         Notice.warning("Delete " + entry.imageFrameName() + " from the server?");
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Delete##server");
         if (ImGui.button("Delete##server")) {
             confirmingServerDelete = "";
             services.commands.send(ImageFrameCommands.delete(
@@ -292,7 +292,7 @@ public final class PlacedPanel implements Panel {
             forget(entry);
             status.info("Asked the server to delete " + entry.imageFrameName() + ".");
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Keep##server");
         if (ImGui.button("Keep##server")) {
             confirmingServerDelete = "";
         }

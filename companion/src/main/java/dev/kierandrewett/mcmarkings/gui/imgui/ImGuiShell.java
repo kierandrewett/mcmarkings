@@ -392,7 +392,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // The press is acted on after the disabled block closes, not inside it. An
         // action that threw would otherwise leave ImGui's disabled stack unbalanced
         // and take out the following frame.
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Pull");
         ImGui.beginDisabled(pulling || !services.hasRepositories());
         boolean pullPressed = ImGui.button("Pull");
         ImGui.endDisabled();
@@ -402,7 +402,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                     + (services.hasRepositories() ? "" : "\n\nThere is no repository to pull."));
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Rescan");
         ImGui.beginDisabled(services.isLoading() || !services.hasRepositories());
         boolean rescanPressed = ImGui.button("Rescan");
         ImGui.endDisabled();
@@ -419,7 +419,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             rescan();
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Commands");
         if (ImGui.button("Commands")) {
             palette.open();
         }
@@ -435,17 +435,17 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             ImGui.setTooltip("Search everything this window and the visible tab can do" + keys);
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Close");
         if (ImGui.button("Close")) {
             onClose();
         }
 
         if (services.isLoading()) {
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Opening repositories...");
             ImGui.textDisabled("Opening repositories...");
         }
         if (pulling) {
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Pulling...");
             ImGui.textDisabled("Pulling...");
         }
 
@@ -458,7 +458,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // over, and the tab label cannot say so: ImGui keys a tab's selected state off
         // its label, so changing it would deselect the tab under them.
         if (services.hasUnsavedEdits()) {
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("unsaved");
             Notice.warning("unsaved");
             if (ImGui.isItemHovered()) {
                 // Checked rather than written from memory: closing keeps the window, a
@@ -471,7 +471,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
         int queued = services.commands.pending();
         if (queued > 0) {
-            ImGui.sameLine();
+            ImGuiScreens.flowTo(queued + " command(s) queued");
             ImGui.textDisabled(queued + " command(s) queued");
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("Sent a few a second so the server does not drop them. "

@@ -154,7 +154,7 @@ public final class DirectoryPicker {
 
         ImGui.setNextItemWidth(ImGui.getFontSize() * 24.0f);
         boolean submitted = ImGui.inputText("##" + id + "-path", typedPath);
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Go##");
         if (ImGui.button("Go##" + id) || submitted) {
             goToTypedPath();
         }
@@ -183,7 +183,10 @@ public final class DirectoryPicker {
         }
 
         for (Path root : roots()) {
-            ImGui.sameLine();
+            // Measured from the path itself, since that is the label. A machine with
+            // several mounts puts a long run of these here, and they are the shortcut
+            // to the top of each one, so losing the end of the row loses whole drives.
+            ImGuiScreens.flowTo(root.toString());
             if (ImGui.button(root.toString() + "##" + id + "-root")) {
                 navigateTo(root);
             }
@@ -278,7 +281,7 @@ public final class DirectoryPicker {
                     : "Still reading this folder.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Cancel##");
         if (ImGui.button("Cancel##" + id)) {
             ImGui.closeCurrentPopup();
         }

@@ -159,7 +159,7 @@ public final class RepositoriesPanel implements Panel {
     private void drawRenameField(RepositoryEntry entry) {
         ImGui.setNextItemWidth(ImGui.getFontSize() * 16.0f);
         boolean submitted = ImGui.inputText("##rename", renameBuffer);
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Save##rename-save");
         if (ImGui.button("Save##rename-save") || submitted) {
             String name = renameBuffer.get().trim();
             if (!name.isEmpty()) {
@@ -168,7 +168,7 @@ public final class RepositoriesPanel implements Panel {
             }
             renaming = "";
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Cancel##rename-cancel");
         if (ImGui.button("Cancel##rename-cancel")) {
             renaming = "";
         }
@@ -204,12 +204,12 @@ public final class RepositoriesPanel implements Panel {
             // Inline rather than a modal, and it says what it does not do. Removing a
             // repository from a list sounds like it might delete the folder.
             Notice.warning("Remove from the list?");
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Remove");
             if (ImGui.button("Remove")) {
                 confirmingRemoval = "";
                 services.removeRepository(workspace.id());
             }
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Keep");
             if (ImGui.button("Keep")) {
                 confirmingRemoval = "";
             }

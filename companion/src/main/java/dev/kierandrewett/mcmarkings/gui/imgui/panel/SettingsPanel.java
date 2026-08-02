@@ -230,7 +230,7 @@ public final class SettingsPanel implements Panel {
 
         ImGui.setNextItemWidth(fieldWidth());
         boolean submitted = ImGui.inputTextWithHint("##settings-ignored", "node_modules", ignoredName);
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Add##settings-ignored-add");
         if (ImGui.button("Add##settings-ignored-add") || submitted) {
             addIgnored(ignoredName.get());
         }
@@ -312,11 +312,11 @@ public final class SettingsPanel implements Panel {
 
         ImGui.setNextItemWidth(fieldWidth());
         boolean submitted = ImGui.inputText("##settings-font-path", fontPath);
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Add##settings-font-add");
         if (ImGui.button("Add##settings-font-add") || submitted) {
             addFontPath(fontPath.get());
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Browse...##settings-font-browse");
         if (ImGui.button("Browse...##settings-font-browse")) {
             picker.open("Choose a folder of fonts", null, directory -> addFontPath(directory.toString()));
         }
@@ -337,7 +337,7 @@ public final class SettingsPanel implements Panel {
                 confirmingReload = false;
                 reloadEverything();
             }
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Cancel##settings-reload-cancel");
             if (ImGui.button("Cancel##settings-reload-cancel")) {
                 confirmingReload = false;
             }

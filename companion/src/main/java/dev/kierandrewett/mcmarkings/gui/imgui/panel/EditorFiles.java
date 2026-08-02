@@ -377,7 +377,7 @@ public final class EditorFiles {
                 status.good("Restored \"" + recovered.document().name() + "\". Save it to keep it.");
             }
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Discard##recovery");
         if (ImGui.button("Discard##recovery")) {
             recoveryAnswered = true;
             services.recovery.clear();
@@ -426,7 +426,7 @@ public final class EditorFiles {
             ImGui.closeCurrentPopup();
             saveAs(name);
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Cancel##editor-save-cancel");
         if (ImGui.button("Cancel##editor-save-cancel")) {
             ImGui.closeCurrentPopup();
         }
@@ -510,12 +510,12 @@ public final class EditorFiles {
 
         if (confirmingDelete.equals(entry.file().toString())) {
             Notice.warning("Delete " + entry.name() + "?");
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Delete");
             if (ImGui.button("Delete")) {
                 confirmingDelete = "";
                 delete(entry);
             }
-            ImGui.sameLine();
+            ImGuiScreens.flowTo("Keep");
             if (ImGui.button("Keep")) {
                 confirmingDelete = "";
             }

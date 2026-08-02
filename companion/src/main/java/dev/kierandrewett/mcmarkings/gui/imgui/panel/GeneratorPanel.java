@@ -166,7 +166,7 @@ public final class GeneratorPanel implements Panel {
 
     private void drawHeader() {
         ImGui.text("Generator");
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Reload scripts");
         if (ImGui.button("Reload scripts")) {
             reloadScripts();
         }
@@ -294,7 +294,7 @@ public final class GeneratorPanel implements Panel {
         if (ImGui.button("Pick...##" + field.def.key())) {
             openImagePicker(field);
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Clear##");
         if (ImGui.button("Clear##" + field.def.key())) {
             field.text.set("");
             changed = true;
@@ -410,7 +410,7 @@ public final class GeneratorPanel implements Panel {
                     : "Gives you the item frames this sign needs, ready to place on a wall.");
         }
 
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Copy command");
         boolean copyPressed = ImGui.button("Copy command");
 
         if (publishPressed) {

@@ -471,7 +471,7 @@ public final class EditorPanel implements Panel {
         if (ImGui.button("Layers##side-layers", half, 0.0f)) {
             sideShowsProperties = false;
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Props##side-properties");
         if (ImGui.button("Props##side-properties", half, 0.0f)) {
             sideShowsProperties = true;
         }
@@ -1370,7 +1370,7 @@ public final class EditorPanel implements Panel {
         if (ImGui.button("Image##add-image", half, 0.0f)) {
             picker.openPicker(this::addImageLayer);
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo("Text##add-text");
         if (ImGui.button("Text##add-text", half, 0.0f)) {
             addTextLayer();
         }
