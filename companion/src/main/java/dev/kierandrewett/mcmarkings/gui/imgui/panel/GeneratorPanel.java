@@ -269,8 +269,13 @@ public final class GeneratorPanel implements Panel {
 
         boolean changed = switch (def.type()) {
             case TEXT -> ImGui.inputText(id, field.text);
-            case LINES -> ImGui.inputTextMultiline(id, field.text, -1.0f, 110.0f,
-                    ImGuiInputTextFlags.AllowTabInput);
+            // Five lines, rather than a hundred and ten pixels. A fixed height stops
+            // meaning a number of lines the moment the text size moves: at GUI scale
+            // four with the largest text the line height is sixty five pixels, so this
+            // box was about to show one and a half lines of a field whose whole point
+            // is holding several. The editor's text layer already asks this way.
+            case LINES -> ImGui.inputTextMultiline(id, field.text, -1.0f,
+                    ImGui.getTextLineHeight() * 5.0f, ImGuiInputTextFlags.AllowTabInput);
             case SELECT -> field.options.length == 0
                     ? falseWithNotice(def, "no options declared")
                     : ImGui.combo(id, field.choice, field.options);
