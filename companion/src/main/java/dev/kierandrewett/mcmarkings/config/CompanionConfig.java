@@ -80,6 +80,17 @@ public class CompanionConfig {
     /** Commands per second sent to the server, to stay under chat rate limits. */
     public double commandsPerSecond = 2.0;
 
+    /**
+     * Folder names never walked when scanning for images.
+     *
+     * <p>Anything beginning with a dot is skipped regardless. These are the common
+     * build and dependency folders, which hold no images worth showing and are
+     * expensive to walk. Editable, because one repository's junk is another's
+     * content.
+     */
+    public List<String> ignoredDirectories = new ArrayList<>(List.of(
+            "node_modules", "build", "target", "out", "dist"));
+
     /** Directory generated PNGs are written into, relative to a repository root. */
     public String generatedDirectory = "generated";
 
@@ -160,7 +171,7 @@ public class CompanionConfig {
                     branch == null || branch.isBlank() ? "main" : branch);
             if (githubSlug != null && !githubSlug.isBlank()) {
                 migrated = new RepositoryEntry(migrated.id(), migrated.name(), migrated.path(),
-                        migrated.branch(), githubSlug);
+                        migrated.branch(), githubSlug, migrated.rawUrlTemplate());
             }
             repositories.add(migrated);
             activeRepositoryId = migrated.id();

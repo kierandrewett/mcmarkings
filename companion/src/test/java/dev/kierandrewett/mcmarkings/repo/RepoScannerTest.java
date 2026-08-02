@@ -124,7 +124,7 @@ class RepoScannerTest {
                     {
                       "name": "stop_and_give_way",
                       "file": "stop_and_give_way.png",
-                      "diagram": "601.1",
+                      "reference": "601.1",
                       "description": "Stop and give way",
                       "width": 1024,
                       "height": 733
@@ -138,7 +138,7 @@ class RepoScannerTest {
 
         RepoImage image = scanner.byPath("signs/stop_and_give_way.png").orElseThrow();
         assertEquals("Stop and give way", image.description());
-        assertEquals("601.1", image.diagram());
+        assertEquals("601.1", image.reference());
         assertEquals("Stop and give way", image.displayName());
     }
 
@@ -151,7 +151,7 @@ class RepoScannerTest {
 
         RepoImage image = scanner.byPath("zebra.png").orElseThrow();
         assertNull(image.description());
-        assertNull(image.diagram());
+        assertNull(image.reference());
         assertEquals("zebra", image.displayName());
     }
 
@@ -165,7 +165,7 @@ class RepoScannerTest {
 
         RepoScanner.Metadata metadata = target.get("iso/arc_flash_hazard.png");
         assertNotNull(metadata);
-        assertEquals("W042", metadata.diagram());
+        assertEquals("W042", metadata.reference());
         assertEquals("Arc flash hazard", metadata.description());
     }
 
@@ -318,8 +318,8 @@ class RepoScannerTest {
                 .toList();
     }
 
-    private static RepoImage image(String path, String name, String description, String diagram) {
-        return new RepoImage(path, name, 100, 100, description, diagram);
+    private static RepoImage image(String path, String name, String description, String reference) {
+        return new RepoImage(path, name, 100, 100, description, reference);
     }
 
     private static byte[] pngHeader(int width, int height) {

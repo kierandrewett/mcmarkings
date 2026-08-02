@@ -3,7 +3,7 @@
   "id": "mcmarkings",
   "version": "${version}",
   "name": "MCMarkings Companion",
-  "description": "Browse a repository of sign images, generate TSRGD signs, and drive the ImageFrame plugin from the client.",
+  "description": "Browse folders of images in game, generate new ones from scripts, and place them on walls through the ImageFrame plugin.",
   "authors": [
     "Kieran Drewett"
   ],

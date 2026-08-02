@@ -7,7 +7,7 @@ import java.util.Locale;
  *
  * <p>{@code path} is always repo-relative with forward slashes, because it is
  * also the path component of the raw.githubusercontent URL handed to ImageFrame.
- * {@code description} and {@code diagram} come from signs/signs.json where the
+ * {@code description} and {@code reference} come from signs/signs.json where the
  * image has an entry there, and are null otherwise.
  */
 public record RepoImage(
@@ -16,7 +16,7 @@ public record RepoImage(
         int width,
         int height,
         String description,
-        String diagram) {
+        String reference) {
 
     public double aspect() {
         return height == 0 ? 1.0 : (double) width / (double) height;
@@ -36,8 +36,8 @@ public record RepoImage(
         if (description != null) {
             builder.append(' ').append(description);
         }
-        if (diagram != null) {
-            builder.append(' ').append(diagram);
+        if (reference != null) {
+            builder.append(' ').append(reference);
         }
         return builder.toString().toLowerCase(Locale.ROOT);
     }

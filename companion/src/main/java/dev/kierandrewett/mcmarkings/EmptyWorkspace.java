@@ -33,7 +33,7 @@ final class EmptyWorkspace {
     }
 
     static Workspace create() {
-        RepositoryEntry entry = new RepositoryEntry("", "No repository", "", "main", "");
+        RepositoryEntry entry = new RepositoryEntry("", "No repository", "", "main", "", "");
         return new Workspace(entry, new NoRepo(), new NoGit(), new NoGenerators(), NOTHING_CONFIGURED);
     }
 

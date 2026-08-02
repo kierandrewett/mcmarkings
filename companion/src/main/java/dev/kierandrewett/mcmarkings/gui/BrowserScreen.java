@@ -228,8 +228,8 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
         detailPanel.child(UIComponents.label(Component.literal(image.width() + " x " + image.height() + " px")
                 .withStyle(ChatFormatting.GRAY)));
 
-        if (image.diagram() != null) {
-            detailPanel.child(UIComponents.label(Component.literal("TSRGD " + image.diagram())
+        if (image.reference() != null) {
+            detailPanel.child(UIComponents.label(Component.literal(image.reference())
                     .withStyle(ChatFormatting.GRAY)));
         }
 

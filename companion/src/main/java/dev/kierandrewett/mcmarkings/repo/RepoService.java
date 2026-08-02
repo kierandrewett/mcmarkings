@@ -21,7 +21,7 @@ public interface RepoService {
     Optional<RepoImage> byPath(String repoPath);
 
     /**
-     * Case-insensitive search over path, name, description and TSRGD diagram.
+     * Case-insensitive search over path, name, description and reference code.
      * An empty query returns the head of {@link #images()}.
      */
     List<RepoImage> search(String query, int limit);

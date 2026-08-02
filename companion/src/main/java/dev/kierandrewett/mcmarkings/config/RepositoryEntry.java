@@ -18,11 +18,23 @@ public record RepositoryEntry(
         String name,
         String path,
         String branch,
-        String slugOverride) {
+        String slugOverride,
+        String rawUrlTemplate) {
+
+    /**
+     * Compact constructor keeping older config files loadable.
+     *
+     * <p>Gson leaves absent fields null, and a null template has to mean "work it
+     * out from the remote" rather than producing a null in a URL.
+     */
+    public RepositoryEntry {
+        rawUrlTemplate = rawUrlTemplate == null ? "" : rawUrlTemplate;
+        slugOverride = slugOverride == null ? "" : slugOverride;
+    }
 
     public static RepositoryEntry of(Path directory, String name, String branch) {
         Path absolute = directory.toAbsolutePath().normalize();
-        return new RepositoryEntry(idFor(absolute), name, absolute.toString(), branch, "");
+        return new RepositoryEntry(idFor(absolute), name, absolute.toString(), branch, "", "");
     }
 
     public static RepositoryEntry of(Path directory) {
@@ -86,10 +98,10 @@ public record RepositoryEntry(
     }
 
     public RepositoryEntry withName(String newName) {
-        return new RepositoryEntry(id, newName, path, branch, slugOverride);
+        return new RepositoryEntry(id, newName, path, branch, slugOverride, rawUrlTemplate);
     }
 
     public RepositoryEntry withBranch(String newBranch) {
-        return new RepositoryEntry(id, name, path, newBranch, slugOverride);
+        return new RepositoryEntry(id, name, path, newBranch, slugOverride, rawUrlTemplate);
     }
 }

@@ -178,7 +178,7 @@ public class RepoScanner implements RepoService {
                         size[0],
                         size[1],
                         entry == null ? null : entry.description(),
-                        entry == null ? null : entry.diagram()));
+                        entry == null ? null : entry.reference()));
                 return FileVisitResult.CONTINUE;
             }
 
@@ -297,7 +297,7 @@ public class RepoScanner implements RepoService {
      *
      * <p>Every token has to appear somewhere in the search key, so "give way line"
      * narrows rather than widens. Ranking then favours whole-query matches on the
-     * file name and diagram code, which is what people actually type.
+     * file name and reference code, which is what people actually type.
      *
      * <p>File names are snake_case throughout the repository but nobody types
      * underscores, so the name is also compared with underscores read as spaces.
@@ -313,11 +313,11 @@ public class RepoScanner implements RepoService {
 
         String name = image.name().toLowerCase(Locale.ROOT);
         String spaced = name.replace('_', ' ');
-        String diagram = image.diagram() == null ? "" : image.diagram().toLowerCase(Locale.ROOT);
-        if (name.equals(query) || spaced.equals(query) || diagram.equals(query)) {
+        String reference = image.reference() == null ? "" : image.reference().toLowerCase(Locale.ROOT);
+        if (name.equals(query) || spaced.equals(query) || reference.equals(query)) {
             return 0;
         }
-        if (name.startsWith(query) || spaced.startsWith(query) || diagram.startsWith(query)) {
+        if (name.startsWith(query) || spaced.startsWith(query) || reference.startsWith(query)) {
             return 1;
         }
         if (name.contains(query) || spaced.contains(query)) {
@@ -348,7 +348,7 @@ public class RepoScanner implements RepoService {
     /**
      * Reads one sidecar document. Both sidecars are an object with a {@code signs}
      * array whose {@code file} field is a basename inside the sidecar's directory;
-     * ISO calls its reference a {@code code} rather than a {@code diagram}.
+     * ISO calls its reference a {@code code} rather than a {@code reference}.
      */
     static void readMetadataInto(Map<String, Metadata> target, String directory, String json) {
         JsonElement parsed = GSON.fromJson(json, JsonElement.class);
@@ -370,11 +370,11 @@ public class RepoScanner implements RepoService {
             if (file == null || file.isBlank()) {
                 continue;
             }
-            String diagram = string(sign, "diagram");
-            if (diagram == null) {
-                diagram = string(sign, "code");
+            String reference = string(sign, "reference");
+            if (reference == null) {
+                reference = string(sign, "code");
             }
-            target.put(directory + "/" + file, new Metadata(string(sign, "description"), diagram));
+            target.put(directory + "/" + file, new Metadata(string(sign, "description"), reference));
         }
     }
 
@@ -386,7 +386,7 @@ public class RepoScanner implements RepoService {
         return value.getAsString();
     }
 
-    record Metadata(String description, String diagram) {
+    record Metadata(String description, String reference) {
     }
 
     private record Scored(RepoImage image, int rank) {
