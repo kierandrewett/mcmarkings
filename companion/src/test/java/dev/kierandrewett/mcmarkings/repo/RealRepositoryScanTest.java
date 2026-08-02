@@ -118,4 +118,35 @@ class RealRepositoryScanTest {
 
         assertEquals(List.of(), broken, "these images came back with no size");
     }
+
+    @Test
+    void categoriesAreReadAndSearchable() throws IOException {
+        // Both sets group their images and use different keys for it, "class" for the
+        // road signs and "category" for the safety ones. Eleven hundred signs is
+        // exactly the size where narrowing to the warnings matters.
+        RepoScanner scanner = scanned();
+
+        long categorised = scanner.images().stream()
+                .filter(image -> image.path().startsWith("signs/") || image.path().startsWith("iso/"))
+                .filter(image -> image.category() != null)
+                .count();
+        assertTrue(categorised > 1000, "only " + categorised + " images carry a category");
+
+        // The point of indexing it: typing the group finds its members.
+        List<RepoImage> warnings = scanner.search("warning", 500);
+        assertTrue(warnings.size() > 50,
+                "searching for a category found " + warnings.size() + " images");
+    }
+
+    @Test
+    void anUnderscoredCategoryIsFoundByTypingSpaces() throws IOException {
+        // The repository writes safe_condition and nobody types that.
+        RepoScanner scanner = scanned();
+        Assumptions.assumeTrue(scanner.images().stream()
+                .anyMatch(image -> "safe_condition".equals(image.category())),
+                "no safe_condition images here");
+
+        assertTrue(scanner.search("safe condition", 200).size() > 10,
+                "an underscored category should be findable with spaces");
+    }
 }

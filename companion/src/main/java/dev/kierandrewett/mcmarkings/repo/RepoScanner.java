@@ -83,6 +83,10 @@ public class RepoScanner implements RepoService {
     /** Entry fields consulted for a catalogue code, in preference order. */
     private static final List<String> REFERENCE_KEYS = List.of("reference", "diagram", "code", "id", "ref");
 
+    /** Entry fields consulted for the group an image belongs to. */
+    private static final List<String> CATEGORY_KEYS =
+            List.of("category", "class", "group", "kind", "type");
+
     /** Entry fields consulted for a licence. Both spellings, since both are written. */
     private static final List<String> LICENCE_KEYS =
             List.of("licence", "license", "copyright", "rights");
@@ -258,7 +262,8 @@ public class RepoScanner implements RepoService {
                     scanned.height(),
                     entry == null ? null : entry.description(),
                     entry == null ? null : entry.reference(),
-                    entry == null ? null : entry.licence()));
+                    entry == null ? null : entry.licence(),
+                    entry == null ? null : entry.category()));
         }
         images.sort(Comparator.comparing(RepoImage::path));
 
@@ -431,10 +436,12 @@ public class RepoScanner implements RepoService {
         String description = null;
         String reference = null;
         String licence = null;
+        String category = null;
         int fileRank = Integer.MAX_VALUE;
         int descriptionRank = Integer.MAX_VALUE;
         int referenceRank = Integer.MAX_VALUE;
         int licenceRank = Integer.MAX_VALUE;
+        int categoryRank = Integer.MAX_VALUE;
 
         json.beginObject();
         while (json.hasNext()) {
@@ -467,13 +474,18 @@ public class RepoScanner implements RepoService {
                 licenceRank = rank;
                 licence = value;
             }
+            rank = CATEGORY_KEYS.indexOf(key);
+            if (rank >= 0 && rank < categoryRank) {
+                categoryRank = rank;
+                category = value;
+            }
         }
         json.endObject();
 
         if (file == null || file.isBlank()) {
             return false;
         }
-        if (description == null && reference == null && licence == null) {
+        if (description == null && reference == null && licence == null && category == null) {
             return false;
         }
 
@@ -481,7 +493,7 @@ public class RepoScanner implements RepoService {
         if (repoPath == null) {
             return false;
         }
-        target.putIfAbsent(repoPath, new Metadata(description, reference, licence));
+        target.putIfAbsent(repoPath, new Metadata(description, reference, licence, category));
         return true;
     }
 
@@ -633,7 +645,7 @@ public class RepoScanner implements RepoService {
         return 3;
     }
 
-    record Metadata(String description, String reference, String licence) {
+    record Metadata(String description, String reference, String licence, String category) {
     }
 
     /** One PNG as the walk found it, before any metadata is known. */

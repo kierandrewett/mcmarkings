@@ -530,7 +530,7 @@ class RepoScannerTest {
     }
 
     private static RepoImage image(String path, String name, String description, String reference) {
-        return new RepoImage(path, name, 100, 100, description, reference, null);
+        return new RepoImage(path, name, 100, 100, description, reference, null, null);
     }
 
     private static byte[] pngHeader(int width, int height) {

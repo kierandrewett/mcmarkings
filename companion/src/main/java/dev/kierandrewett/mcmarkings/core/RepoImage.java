@@ -26,7 +26,18 @@ public record RepoImage(
          * entry, OGL for the road signs and CC0 for the safety ones, and someone
          * putting an image on a public server has a reason to know which.
          */
-        String licence) {
+        String licence,
+
+        /**
+         * What the repository files this image under, or blank.
+         *
+         * <p>Both sets here carry one and they are the obvious way to narrow eleven
+         * hundred signs: warning, regulatory, prohibition, fire safety. Searchable
+         * rather than a dropdown, because a repository that has no categories should
+         * not grow a control that does nothing, and typing "warning" is what someone
+         * does anyway.
+         */
+        String category) {
 
     public double aspect() {
         return height == 0 ? 1.0 : (double) width / (double) height;
@@ -48,6 +59,11 @@ public record RepoImage(
         }
         if (reference != null) {
             builder.append(' ').append(reference);
+        }
+        if (category != null) {
+            // Underscores read as spaces, as the name already is: the repository writes
+            // safe_condition and nobody types that.
+            builder.append(' ').append(category.replace('_', ' '));
         }
         return builder.toString().toLowerCase(Locale.ROOT);
     }

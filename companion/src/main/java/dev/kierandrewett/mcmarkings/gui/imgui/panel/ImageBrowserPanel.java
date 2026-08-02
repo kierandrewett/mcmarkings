@@ -254,7 +254,7 @@ public final class ImageBrowserPanel implements Panel {
         // all three, but the box said "Search images", so nobody would think to type a
         // diagram number. Every one of the eleven hundred signs here has one, and it
         // is how road signs are actually identified.
-        ImGui.inputTextWithHint("##" + id + "-search", "Search name, description or code", search);
+        ImGui.inputTextWithHint("##" + id + "-search", "Search name, description, code or group", search);
 
         ImGui.sameLine();
         ImGui.beginDisabled(search.get().isEmpty());
@@ -505,6 +505,15 @@ public final class ImageBrowserPanel implements Panel {
 
         // Attribution, where someone would need it: about to put a borrowed image on a
         // server other people can see. The repository records it and nothing showed it.
+        if (image.category() != null && !image.category().isBlank()) {
+            // Underscores out, since the repository writes safe_condition and a person
+            // reads "safe condition".
+            ImGui.textDisabled(image.category().replace('_', ' '));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("What this repository files it under. You can search for it.");
+            }
+        }
+
         if (image.licence() != null && !image.licence().isBlank()) {
             ImGui.textDisabled("Licence: " + image.licence());
         }
