@@ -92,7 +92,7 @@
         "width": 512,
         "height": 510
       },
-      "visible": true,
+      "visible": false,
       "locked": false,
       "opacity": 1.0,
       "margins": {
