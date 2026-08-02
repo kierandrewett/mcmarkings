@@ -149,4 +149,42 @@ class RealRepositoryScanTest {
         assertTrue(scanner.search("safe condition", 200).size() > 10,
                 "an underscored category should be findable with spaces");
     }
+
+    @Test
+    void attributionIsCompleteForBothSets() throws IOException {
+        // A licence says the terms and not who to credit. Both together are the answer
+        // to "may I use this and what do I owe", which is the question someone has
+        // while putting a borrowed image somewhere public.
+        RepoScanner scanner = scanned();
+
+        for (String set : List.of("signs/", "iso/")) {
+            RepoImage image = scanner.images().stream()
+                    .filter(path -> path.path().startsWith(set))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("nothing found under " + set));
+
+            assertTrue(image.licence() != null && !image.licence().isBlank(),
+                    set + " images carry no licence");
+            assertTrue(image.source() != null && image.source().startsWith("http"),
+                    set + " images carry no source link, got " + image.source());
+        }
+    }
+
+    @Test
+    void aSourceLinkIsNotSearchedFor() throws IOException {
+        // Indexing fourteen hundred Commons URLs would put "wikimedia" in every search
+        // key here, so the term would match every image in the repository.
+        //
+        // Asserted as "hardly any" rather than "none", because one sign's description
+        // genuinely contains a Commons URL: it credits a modification of another file.
+        // My first version demanded zero and that entry failed it, correctly.
+        RepoScanner scanner = scanned();
+        int total = scanner.images().size();
+
+        int matches = scanner.search("wikimedia", 500).size();
+
+        assertTrue(matches < total / 10,
+                matches + " of " + total + " images match a term that only appears in "
+                        + "source links, so those links are being indexed");
+    }
 }

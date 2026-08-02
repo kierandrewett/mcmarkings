@@ -37,7 +37,18 @@ public record RepoImage(
          * not grow a control that does nothing, and typing "warning" is what someone
          * does anyway.
          */
-        String category) {
+        String category,
+
+        /**
+         * Where the repository says this file came from, or blank.
+         *
+         * <p>The other half of the licence. Knowing an image is OGL or CC0 tells you
+         * the terms and not who to credit, and every entry in both sets here records
+         * the page it was taken from. Not searched: a URL is not something anyone
+         * types to find a picture, and indexing fourteen hundred of them would put
+         * "commons" and "wikimedia" in every single search key.
+         */
+        String source) {
 
     public double aspect() {
         return height == 0 ? 1.0 : (double) width / (double) height;

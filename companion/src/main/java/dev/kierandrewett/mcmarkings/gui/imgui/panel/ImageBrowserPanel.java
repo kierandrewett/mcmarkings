@@ -93,6 +93,9 @@ public final class ImageBrowserPanel implements Panel {
 
     private RepoImage selected;
 
+    /** Which image's source was last copied, so the note follows the selection. */
+    private String copiedSourceFor = "";
+
     private Consumer<RepoImage> chooseListener;
     private Consumer<RepoImage> detailExtras;
 
@@ -516,6 +519,23 @@ public final class ImageBrowserPanel implements Panel {
 
         if (image.licence() != null && !image.licence().isBlank()) {
             ImGui.textDisabled("Licence: " + image.licence());
+        }
+
+        // Copied rather than opened. Putting a sign on a wall someone else can see is
+        // a good moment to be able to credit it, and a mod that launches a browser out
+        // of a game window is doing something nobody asked for.
+        if (image.source() != null && !image.source().isBlank()) {
+            if (ImGui.smallButton("Copy source link##source")) {
+                Minecraft.getInstance().keyboardHandler.setClipboard(image.source());
+                copiedSourceFor = image.path();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ImGuiScreens.truncate(image.source(), 90));
+            }
+            if (image.path().equals(copiedSourceFor)) {
+                ImGui.sameLine();
+                ImGui.textDisabled("copied");
+            }
         }
         ImGui.separator();
 
