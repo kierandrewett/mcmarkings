@@ -464,7 +464,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
                     switchTo(workspace);
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip(workspace.entry().root().toString());
+                    // Says what needs attention, not just that something does. The
+                    // reason was worked out when the folder was opened and was only
+                    // ever shown on another tab, so the marker here was a dead end.
+                    ImGui.setTooltip(workspace.entry().root()
+                            + (workspace.hasWarning()
+                                    ? "\n\n" + workspace.warning() + "\n\nRepositories tab to fix it."
+                                    : ""));
                 }
             }
         } finally {
