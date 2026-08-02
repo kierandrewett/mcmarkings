@@ -135,6 +135,23 @@ public record Icon(List<float[]> strokes, List<float[]> boxes) {
                     line(0.5f, 0.9f, 0.66f, 0.74f)),
             List.of(box(0.2f, 0.16f, 0.6f, 0.3f, false)));
 
+    /** A picture: a frame with a horizon and a sun. */
+    public static final Icon IMAGE = of(
+            List.of(line(0.16f, 0.66f, 0.38f, 0.44f), line(0.38f, 0.44f, 0.56f, 0.62f),
+                    line(0.56f, 0.62f, 0.68f, 0.5f), line(0.68f, 0.5f, 0.84f, 0.66f)),
+            List.of(box(0.14f, 0.2f, 0.72f, 0.6f, false), box(0.28f, 0.3f, 0.1f, 0.1f, true)));
+
+    /** A serif capital T, which is what a text tool looks like everywhere. */
+    public static final Icon TEXT = of(
+            List.of(line(0.2f, 0.22f, 0.8f, 0.22f), line(0.5f, 0.22f, 0.5f, 0.8f),
+                    line(0.36f, 0.8f, 0.64f, 0.8f)),
+            List.of());
+
+    /** A rectangle, which is what a shape layer is. */
+    public static final Icon SHAPE = of(
+            List.of(),
+            List.of(box(0.16f, 0.26f, 0.68f, 0.48f, false)));
+
     /** Bars against a left edge. */
     public static final Icon ALIGN_LEFT = of(
             List.of(line(0.14f, 0.12f, 0.14f, 0.88f)),

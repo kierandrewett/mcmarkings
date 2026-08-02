@@ -607,6 +607,35 @@ public final class EditorPanel implements Panel {
      * inside it would leave ImGui's disabled stack unbalanced and take out the frame
      * after this one.
      */
+    /** A square icon button, plus the width one takes including the gap after it. */
+    private static float iconSide() {
+        return ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingX();
+    }
+
+    /**
+     * An icon button that is not a command.
+     *
+     * <p>The toolbar's buttons all run commands and get their tooltip from one. These
+     * three do not, so the words that were on them have to go somewhere, and a
+     * tooltip is where. Nothing is lost: the label was "Image", and "Add an image
+     * layer" says more.
+     */
+    private boolean iconButton(String id, Icon icon, String label, String hint) {
+        float side = ImGui.getFrameHeight();
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        boolean pressed = ImGui.button("##" + id, side, side);
+
+        float inset = Math.max(2.0f, side * 0.2f);
+        ImGuiScreens.drawIcon(ImGui.getWindowDrawList(), icon, x + inset, y + inset,
+                side - inset * 2.0f, ImGui.getColorU32(ImGuiCol.Text));
+
+        if (ImGuiScreens.explaining()) {
+            ImGui.setTooltip(label + (hint.isBlank() ? "" : "\n" + hint));
+        }
+        return pressed;
+    }
+
     private void commandButton(String label, String commandId) {
         commandButton(label, commandId, null);
     }
@@ -1509,24 +1538,28 @@ public final class EditorPanel implements Panel {
     }
 
     private void drawAddButtons() {
-        float available = ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX();
-        float half = Math.max(unit() * 3.0f, available / 2.0f);
-
-        if (ImGui.button("Image##add-image", half, 0.0f)) {
+        // One row of four rather than two rows of two. These are the first thing in
+        // the panel and they were taking a fifth of its height to say four words that
+        // the icons say in a line.
+        if (iconButton("add-image", Icon.IMAGE, "Add an image layer",
+                "Pick a picture from the repository")) {
             picker.openPicker(this::addImageLayer);
         }
-        ImGuiScreens.flowTo("Text##add-text");
-        if (ImGui.button("Text##add-text", half, 0.0f)) {
+        ImGuiScreens.flowTo(iconSide());
+        if (iconButton("add-text", Icon.TEXT, "Add a text layer", "")) {
             addTextLayer();
         }
-        if (ImGui.button("Shape##add-shape", half, 0.0f)) {
+        ImGuiScreens.flowTo(iconSide());
+        if (iconButton("add-shape", Icon.SHAPE, "Add a shape layer",
+                "A rectangle, for a plate or a backdrop")) {
             addShapeLayer();
         }
-        ImGui.sameLine();
+        ImGuiScreens.flowTo(iconSide());
 
         Command group = commands.byId("editor.group").orElse(null);
         ImGui.beginDisabled(group == null || !group.isEnabled());
-        boolean pressed = ImGui.button("Group##add-group", half, 0.0f);
+        boolean pressed = iconButton("add-group", Icon.GROUP, "Group the selection",
+                group != null && group.isEnabled() ? "" : "Select two or more layers first");
         ImGui.endDisabled();
         if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             // Plain isItemHovered before, which ImGui suppresses on a disabled item,
