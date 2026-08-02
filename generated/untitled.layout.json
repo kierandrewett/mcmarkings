@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "name": "untitled",
+  "grid": {
+    "columns": 2,
+    "rows": 2
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-6",
+      "name": "UK traffic sign: End of motorway regulations, including the national speed limit (TSRGDNO 2931)",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 512,
+        "height": 512
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/end_of_motorway_regulations_including_the_national_speed_limit_2931.png",
+      "fit": "contain"
+    }
+  ]
+}
