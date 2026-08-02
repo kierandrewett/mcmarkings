@@ -95,6 +95,33 @@ writes git configuration** at any scope. If a commit fails because identity or
 credentials are missing, it shows you git's own error and stops rather than
 quietly patching your setup.
 
+## Running under a Flatpak launcher
+
+Prism Launcher installed as a Flatpak is sandboxed, which costs you three things.
+Two are permissions and one is not.
+
+**The repository and your fonts are invisible** until you grant access:
+
+```sh
+flatpak override --user --filesystem=/home/kieran/dev/mcmarkings org.prismlauncher.PrismLauncher
+flatpak override --user --filesystem=~/.local/share/fonts:ro org.prismlauncher.PrismLauncher
+```
+
+Undo with `flatpak override --user --reset org.prismlauncher.PrismLauncher`.
+
+**There is no `git` binary in the Flatpak runtime**, and no permission adds one.
+That is why the read path does not use it: HEAD, the current branch and the origin
+URL are read straight out of `.git` as files, so browsing, pinning URLs, creating
+maps and getting frames all work regardless. Only **Pull** and **Save & publish**
+shell out to git, and they say so plainly instead of failing obscurely. To publish
+from inside a Flatpak you need either a native Prism install or a git binary the
+sandbox can reach.
+
+**Push before you place.** URLs are pinned to the last commit the mod can see on
+`origin`, not to your local HEAD, because ImageFrame fetches over HTTP from the
+server and a commit sitting unpushed on your machine is a guaranteed 404. If a
+sign you just added does not appear, check you have pushed it.
+
 ## Layout
 
 ```

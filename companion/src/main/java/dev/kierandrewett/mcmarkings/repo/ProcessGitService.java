@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,6 +39,10 @@ public class ProcessGitService implements GitService {
 
     private volatile boolean repoVerified;
 
+    private volatile Optional<GitFiles> gitFiles;
+
+    private volatile Boolean binaryPresent;
+
     public ProcessGitService(Path root) {
         this.root = root.toAbsolutePath().normalize();
     }
@@ -46,20 +51,40 @@ public class ProcessGitService implements GitService {
         return root;
     }
 
+    /**
+     * Read-only facts come from the files in .git before the binary is tried.
+     *
+     * <p>Not just an optimisation. A Flatpak Prism Launcher has no git binary and
+     * no permission can add one, so reading the files is the only way browsing and
+     * placing signs work there at all. It is also faster, since it avoids spawning
+     * a process for something that is a few bytes on disk.
+     */
     @Override
     public String head() throws GitException {
+        Optional<String> fromFiles = files().flatMap(GitFiles::head);
+        if (fromFiles.isPresent()) {
+            return fromFiles.get();
+        }
         ensureRepository();
         return firstLine(exec(LOCAL_TIMEOUT, "rev-parse", "HEAD"));
     }
 
     @Override
     public String currentBranch() throws GitException {
+        Optional<String> fromFiles = files().flatMap(GitFiles::currentBranch);
+        if (fromFiles.isPresent()) {
+            return fromFiles.get();
+        }
         ensureRepository();
         return firstLine(exec(LOCAL_TIMEOUT, "rev-parse", "--abbrev-ref", "HEAD"));
     }
 
     @Override
     public String remoteSlug() throws GitException {
+        Optional<String> fromFiles = files().flatMap(GitFiles::remoteSlug);
+        if (fromFiles.isPresent()) {
+            return fromFiles.get();
+        }
         ensureRepository();
         String url = firstLine(exec(LOCAL_TIMEOUT, "remote", "get-url", "origin"));
         String slug = parseSlug(url);
@@ -70,6 +95,51 @@ public class ProcessGitService implements GitService {
     }
 
     @Override
+    public String pinnableCommit() throws GitException {
+        Optional<GitFiles> files = files();
+        if (files.isPresent()) {
+            Optional<String> remote = files.get().currentBranch().flatMap(files.get()::remoteHead);
+            if (remote.isPresent()) {
+                return remote.get();
+            }
+        }
+
+        // No remote-tracking ref to go on. HEAD is the best guess left, and if it
+        // has not been pushed the fetch will fail loudly at the server rather than
+        // silently serving the wrong image.
+        return head();
+    }
+
+    private Optional<GitFiles> files() {
+        if (gitFiles == null) {
+            gitFiles = GitFiles.at(root);
+        }
+        return gitFiles;
+    }
+
+    /** True when a git binary is actually runnable, which a Flatpak client may not have. */
+    public boolean binaryAvailable() {
+        if (binaryPresent == null) {
+            try {
+                exec(LOCAL_TIMEOUT, "--version");
+                binaryPresent = Boolean.TRUE;
+            } catch (GitException exception) {
+                binaryPresent = Boolean.FALSE;
+            }
+        }
+        return binaryPresent;
+    }
+
+    private void requireBinary(String operation) throws GitException {
+        if (!binaryAvailable()) {
+            throw new GitException(operation, -1,
+                    "no git binary is available to this client, so " + operation + " cannot run. "
+                            + "Browsing and placing signs still work; publishing needs git on the PATH. "
+                            + "A Flatpak Prism Launcher has no git in its runtime.");
+        }
+    }
+
+    @Override
     public boolean isClean() throws GitException {
         ensureRepository();
         return exec(LOCAL_TIMEOUT, "status", "--porcelain").isBlank();
@@ -77,6 +147,7 @@ public class ProcessGitService implements GitService {
 
     @Override
     public PullResult pull() throws GitException {
+        requireBinary("pull");
         ensureRepository();
         String oldHead = head();
         exec(NETWORK_TIMEOUT, "pull", "--ff-only");
@@ -106,6 +177,7 @@ public class ProcessGitService implements GitService {
 
     @Override
     public String commitAndPush(List<Path> files, String message) throws GitException {
+        requireBinary("commit and push");
         ensureRepository();
         if (files == null || files.isEmpty()) {
             throw new GitException("add", -1, "no files given to commit");

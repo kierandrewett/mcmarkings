@@ -123,7 +123,9 @@ public class BrowserScreen extends BaseOwoScreen<FlowLayout> {
                 String slug = services.config.githubSlug.isBlank()
                         ? services.git.remoteSlug()
                         : services.config.githubSlug;
-                String head = services.git.head();
+                // The last commit known to be on the remote, not HEAD: the server
+                // fetches these URLs over HTTP, so an unpushed commit is a 404.
+                String head = services.git.pinnableCommit();
                 Minecraft.getInstance().execute(() -> {
                     repoSlug = slug;
                     headSha = head;

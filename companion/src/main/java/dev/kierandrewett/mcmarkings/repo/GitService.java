@@ -14,6 +14,15 @@ public interface GitService {
     /** Current HEAD commit SHA. */
     String head() throws GitException;
 
+    /**
+     * The commit a public raw URL should be pinned to.
+     *
+     * <p>Deliberately not HEAD. ImageFrame fetches images over HTTP from the
+     * server, so a commit that exists only on this machine is a guaranteed 404;
+     * this is the newest commit known to be on the remote.
+     */
+    String pinnableCommit() throws GitException;
+
     /** Checked-out branch name. */
     String currentBranch() throws GitException;
 
