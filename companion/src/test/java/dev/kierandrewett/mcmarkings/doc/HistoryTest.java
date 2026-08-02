@@ -175,4 +175,45 @@ class HistoryTest {
         assertFalse(history.canRedo());
         assertEquals(500, xOf(history.current()));
     }
+
+    @Test
+    void differentKeysDoNotMergeIntoOneUndo() {
+        // The bug this pins: Position and Size on a layer shared a coalescing key, so
+        // dragging one and then the other inside the window became a single undo, and
+        // the entry kept the first label. Undo then offered to move something you had
+        // just resized.
+        History history = new History(at(0));
+
+        history.push(at(1), "Move layer", "position:a", 1_000L);
+        history.push(at(2), "Resize layer", "size:a", 1_100L);
+
+        assertEquals(2, history.depth(), "two different edits became one");
+        assertEquals("Resize layer", history.undoLabel().orElseThrow(),
+                "undo should offer the thing that actually happened last");
+    }
+
+    @Test
+    void theSameKeyStillMergesWithinTheWindow() {
+        // The other half. A drag is many pushes and has to stay one undo, or stepping
+        // back through a single gesture takes fifty presses.
+        History history = new History(at(0));
+
+        history.push(at(1), "Move layer", "position:a", 1_000L);
+        history.push(at(2), "Move layer", "position:a", 1_100L);
+        history.push(at(3), "Move layer", "position:a", 1_200L);
+
+        assertEquals(1, history.depth(), "one gesture should be one undo");
+    }
+
+    @Test
+    void aNullKeyNeverMerges() {
+        // What the checkboxes and renames use. Each is a discrete act and should be
+        // undoable on its own however fast someone clicks.
+        History history = new History(at(0));
+
+        history.push(at(1), "Show layer", null, 1_000L);
+        history.push(at(2), "Hide layer", null, 1_010L);
+
+        assertEquals(2, history.depth());
+    }
 }
