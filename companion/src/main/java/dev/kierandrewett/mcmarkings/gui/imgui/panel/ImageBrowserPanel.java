@@ -498,27 +498,18 @@ public final class ImageBrowserPanel implements Panel {
 
         ImGui.textDisabled(ImGuiScreens.truncate(image.path(), 72));
         ImGui.text(image.width() + " x " + image.height() + " px");
-        if (image.reference() != null && !image.reference().isBlank()) {
-            ImGui.textDisabled(image.reference());
+        // One line rather than three. These arrived one at a time over several
+        // changes and ended up as a bare code, a bare group and a labelled licence
+        // stacked on top of each other, which reads as three unrelated facts and
+        // spells out what each one is exactly once. Together they are what the
+        // repository knows about this image, and they fit on a row.
+        String catalogue = metadataLine(image);
+        if (!catalogue.isEmpty()) {
+            ImGui.textDisabled(catalogue);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("The catalogue code from this repository's metadata. "
-                        + "You can search for it.");
+                ImGui.setTooltip("Group, catalogue code and licence, as this repository "
+                        + "records them.\nThe group and the code can be searched for.");
             }
-        }
-
-        // Attribution, where someone would need it: about to put a borrowed image on a
-        // server other people can see. The repository records it and nothing showed it.
-        if (image.category() != null && !image.category().isBlank()) {
-            // Underscores out, since the repository writes safe_condition and a person
-            // reads "safe condition".
-            ImGui.textDisabled(image.category().replace('_', ' '));
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("What this repository files it under. You can search for it.");
-            }
-        }
-
-        if (image.licence() != null && !image.licence().isBlank()) {
-            ImGui.textDisabled("Licence: " + image.licence());
         }
 
         // Copied rather than opened. Putting a sign on a wall someone else can see is
@@ -626,6 +617,30 @@ public final class ImageBrowserPanel implements Panel {
      * are made for drawn cells only, which after culling is a screenful rather than
      * the whole repository.
      */
+    /**
+     * Group, code and licence on one row, in that order, omitting what is missing.
+     *
+     * <p>Separated by a bar rather than commas, because two of the three can contain
+     * a comma and a licence often does. ASCII on purpose: the font atlas is rebuilt
+     * from whatever TTF the machine has, so a character outside the default range is
+     * a box on somebody else's computer, and the editor's status line already
+     * separates this way.
+     */
+    private static String metadataLine(RepoImage image) {
+        List<String> parts = new java.util.ArrayList<>(3);
+        if (image.category() != null && !image.category().isBlank()) {
+            // The repository writes safe_condition and a person reads "safe condition".
+            parts.add(image.category().replace('_', ' '));
+        }
+        if (image.reference() != null && !image.reference().isBlank()) {
+            parts.add(image.reference());
+        }
+        if (image.licence() != null && !image.licence().isBlank()) {
+            parts.add(image.licence());
+        }
+        return String.join("  |  ", parts);
+    }
+
     /**
      * Whether a description is worth showing next to a name.
      *
