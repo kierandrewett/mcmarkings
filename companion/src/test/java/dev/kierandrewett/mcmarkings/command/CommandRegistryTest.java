@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -285,5 +286,31 @@ class CommandRegistryTest {
         }
 
         assertEquals(3, CommandRegistry.conflictsAcross(registries).getFirst().size());
+    }
+
+    @Test
+    @DisplayName("registering the same id twice is refused, not silently obeyed")
+    void duplicateIdsAreRejected() {
+        // It used to be a bare put, so the first command simply disappeared. A missing
+        // palette entry with no explanation is a miserable thing to track down.
+        CommandRegistry registry = new CommandRegistry();
+        registry.register(Command.of("editor.delete", "Delete").does(() -> { }));
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> registry.register(Command.of("editor.delete", "Remove").does(() -> { })));
+
+        assertTrue(failure.getMessage().contains("Delete") && failure.getMessage().contains("Remove"),
+                "the message should name both so the duplicate is findable: " + failure.getMessage());
+    }
+
+    @Test
+    @DisplayName("replace is how you deliberately swap one out")
+    void replaceIsTheIntentionalRoute() {
+        CommandRegistry registry = new CommandRegistry();
+        registry.register(Command.of("a", "First").does(() -> { }));
+        registry.replace(Command.of("a", "Second").does(() -> { }));
+
+        assertEquals("Second", registry.byId("a").orElseThrow().label());
+        assertEquals(1, registry.all().size());
     }
 }

@@ -20,8 +20,27 @@ public final class CommandRegistry {
 
     private final Map<String, Command> byId = new LinkedHashMap<>();
 
+    /**
+     * Adds a command, refusing to quietly replace one.
+     *
+     * <p>It was a bare put, so registering the same id twice made the first command
+     * vanish. Ids are built by hand and several are assembled from loops, so a copied
+     * line or an enum gaining a value that collides is an ordinary mistake, and the
+     * symptom would be a command missing from the palette with nothing anywhere
+     * saying why.
+     *
+     * <p>Loud rather than logged, unlike a shortcut clash. That is a design decision
+     * two features disagree about; this is a bug, and it is worth failing where it
+     * happens rather than being found later by whoever notices something absent.
+     * {@link #replace} is there for deliberately swapping one out.
+     */
     public void register(Command command) {
-        byId.put(command.id(), command);
+        Command existing = byId.putIfAbsent(command.id(), command);
+        if (existing != null) {
+            throw new IllegalArgumentException("two commands share the id \"" + command.id()
+                    + "\": \"" + existing.label() + "\" and \"" + command.label()
+                    + "\". Use replace() if the second is meant to win.");
+        }
     }
 
     public void registerAll(List<Command> commands) {
@@ -29,8 +48,15 @@ public final class CommandRegistry {
     }
 
     /** Replaces any command with the same id, for rebinding at runtime. */
+    /**
+     * Swaps a command out, or adds it if there is none.
+     *
+     * <p>Does the put itself rather than going through {@link #register}, which now
+     * refuses a duplicate. The two used to be the same call, which is why registering
+     * twice by accident looked exactly like changing a binding on purpose.
+     */
     public void replace(Command command) {
-        register(command);
+        byId.put(command.id(), command);
     }
 
     public Optional<Command> byId(String id) {
