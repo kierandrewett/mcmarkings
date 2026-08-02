@@ -1,5 +1,6 @@
 package dev.kierandrewett.mcmarkings.js;
 
+import dev.kierandrewett.mcmarkings.Pixels;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.doc.Document;
 import dev.kierandrewett.mcmarkings.doc.DocumentRenderer;
@@ -400,8 +401,8 @@ class RealGeneratorsIntegrationTest {
                     throw new IOException("this document should need no images: " + path);
                 });
 
-        double drawnCoverage = coverage(drawn);
-        double describedCoverage = coverage(described);
+        double drawnCoverage = Pixels.coverage(drawn);
+        double describedCoverage = Pixels.coverage(described);
 
         assertTrue(Math.abs(drawnCoverage - describedCoverage) < 0.15,
                 String.format("one route covers %.2f of the canvas and the other %.2f, "
@@ -409,15 +410,4 @@ class RealGeneratorsIntegrationTest {
     }
 
     /** Fraction of pixels that are not fully transparent. */
-    private static double coverage(BufferedImage image) {
-        long painted = 0;
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                if ((image.getRGB(x, y) >>> 24) > 8) {
-                    painted++;
-                }
-            }
-        }
-        return painted / (double) (image.getWidth() * (long) image.getHeight());
-    }
 }

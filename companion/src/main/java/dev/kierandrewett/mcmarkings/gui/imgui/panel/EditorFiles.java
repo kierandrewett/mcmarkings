@@ -804,7 +804,7 @@ public final class EditorFiles {
     }
 
     private void saveAs(String name) {
-        Document document = withName(history.current(), name);
+        Document document = history.current().withName(name);
         if (!document.equals(history.current())) {
             history.push(document, "Rename to " + name, null);
             history.endGesture();
@@ -906,8 +906,4 @@ public final class EditorFiles {
         return drawnAtMillis == 0 ? System.currentTimeMillis() : drawnAtMillis;
     }
 
-    private static Document withName(Document document, String name) {
-        return new Document(name, document.grid(), document.pixelsPerFrame(),
-                document.background(), document.layers());
-    }
 }

@@ -1,5 +1,6 @@
 package dev.kierandrewett.mcmarkings.doc;
 
+import dev.kierandrewett.mcmarkings.Pixels;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
 import org.junit.jupiter.api.DisplayName;
@@ -113,19 +114,8 @@ class EditorFeatureRenderTest {
 
         // A floor, not the point: enough paint that a blank or nearly blank canvas
         // fails without anyone having to open the file.
-        assertTrue(coverage(rendered) > 0.5,
+        assertTrue(Pixels.coverage(rendered) > 0.5,
                 "the document covers most of its canvas, so something did not draw");
     }
 
-    private static double coverage(BufferedImage image) {
-        long painted = 0;
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                if ((image.getRGB(x, y) >>> 24) > 8) {
-                    painted++;
-                }
-            }
-        }
-        return painted / (double) (image.getWidth() * (long) image.getHeight());
-    }
 }
