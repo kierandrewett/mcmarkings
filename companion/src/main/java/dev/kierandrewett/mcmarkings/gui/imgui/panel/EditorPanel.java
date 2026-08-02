@@ -559,7 +559,14 @@ public final class EditorPanel implements Panel {
         boolean first = true;
         for (ToolbarItem item : TOOLBAR) {
             if (!first) {
-                ImGuiScreens.flowTo(item.label());
+                // An icon button is a square, so it is measured as one. Measuring the
+                // label would reserve the width of "Align centre" for a control a
+                // dozen pixels across.
+                if (item.icon() == null) {
+                    ImGuiScreens.flowTo(item.label());
+                } else {
+                    ImGuiScreens.flowTo(ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingX());
+                }
             }
             first = false;
 

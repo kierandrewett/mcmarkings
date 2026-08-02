@@ -315,11 +315,38 @@ public final class ImGuiScreens {
      * generously, so it wraps a little early rather than a little late.
      */
     public static void flowTo(String label) {
+        flowTo(ImGui.calcTextSizeX(visibleLabel(label)) + ImGui.getFrameHeight());
+    }
+
+    /**
+     * The same, for a control whose width is not its label's.
+     *
+     * <p>An icon button is a square, and measuring its label instead would reserve
+     * twelve characters for something one square wide. That wraps the row early and
+     * costs exactly the space the icons were there to save, which is the sort of
+     * thing that looks like the icons not having helped.
+     */
+    public static void flowTo(float width) {
         ImGui.sameLine();
-        float width = ImGui.calcTextSizeX(visibleLabel(label)) + ImGui.getFrameHeight();
-        if (ImGui.getCursorPosX() + width > ImGui.getContentRegionMaxX()) {
+        if (wraps(ImGui.getCursorPosX(), width, ImGui.getContentRegionMaxX())) {
             ImGui.newLine();
         }
+    }
+
+    /**
+     * Whether a control of this width still fits on the row.
+     *
+     * <p>Separated out because it is the whole of the decision and the rest of
+     * {@link #flowTo} needs a running ImGui context, so this is the part a test can
+     * reach. Two lint rules make sure buttons go through the helper and neither of
+     * them says the helper works.
+     *
+     * <p>Strictly greater, so a control that ends exactly on the edge stays put. The
+     * other way round wraps a row that fitted perfectly, which looks like a bug in
+     * the layout rather than a control being too wide.
+     */
+    static boolean wraps(float cursorX, float width, float rightEdge) {
+        return cursorX + width > rightEdge;
     }
 
     /** Everything after "##" is ImGui's id, not text, so it does not take any width. */
