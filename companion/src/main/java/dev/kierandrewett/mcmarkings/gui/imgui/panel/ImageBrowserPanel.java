@@ -284,6 +284,16 @@ public final class ImageBrowserPanel implements Panel {
         }
         resultsSignature = signature;
         results = List.copyOf(services.repo().search(search.get(), MAX_RESULTS));
+
+        // Checked against the repository rather than against the results, because an
+        // image can be perfectly real and filtered out by the current search. Without
+        // this, deleting a PNG outside the game and rescanning leaves the detail pane
+        // showing it, and offering to place something that is no longer there: the
+        // command would go out and the server would fetch a URL for a file the
+        // repository does not have.
+        if (selected != null && services.repo().byPath(selected.path()).isEmpty()) {
+            selected = null;
+        }
     }
 
     private void drawGrid() {

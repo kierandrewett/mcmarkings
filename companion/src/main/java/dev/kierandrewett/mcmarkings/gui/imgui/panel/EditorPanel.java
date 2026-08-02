@@ -635,10 +635,16 @@ public final class EditorPanel implements Panel {
             fitRequested = true;
         }
 
-        // Something outside the editor put a whole document on the canvas, so show it
-        // rather than leaving the view pointed at where the last one used to be.
+        // Something outside the editor put a whole document on the canvas. Show it,
+        // rather than leaving the view pointed at where the last one used to be, and
+        // drop anything that was about the document just replaced.
         if (services.consumeEditorFit()) {
             fitRequested = true;
+
+            // A filter typed for the last sign hides most of the new one, and the
+            // layers panel goes near enough empty at the moment someone is looking to
+            // see what they opened.
+            layerFilter.set("");
         }
         if (fitRequested) {
             fitRequested = false;
