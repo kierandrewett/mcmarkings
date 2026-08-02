@@ -110,12 +110,28 @@ flatpak override --user --filesystem=~/.local/share/fonts:ro org.prismlauncher.P
 Undo with `flatpak override --user --reset org.prismlauncher.PrismLauncher`.
 
 **There is no `git` binary in the Flatpak runtime**, and no permission adds one.
-That is why the read path does not use it: HEAD, the current branch and the origin
-URL are read straight out of `.git` as files, so browsing, pinning URLs, creating
-maps and getting frames all work regardless. Only **Pull** and **Save & publish**
-shell out to git, and they say so plainly instead of failing obscurely. To publish
-from inside a Flatpak you need either a native Prism install or a git binary the
-sandbox can reach.
+Two things follow.
+
+The read path does not use git at all: HEAD, the current branch and the origin URL
+are read straight out of `.git` as files, so browsing, pinning URLs, creating maps
+and getting frames work in a sandbox with no git anywhere.
+
+**Pull** and **Save & publish** genuinely need it, so inside a sandbox the mod
+hands those to the host through `flatpak-spawn --host`. That needs one more grant:
+
+```sh
+flatpak override --user --talk-name=org.freedesktop.Flatpak org.prismlauncher.PrismLauncher
+```
+
+Be clear about what this is. It lets the sandboxed launcher run arbitrary commands
+on your host, which is effectively an escape from the sandbox for Prism and every
+mod in it. It is the price of publishing from inside a Flatpak. If you would rather
+not pay it, leave it ungranted: everything except Pull and publish still works, and
+the mod tells you exactly what is missing instead of failing obscurely.
+
+Git is invoked with `-C <repo>` rather than by working directory, because a host
+process spawned out of the sandbox does not inherit the sandbox's working
+directory.
 
 **Push before you place.** URLs are pinned to the last commit the mod can see on
 `origin`, not to your local HEAD, because ImageFrame fetches over HTTP from the

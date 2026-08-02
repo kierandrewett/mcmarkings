@@ -35,6 +35,15 @@ public class ProcessGitService implements GitService {
     /** Fetch and push have to cross the network and can legitimately take a while. */
     private static final Duration NETWORK_TIMEOUT = Duration.ofSeconds(60);
 
+    /**
+     * Whether this JVM is inside a Flatpak sandbox.
+     *
+     * <p>Flatpak writes this file into every sandbox and it exists nowhere else, so
+     * it is the standard way to ask. It matters because the Flatpak runtime has no
+     * git of its own and commands have to be handed to the host instead.
+     */
+    private static final boolean SANDBOXED = Files.exists(Path.of("/.flatpak-info"));
+
     private final Path root;
 
     private volatile boolean repoVerified;
@@ -110,6 +119,29 @@ public class ProcessGitService implements GitService {
         return head();
     }
 
+    /**
+     * Assembles the argument array for one git invocation.
+     *
+     * <p>Two details matter and both are easy to get wrong. Inside a Flatpak the
+     * runtime has no git, so the call is handed to the host through flatpak-spawn.
+     * And {@code -C} has to carry the repository path rather than relying on the
+     * working directory, because a host process spawned out of the sandbox does not
+     * inherit the sandbox's cwd. {@code -C} also has to sit before the subcommand,
+     * since it is a git option and not an argument to the subcommand.
+     */
+    static List<String> buildCommand(boolean sandboxed, Path root, String... arguments) {
+        List<String> command = new ArrayList<>(arguments.length + 5);
+        if (sandboxed) {
+            command.add("flatpak-spawn");
+            command.add("--host");
+        }
+        command.add("git");
+        command.add("-C");
+        command.add(root.toString());
+        command.addAll(List.of(arguments));
+        return command;
+    }
+
     private Optional<GitFiles> files() {
         if (gitFiles == null) {
             gitFiles = GitFiles.at(root);
@@ -131,12 +163,19 @@ public class ProcessGitService implements GitService {
     }
 
     private void requireBinary(String operation) throws GitException {
-        if (!binaryAvailable()) {
-            throw new GitException(operation, -1,
-                    "no git binary is available to this client, so " + operation + " cannot run. "
-                            + "Browsing and placing signs still work; publishing needs git on the PATH. "
-                            + "A Flatpak Prism Launcher has no git in its runtime.");
+        if (binaryAvailable()) {
+            return;
         }
+        String remedy = SANDBOXED
+                ? "This client is sandboxed, so git has to run on the host through flatpak-spawn. "
+                        + "Grant it with:\n"
+                        + "  flatpak override --user --talk-name=org.freedesktop.Flatpak "
+                        + "org.prismlauncher.PrismLauncher\n"
+                        + "and make sure git is installed on the host."
+                : "Install git and make sure it is on the PATH.";
+        throw new GitException(operation, -1,
+                operation + " needs a git binary and none is reachable. "
+                        + "Browsing and placing signs still work without one. " + remedy);
     }
 
     @Override
@@ -286,9 +325,7 @@ public class ProcessGitService implements GitService {
     private String exec(Duration timeout, String... arguments) throws GitException {
         String label = String.join(" ", arguments);
 
-        List<String> command = new ArrayList<>(arguments.length + 1);
-        command.add("git");
-        command.addAll(List.of(arguments));
+        List<String> command = buildCommand(SANDBOXED, root, arguments);
 
         Process process;
         try {
