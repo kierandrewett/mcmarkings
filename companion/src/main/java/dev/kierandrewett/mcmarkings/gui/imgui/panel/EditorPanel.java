@@ -16,6 +16,7 @@ import dev.kierandrewett.mcmarkings.doc.History;
 import dev.kierandrewett.mcmarkings.doc.Insets;
 import dev.kierandrewett.mcmarkings.doc.Layer;
 import dev.kierandrewett.mcmarkings.doc.RepositoryImages;
+import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.doc.Snapping;
 import dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens;
@@ -1462,6 +1463,20 @@ public final class EditorPanel implements Panel {
                     layer.opacity(), layer.margins())), "Rename layer", null);
         }
         ImGui.textDisabled("Name");
+
+        // What it becomes, when that differs. This name is not the one the sign ends
+        // up with: placing lowercases it and replaces anything outside a small set,
+        // so "Speed Limit 30" is filed under speed_limit_30 in the Placed tab and in
+        // the repository, and the first anyone knows of that is when they go looking
+        // for the wrong thing.
+        String placed = ImageFrameCommands.sanitiseName(document.name());
+        if (!placed.equals(document.name())) {
+            ImGui.textDisabled("Placed as " + placed);
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Item frame names are lowercase and cannot hold spaces, "
+                        + "so this is the name to look for afterwards.");
+            }
+        }
 
         drawBoundsFields(document, layer);
         drawCommonFields(document, layer);

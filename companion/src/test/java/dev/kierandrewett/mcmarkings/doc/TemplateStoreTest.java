@@ -152,4 +152,23 @@ class TemplateStoreTest {
 
         assertTrue(store.list().isEmpty());
     }
+
+    @Test
+    @DisplayName("names that look different can be the same file")
+    void differentNamesCanCollide() {
+        // The reason the save prompt has to compare file names rather than typed
+        // ones. These are three distinct things to type and one thing on disk, so
+        // warning about an overwrite by comparing what someone wrote would say
+        // nothing right up until the second save replaced the first.
+        assertEquals("give-way.json", TemplateStore.fileNameFor("Give Way"));
+        assertEquals("give-way.json", TemplateStore.fileNameFor("give_way"));
+        assertEquals("give-way.json", TemplateStore.fileNameFor("  give   way  "));
+    }
+
+    @Test
+    @DisplayName("a name with nothing usable in it still has a file")
+    void unusableNamesStillLand() {
+        assertEquals("untitled.json", TemplateStore.fileNameFor("!!!"));
+        assertEquals("untitled.json", TemplateStore.fileNameFor(""));
+    }
 }

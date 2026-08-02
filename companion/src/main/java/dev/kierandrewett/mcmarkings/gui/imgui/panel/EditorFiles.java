@@ -901,9 +901,18 @@ public final class EditorFiles {
         });
     }
 
+    /**
+     * Whether saving under this name would land on an existing template.
+     *
+     * <p>Compared by file name, not by what was typed. Names are flattened for the
+     * filesystem, so "Give Way" and "give_way" are one file, and comparing the
+     * displayed names says they are different right up until the second save
+     * replaces the first.
+     */
     private boolean existingTemplate(String name) {
-        String wanted = name.toLowerCase(Locale.ROOT);
-        return templates.stream().anyMatch(entry -> entry.name().toLowerCase(Locale.ROOT).equals(wanted));
+        String wanted = TemplateStore.fileNameFor(name);
+        return templates.stream()
+                .anyMatch(entry -> entry.file().getFileName().toString().equalsIgnoreCase(wanted));
     }
 
     /** Falls back to a live read for the banner, which is drawn before the popups. */

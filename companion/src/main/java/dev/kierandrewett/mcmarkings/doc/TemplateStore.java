@@ -173,7 +173,15 @@ public final class TemplateStore {
      * <p>Templates are committed and shared, so a name that is legal on one machine
      * and not on another would break someone else's checkout rather than the author's.
      */
-    static String fileNameFor(String name) {
+    /**
+     * The file a name would be saved as.
+     *
+     * <p>Public because the save prompt has to ask the same question this answers.
+     * Warning about an overwrite by comparing what someone typed is wrong: two
+     * different names can flatten to one file, and then the second save replaces the
+     * first with nothing having said so.
+     */
+    public static String fileNameFor(String name) {
         String cleaned = (name == null ? "" : name)
                 .trim()
                 .toLowerCase(Locale.ROOT)
