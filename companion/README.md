@@ -111,7 +111,7 @@ that has been moved can be pointed somewhere new without restarting the game.
 
 | Tab | For |
 | --- | --- |
-| **Browse** | Search the repository's images, see the frame size each one wants, place one, or drop it on the editor's canvas |
+| **Browse** | Search by name, description or catalogue code, see the frame size each one wants, place one, or drop it on the editor's canvas |
 | **Editor** | Compose from layers: images, text and shapes, with snapping, alignment, groups, and full styling |
 | **Generate** | Run a generator script, fill in its parameters, and either place the result or open it in the editor as layers |
 | **Placed** | Everything you have already put on a wall: refresh one after its image changed, reopen it in the editor, ask for the map or its frames again, or delete it |

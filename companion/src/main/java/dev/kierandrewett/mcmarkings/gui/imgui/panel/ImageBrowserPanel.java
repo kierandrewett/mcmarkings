@@ -248,7 +248,12 @@ public final class ImageBrowserPanel implements Panel {
     private void drawSearchRow(float unit) {
         float trailing = unit * 14.0f;
         ImGui.setNextItemWidth(Math.max(unit * 8.0f, ImGui.getContentRegionAvailX() - trailing));
-        ImGui.inputTextWithHint("##" + id + "-search", "Search images", search);
+        // Says what it searches. The scanner reads a name, a description and a
+        // catalogue code out of the repository's own metadata and the search covers
+        // all three, but the box said "Search images", so nobody would think to type a
+        // diagram number. Every one of the eleven hundred signs here has one, and it
+        // is how road signs are actually identified.
+        ImGui.inputTextWithHint("##" + id + "-search", "Search name, description or code", search);
 
         ImGui.sameLine();
         ImGui.beginDisabled(search.get().isEmpty());
@@ -481,6 +486,10 @@ public final class ImageBrowserPanel implements Panel {
         ImGui.text(image.width() + " x " + image.height() + " px");
         if (image.reference() != null && !image.reference().isBlank()) {
             ImGui.textDisabled(image.reference());
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("The catalogue code from this repository's metadata. "
+                        + "You can search for it.");
+            }
         }
         ImGui.separator();
 
