@@ -1,6 +1,7 @@
 package dev.kierandrewett.mcmarkings.js;
 
 import dev.kierandrewett.mcmarkings.render.FontRegistry;
+import dev.kierandrewett.mcmarkings.render.TextLayout;
 
 import javax.imageio.ImageIO;
 import java.awt.AlphaComposite;
@@ -12,12 +13,10 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
-import java.awt.font.LineMetrics;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
-import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
@@ -278,38 +277,19 @@ public final class CanvasApi {
         String safe = text == null ? "" : text;
         Font font = fontFor(options);
         FontRenderContext frc = graphics.getFontRenderContext();
-        return metrics(font, frc, layout(font, frc, safe, options.tracking()), safe, options.scaleY());
+        return toMetrics(TextLayout.measure(font, frc, safe, options.tracking(), options.scaleY()));
     }
 
     public TextMetrics text(String text, double x, double y, TextOptions options) {
         String safe = text == null ? "" : text;
         Font font = fontFor(options);
         FontRenderContext frc = graphics.getFontRenderContext();
-        GlyphVector glyphs = layout(font, frc, safe, options.tracking());
-        TextMetrics measured = metrics(font, frc, glyphs, safe, options.scaleY());
+        GlyphVector glyphs = TextLayout.glyphs(font, frc, safe, options.tracking());
+        TextLayout.Metrics measured = TextLayout.measure(font, frc, glyphs, safe, options.scaleY());
 
-        double left = switch (options.align()) {
-            case "centre" -> x - measured.width() / 2;
-            case "right" -> x - measured.width();
-            default -> x;
-        };
-        // Ascent and descent are already scaled, so the baseline lands where the
-        // stretched text actually sits rather than where the unstretched font would.
-        double baseline = switch (options.baseline()) {
-            case "top" -> y + measured.ascent();
-            case "middle" -> y + (measured.ascent() - measured.descent()) / 2;
-            default -> y;
-        };
-
-        AffineTransform previous = graphics.getTransform();
-        graphics.translate(left, baseline);
-        if (options.scaleY() != 1.0) {
-            graphics.scale(1.0, options.scaleY());
-        }
-        graphics.setColor(parseColour(options.colour()));
-        graphics.drawGlyphVector(glyphs, 0f, 0f);
-        graphics.setTransform(previous);
-        return measured;
+        TextLayout.draw(graphics, glyphs, measured, x, y, alignOf(options.align()), baselineOf(options.baseline()),
+                options.scaleY(), parseColour(options.colour()));
+        return toMetrics(measured);
     }
 
     public void drawImage(String repoPath, double x, double y, double w, double h) {
@@ -390,34 +370,25 @@ public final class CanvasApi {
         return fonts.get(options.font()).deriveFont((float) options.size());
     }
 
-    /**
-     * Lays the string out once and applies tracking by shifting glyph positions, so the
-     * width we report is by construction the width we draw. The end position is shifted
-     * by only (n - 1) gaps: tracking sits between glyphs, not after the last one.
-     */
-    private static GlyphVector layout(Font font, FontRenderContext frc, String text, double tracking) {
-        GlyphVector glyphs = font.createGlyphVector(frc, text);
-        if (tracking == 0) {
-            return glyphs;
-        }
-        int count = glyphs.getNumGlyphs();
-        for (int index = 0; index <= count; index++) {
-            Point2D position = glyphs.getGlyphPosition(index);
-            double shift = tracking * Math.min(index, Math.max(count - 1, 0));
-            glyphs.setGlyphPosition(index, new Point2D.Double(position.getX() + shift, position.getY()));
-        }
-        return glyphs;
+    /** The script-facing spellings, mapped onto the shared layout's vocabulary. */
+    private static TextLayout.Align alignOf(String align) {
+        return switch (align) {
+            case "centre" -> TextLayout.Align.CENTRE;
+            case "right" -> TextLayout.Align.RIGHT;
+            default -> TextLayout.Align.LEFT;
+        };
     }
 
-    private static TextMetrics metrics(
-            Font font, FontRenderContext frc, GlyphVector glyphs, String text, double scaleY) {
-        // An empty string still has a meaningful height, which is what a caller
-        // laying out evenly spaced rows actually wants.
-        LineMetrics lineMetrics = font.getLineMetrics(text.isEmpty() ? "Hg" : text, frc);
-        double ascent = lineMetrics.getAscent() * scaleY;
-        double descent = lineMetrics.getDescent() * scaleY;
-        double width = glyphs.getGlyphPosition(glyphs.getNumGlyphs()).getX();
-        return new TextMetrics(width, ascent + descent, ascent, descent);
+    private static TextLayout.Baseline baselineOf(String baseline) {
+        return switch (baseline) {
+            case "top" -> TextLayout.Baseline.TOP;
+            case "middle" -> TextLayout.Baseline.MIDDLE;
+            default -> TextLayout.Baseline.ALPHABETIC;
+        };
+    }
+
+    private static TextMetrics toMetrics(TextLayout.Metrics metrics) {
+        return new TextMetrics(metrics.width(), metrics.height(), metrics.ascent(), metrics.descent());
     }
 
     private static BasicStroke stroke(double thickness) {
