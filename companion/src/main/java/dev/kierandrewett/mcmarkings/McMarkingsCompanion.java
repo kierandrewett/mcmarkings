@@ -44,6 +44,11 @@ public class McMarkingsCompanion implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (services != null) {
                 services.tick(client);
+                // Between frames, which is the only safe point to touch the atlas.
+                if (client.screen instanceof cn.enaium.fabric.imgui.ImGuiRenderable) {
+                    dev.kierandrewett.mcmarkings.gui.imgui.ImGuiFonts
+                            .ensureMatchesGuiScale(services.fonts);
+                }
             }
             while (openKey.consumeClick()) {
                 open(client);

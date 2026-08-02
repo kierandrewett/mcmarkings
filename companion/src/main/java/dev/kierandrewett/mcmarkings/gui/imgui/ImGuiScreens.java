@@ -165,10 +165,10 @@ public final class ImGuiScreens {
         // already applied, since there is no way to reset the style to defaults.
         ImGui.getStyle().scaleAllSizes(target / appliedScale);
 
-        // Fonts are set absolutely rather than multiplied. In imgui 1.92 this drives
-        // the dynamic rasteriser, so the glyphs are re-rendered at the new size
-        // instead of a small atlas being stretched and going soft.
-        ImGui.getStyle().setFontScaleMain(target);
+        // Deliberately does not touch the font scale. This backend cannot
+        // re-rasterise glyphs on demand, so scaling the font here would stretch a
+        // 13 pixel bitmap and produce exactly the blur this avoids. ImGuiFonts
+        // rebuilds the atlas at the right size instead.
 
         appliedScale = target;
         McMarkingsCompanion.LOGGER.debug("[mcmarkings] imgui scaled to match gui scale {}", target);
