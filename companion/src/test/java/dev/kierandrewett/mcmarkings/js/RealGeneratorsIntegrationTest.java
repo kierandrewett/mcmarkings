@@ -318,4 +318,106 @@ class RealGeneratorsIntegrationTest {
         Files.createDirectories(directory);
         ImageIO.write(image, "PNG", directory.resolve(name).toFile());
     }
+
+    /**
+     * The two routes have to agree.
+     *
+     * <p>render is what gets published straight to a wall and document is what the
+     * editor opens, so a generator that describes itself differently from how it
+     * draws itself produces a sign that changes depending on which button was
+     * pressed. That is written down in the generators guide as a rule and was not
+     * checked anywhere, which is the state a rule is least useful in.
+     *
+     * <p>Not the same size, and they cannot be. render draws at the natural size the
+     * layout came out as; a document's canvas is always columns times pixelsPerFrame,
+     * so it is the smallest frame-aligned canvas that covers that layout. Writing
+     * this test expecting them to match is how I found that out, and the equality it
+     * originally asserted was the wrong rule rather than a failing one.
+     *
+     * <p>What has to hold is that the document covers the drawing and does not
+     * overshoot it by more than a frame. Too small clips the sign, and nothing in the
+     * editor recovers content that was never on the canvas. Too large leaves it
+     * floating in space with the legend pushed off centre, which is exactly what a
+     * shape-scored grid used to do before it was scored by wasted area.
+     */
+    @Test
+    void theDocumentCanvasCoversTheDrawing() throws Exception {
+        Map<String, Object> params = Map.of(
+                "lines", List.of("30 mph", "speed limit"),
+                "scheme", "blue");
+
+        assertCoversWithoutOvershooting(runtime.render("plate", params),
+                runtime.document("plate", params).orElseThrow(), "plate");
+    }
+
+    @Test
+    void theDirectionSignDocumentCanvasCoversTheDrawing() throws Exception {
+        // The demanding one: composited images, a stroked diagram and an inset panel,
+        // so far more places for the two descriptions to drift apart.
+        Map<String, Object> params = Map.of(
+                "destinations", List.of("Basingstoke|A339", "Wootton St Lawrence"),
+                "distance", "500 yards");
+
+        assertCoversWithoutOvershooting(runtime.render("direction_sign", params),
+                runtime.document("direction_sign", params).orElseThrow(), "direction sign");
+    }
+
+    private static void assertCoversWithoutOvershooting(BufferedImage drawn, Document described, String what) {
+        int frame = described.pixelsPerFrame();
+
+        assertTrue(described.width() >= drawn.getWidth(),
+                what + " is drawn " + drawn.getWidth() + " wide but described as only "
+                        + described.width() + ", so it would be clipped");
+        assertTrue(described.height() >= drawn.getHeight(),
+                what + " is drawn " + drawn.getHeight() + " tall but described as only "
+                        + described.height() + ", so it would be clipped");
+
+        assertTrue(described.width() - drawn.getWidth() < frame,
+                what + " wastes " + (described.width() - drawn.getWidth())
+                        + " pixels of width, which is a whole frame of nothing");
+        assertTrue(described.height() - drawn.getHeight() < frame,
+                what + " wastes " + (described.height() - drawn.getHeight())
+                        + " pixels of height, which is a whole frame of nothing");
+    }
+
+    /**
+     * And both fill roughly the same part of the canvas.
+     *
+     * <p>Matching sizes with nothing in the middle would still pass, so this checks
+     * coverage: what fraction of the canvas is not transparent. Deliberately a coarse
+     * measure with a wide tolerance, because it is looking for a missing line or a
+     * panel that did not make it across, not for a pixel of antialiasing.
+     */
+    @Test
+    void bothRoutesFillRoughlyTheSameCanvas() throws Exception {
+        Map<String, Object> params = Map.of(
+                "lines", List.of("30 mph", "speed limit"),
+                "scheme", "blue");
+
+        BufferedImage drawn = runtime.render("plate", params);
+        BufferedImage described = new DocumentRenderer(fonts)
+                .render(runtime.document("plate", params).orElseThrow(), path -> {
+                    throw new IOException("this document should need no images: " + path);
+                });
+
+        double drawnCoverage = coverage(drawn);
+        double describedCoverage = coverage(described);
+
+        assertTrue(Math.abs(drawnCoverage - describedCoverage) < 0.15,
+                String.format("one route covers %.2f of the canvas and the other %.2f, "
+                        + "so something is missing from one of them", drawnCoverage, describedCoverage));
+    }
+
+    /** Fraction of pixels that are not fully transparent. */
+    private static double coverage(BufferedImage image) {
+        long painted = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getRGB(x, y) >>> 24) > 8) {
+                    painted++;
+                }
+            }
+        }
+        return painted / (double) (image.getWidth() * (long) image.getHeight());
+    }
 }

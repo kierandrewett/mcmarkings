@@ -101,11 +101,20 @@ strings `render` takes. `padding` and `margins` are `{ top, right, bottom, left 
 **Layer order is bottom first**, matching the order you would draw them in, so a panel comes before
 the text on top of it.
 
-The two have to agree. `document` is what the editor opens and `render` is what gets published
-directly, so if they disagree the sign changes depending on which route it took, which is a
-confusing bug to chase. The generators here avoid it by computing the layout once and feeding both:
-`lib.textLayers` turns the same measured rows `render` draws into text layers, so there is one
-answer and two ways of expressing it.
+The two have to describe the same sign, but not at the same size. `render` draws at whatever size
+your layout came out as; a document's canvas is always `columns * pixelsPerFrame`, so it is the
+smallest frame-aligned canvas that **covers** that layout. `lib.canvasFor(width, height)` picks it
+for you and returns the grid, the resolution and the canvas size together.
+
+What must hold is that the document canvas covers the drawing without overshooting it by a whole
+frame. Too small and the sign is clipped, and nothing in the editor brings back content that was
+never on the canvas. Too large and it floats in a field of empty frames. A test in the mod checks
+both generators here for exactly that.
+
+Beyond size, the two have to agree on content, or the sign changes depending on which button was
+pressed, which is a confusing bug to chase. The generators here avoid it by computing the layout
+once and feeding both: `lib.textLayers` turns the same measured rows `render` draws into text
+layers, so there is one answer and two ways of expressing it.
 
 `document` runs the script exactly as `render` does, so the same rules apply. In particular the
 `const` trap below will bite here too.
