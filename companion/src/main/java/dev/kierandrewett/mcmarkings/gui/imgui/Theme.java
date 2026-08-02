@@ -109,6 +109,16 @@ public final class Theme {
     /** A section heading, for the few places that are prose rather than controls. */
     public static final int HEADING = 0xFFFAD96B;
 
+    /**
+     * The ring around whatever the keyboard is on.
+     *
+     * <p>Bright and fully opaque on purpose. ImGui's default is a faint blue that
+     * disappears against a dark panel over a game scene, and a focus ring nobody can
+     * see makes keyboard navigation useless: you can move, but not know where you
+     * are. It is the one part of navigating by keyboard that has to be unmissable.
+     */
+    public static final int FOCUS_RING = 0xFFFFC94D;
+
     private Theme() {
     }
 

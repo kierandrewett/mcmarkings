@@ -5,6 +5,8 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImGuiIO;
+import imgui.flag.ImGuiConfigFlags;
 import imgui.ImGuiStyle;
 import imgui.ImGuiViewport;
 import imgui.flag.ImGuiChildFlags;
@@ -58,6 +60,37 @@ public final class ImGuiScreens {
      * <p>Applied once. The ImGui context is process-wide, so repeating it is waste
      * rather than harm, but it also has to survive being called from either screen.
      */
+    /**
+     * Turns keyboard navigation on or off for this frame.
+     *
+     * <p>Without it nothing in the interface can be reached without a mouse: buttons,
+     * checkboxes, sliders and fields are all click-only, and the shortcuts and the
+     * palette only cover things somebody thought to name as a command. That is a poor
+     * answer for a tool whose whole job is placing things by exact amounts.
+     *
+     * <p>Two flags, and the second is what makes the first usable here.
+     * {@code NavEnableKeyboard} on its own forces {@code WantCaptureKeyboard} true
+     * whenever any window has focus, and this window always does, so every shortcut
+     * in the mod would be swallowed before it was dispatched.
+     * {@code NavNoCaptureKeyboard} leaves that flag alone, so navigation works and
+     * Ctrl+P, undo and the rest still arrive. Typing into a field still captures,
+     * because that is an active item rather than navigation.
+     *
+     * <p>Turned off for the editor. Navigation claims Tab and the arrow keys, which
+     * the editor already uses for stepping through layers and nudging by a pixel, and
+     * both firing at once is worse than either. The editor is also the one panel that
+     * can already be driven from the keyboard, so it loses nothing.
+     */
+    public static void setKeyboardNavigation(boolean enabled) {
+        ImGuiIO io = ImGui.getIO();
+        int flags = ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavNoCaptureKeyboard;
+        if (enabled) {
+            io.addConfigFlags(flags);
+        } else {
+            io.removeConfigFlags(flags);
+        }
+    }
+
     public static void applyMinecraftTheme() {
         if (themed) {
             return;
@@ -91,6 +124,11 @@ public final class ImGuiScreens {
         setColour(ImGuiCol.ChildBg, Theme.CHILD_BACKGROUND);
         setColour(ImGuiCol.PopupBg, Theme.POPUP_BACKGROUND);
         setColour(ImGuiCol.Border, Theme.BORDER);
+
+        // The keyboard focus ring, and the frame around the window while Ctrl+Tab is
+        // held. Both default to a faint blue that vanishes on a dark panel.
+        setColour(ImGuiCol.NavHighlight, Theme.FOCUS_RING);
+        setColour(ImGuiCol.NavWindowingHighlight, Theme.FOCUS_RING);
 
         // Vanilla text is a slightly warm off-white, not pure white.
         setColour(ImGuiCol.Text, Theme.TEXT);

@@ -143,6 +143,25 @@ class ThemeTest {
     }
 
     @Test
+    @DisplayName("the keyboard focus ring is impossible to miss")
+    void focusRingIsVisible() {
+        // A focus ring nobody can see makes keyboard navigation useless: you can move
+        // through the interface but never know where you are. ImGui's default is a
+        // faint blue that disappears on a dark panel over a game scene.
+        //
+        // Held to the 3:1 non-text threshold against every surface it is drawn over,
+        // and to a wider gap than an ordinary border, since telling "focused" from
+        // "just a control" is the entire job.
+        for (int surface : new int[] {Theme.WINDOW_BACKGROUND, Theme.POPUP_BACKGROUND, Theme.CHILD_BACKGROUND}) {
+            assertReadable("focus ring", Theme.FOCUS_RING, surface, Theme.MINIMUM_MUTED_CONTRAST);
+        }
+
+        double ring = Theme.relativeLuminance(surface(Theme.FOCUS_RING));
+        double border = Theme.relativeLuminance(surface(Theme.BORDER));
+        assertTrue(ring - border > 0.3, "the ring has to stand out from an ordinary border");
+    }
+
+    @Test
     @DisplayName("the contrast maths matches the published examples")
     void contrastMathsIsCorrect() {
         // Black on white is the defined maximum, and a colour against itself is 1.

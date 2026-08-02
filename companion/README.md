@@ -84,6 +84,12 @@ Everything else has a route through the interface, so nothing below is required.
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Bring to front, send to back |
 | Arrow keys | Nudge the selection; hold `Shift` for a larger step |
 
+Everything except the editor's canvas can also be reached with the keyboard
+alone: arrow keys move between controls, Space and Enter activate them, and the
+focused control carries a bright ring. Navigation is deliberately off in the
+editor, which binds Tab and the arrows itself and can already be driven from
+the keyboard.
+
 The palette is the honest answer to "what can this do". It lists everything,
 including things that are unavailable right now and why, so a missing entry
 always means a wrong search rather than a state you cannot see.
