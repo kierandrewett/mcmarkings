@@ -403,7 +403,7 @@ public final class EditorFiles {
         }
 
         ImGui.separator();
-        ImGui.textDisabled("From the old builder");
+        ImGui.textDisabled("Alongside published signs");
         for (Path file : found) {
             String name = nameOf(file);
             if (ImGui.selectable(name + "##layout-" + file.getFileName())) {
@@ -414,10 +414,12 @@ public final class EditorFiles {
     }
 
     /**
-     * Finds the old builder's layout files.
+     * Finds the documents saved beside published images.
      *
-     * <p>They sit beside the images it published, so the generated folder is the only
-     * place worth looking. On a worker: it is a directory listing.
+     * <p>Two different things live here under the same extension. Publishing from the
+     * editor writes the document next to the PNG so a sign on a wall can be reopened,
+     * and the old builder wrote its own layout format in the same place. Which one a
+     * file is gets decided when it is opened, by looking at its shape.
      */
     private List<Path> findBuilderLayouts() {
         Path directory = services.repo().root().resolve(services.config.generatedDirectory);
@@ -435,7 +437,7 @@ public final class EditorFiles {
 
     private void openLayout(Path file, String name) {
         busy = true;
-        status.info("Converting " + name + "...");
+        status.info("Opening " + name + "...");
 
         Path root = services.repo().root();
         int pixelsPerFrame = services.config.exportPixelsPerFrame;
@@ -443,6 +445,20 @@ public final class EditorFiles {
         Thread.ofVirtual().name("mcmarkings-editor-import").start(() -> {
             try {
                 String json = Files.readString(file, StandardCharsets.UTF_8);
+
+                // Told apart by shape: a builder layout has "items", a document has
+                // "layers". Reading a document as a layout finds no items and produces
+                // an empty canvas, reported as a successful conversion, which is the
+                // worst way to lose a sign.
+                if (!BuilderLayout.looksLikeLayout(json)) {
+                    Document document = DocumentJson.read(json);
+                    Minecraft.getInstance().execute(() -> {
+                        onOpened(document);
+                        status.good("Opened " + name + ". Save it to keep it as a template.");
+                    });
+                    return;
+                }
+
                 BuilderLayout.Result result = BuilderLayout.read(json, name, pixelsPerFrame,
                         repoPath -> sizeOf(root.resolve(repoPath)));
 
@@ -460,7 +476,7 @@ public final class EditorFiles {
                     }
                 });
             } catch (IOException | RuntimeException failure) {
-                report("Could not convert " + name, failure);
+                report("Could not open " + name, failure);
             }
         });
     }
