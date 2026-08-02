@@ -1332,6 +1332,55 @@ public final class EditorPanel implements Panel {
                 layer.opacity(), layer.margins())), "Rename layer", null);
     }
 
+    /**
+     * Flips visibility or lock across the whole selection.
+     *
+     * <p>Driven by the first selected layer rather than each one independently, so a
+     * mixed selection ends up in one state instead of inverted into a different mix.
+     * Toggling twice then gets you back where you started, which per-layer inversion
+     * does not.
+     */
+    private void toggleAcrossSelection(boolean visibility) {
+        Document document = history.current();
+        List<Layer> selected = document.layers().stream()
+                .filter(layer -> selection.contains(layer.id()))
+                .toList();
+        if (selected.isEmpty()) {
+            return;
+        }
+
+        boolean current = visibility ? selected.getFirst().visible() : selected.getFirst().locked();
+        boolean target = !current;
+
+        Document updated = document;
+        for (Layer layer : selected) {
+            updated = updated.replace(rebuilt(layer, layer.name(),
+                    visibility ? target : layer.visible(),
+                    visibility ? layer.locked() : target,
+                    layer.opacity(), layer.margins()));
+        }
+
+        apply(updated, label(visibility, target), null);
+    }
+
+    private static String label(boolean visibility, boolean target) {
+        if (visibility) {
+            return target ? "Show layer" : "Hide layer";
+        }
+        return target ? "Lock layer" : "Unlock layer";
+    }
+
+    /** Names what the command would do right now, since it depends on the selection. */
+    private String describeToggle(String whenOn, String whenOff, java.util.function.Predicate<Layer> state) {
+        Document document = history.current();
+        return document.layers().stream()
+                .filter(layer -> selection.contains(layer.id()))
+                .findFirst()
+                .map(layer -> (state.test(layer) ? whenOn : whenOff)
+                        + (selection.size() > 1 ? " all " + selection.size() + " selected" : " this layer"))
+                .orElse("Nothing selected");
+    }
+
     private void setVisible(Layer layer, boolean visible) {
         apply(history.current().replace(rebuilt(layer, layer.name(), visible, layer.locked(),
                 layer.opacity(), layer.margins())), visible ? "Show layer" : "Hide layer", null);
@@ -1800,6 +1849,18 @@ public final class EditorPanel implements Panel {
                 .shortcut(Shortcut.of(KEY_DELETE))
                 .enabledWhen(this::hasSelection)
                 .does(this::deleteSelection));
+        // Hiding and locking are two of the most used actions in any editor and both
+        // needed a click on the right icon in the right row. With several selected
+        // they needed one click each.
+        commands.register(Command.of("editor.toggleVisible", "Show or hide").category("Layer")
+                .hint(() -> describeToggle("Hide", "Show", Layer::visible))
+                .enabledWhen(this::hasSelection)
+                .does(() -> toggleAcrossSelection(true)));
+        commands.register(Command.of("editor.toggleLocked", "Lock or unlock").category("Layer")
+                .hint(() -> describeToggle("Lock", "Unlock", Layer::locked))
+                .enabledWhen(this::hasSelection)
+                .does(() -> toggleAcrossSelection(false)));
+
         commands.register(Command.of("editor.copy", "Copy").category("Layer")
                 .hint("Keep the selection, to paste into this document or another one")
                 .shortcut(Shortcut.control(KEY_C))
