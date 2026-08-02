@@ -51,15 +51,29 @@ public record Document(
      * be rather than what it currently is.
      */
     public java.util.Optional<Layer.Bounds> contentBounds() {
+        return boundsAround(layers.stream().filter(Layer::visible).toList());
+    }
+
+    /**
+     * The box around the named layers, or empty when none of them are here.
+     *
+     * <p>Same question as {@link #contentBounds()} asked of a selection instead, so
+     * it shares the arithmetic rather than growing a second copy of it in whatever
+     * happens to need it. Unknown ids are skipped: a selection can outlive the layer
+     * it referred to, and answering with a box that ignores the missing one is more
+     * useful than refusing.
+     */
+    public java.util.Optional<Layer.Bounds> boundsOf(java.util.Collection<String> ids) {
+        return boundsAround(layers.stream().filter(layer -> ids.contains(layer.id())).toList());
+    }
+
+    private static java.util.Optional<Layer.Bounds> boundsAround(List<Layer> of) {
         int left = Integer.MAX_VALUE;
         int top = Integer.MAX_VALUE;
         int right = Integer.MIN_VALUE;
         int bottom = Integer.MIN_VALUE;
 
-        for (Layer layer : layers) {
-            if (!layer.visible()) {
-                continue;
-            }
+        for (Layer layer : of) {
             Layer.Bounds bounds = layer.bounds();
             left = Math.min(left, bounds.x());
             top = Math.min(top, bounds.y());

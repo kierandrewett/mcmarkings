@@ -234,6 +234,11 @@ public final class EditorPanel implements Panel {
     /** A box to bring into view once the canvas region's size is known. */
     private Layer.Bounds pendingCentre;
 
+    /** A box to fill the view with, once the region's size is known. */
+    private Layer.Bounds pendingZoomTo;
+
+    private boolean pendingActualSize;
+
     private boolean snapEnabled = true;
 
     private Drag drag;
@@ -603,10 +608,53 @@ public final class EditorPanel implements Panel {
             zoomAbout(width / 2.0f, height / 2.0f, pendingZoomSteps);
             pendingZoomSteps = 0;
         }
+        if (pendingZoomTo != null) {
+            zoomTo(pendingZoomTo, width, height);
+            pendingZoomTo = null;
+        }
+        if (pendingActualSize) {
+            pendingActualSize = false;
+            actualSize(width, height);
+        }
         if (pendingCentre != null) {
             centreOn(pendingCentre, width, height);
             pendingCentre = null;
         }
+    }
+
+    /**
+     * Fills the canvas region with one box.
+     *
+     * <p>For working on a detail of something large, where zoom to fit is the wrong
+     * answer twice over: it shows the whole sign, and it shows it small.
+     *
+     * <p>The same margin as fit, so a selection zoomed to is not flush against the
+     * edge and its handles stay grabbable.
+     */
+    private void zoomTo(Layer.Bounds bounds, float width, float height) {
+        double fit = Math.min(width / (double) Math.max(1, bounds.width()),
+                height / (double) Math.max(1, bounds.height())) * 0.92;
+
+        zoom = Math.clamp(fit, MIN_ZOOM, MAX_ZOOM);
+        panX = (float) (width / 2.0 - bounds.centreX() * zoom);
+        panY = (float) (height / 2.0 - bounds.centreY() * zoom);
+    }
+
+    /**
+     * One canvas pixel per screen pixel.
+     *
+     * <p>The only zoom that answers "what will this actually look like": every other
+     * one is resampling, so a hairline border or a font a size too small reads fine
+     * until it is on a wall. Keeps whatever is in the middle of the view in the
+     * middle, rather than jumping to a corner.
+     */
+    private void actualSize(float width, float height) {
+        double centreX = (width / 2.0 - panX) / zoom;
+        double centreY = (height / 2.0 - panY) / zoom;
+
+        zoom = 1.0;
+        panX = (float) (width / 2.0 - centreX);
+        panY = (float) (height / 2.0 - centreY);
     }
 
     /**
@@ -1885,6 +1933,15 @@ public final class EditorPanel implements Panel {
                 .hint("Put the whole canvas back on screen")
                 .shortcut(Shortcut.control(KEY_ZERO))
                 .does(() -> fitRequested = true));
+        commands.register(Command.of("editor.zoom.selection", "Zoom to selection").category("View")
+                .hint("Fill the canvas with what is selected, for working on one detail")
+                .enabledWhen(this::hasSelection)
+                .does(() -> pendingZoomTo = history.current().boundsOf(selection).orElse(null)))
+        ;
+        commands.register(Command.of("editor.zoom.actual", "Actual size").category("View")
+                .hint("One canvas pixel per screen pixel, which is how it will be published")
+                .does(() -> pendingActualSize = true));
+
         commands.register(Command.of("editor.snap", "Toggle snapping").category("View")
                 .hint("Hold Alt to suspend it for one drag")
                 .does(() -> snapEnabled = !snapEnabled));

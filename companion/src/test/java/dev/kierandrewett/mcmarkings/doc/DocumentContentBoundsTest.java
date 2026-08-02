@@ -94,4 +94,45 @@ class DocumentContentBoundsTest {
 
         assertEquals(new Layer.Bounds(0, 0, 100, 100), document.contentBounds().orElseThrow());
     }
+
+    @Test
+    @DisplayName("the box around a selection ignores everything else")
+    void boundsOfSelection() {
+        Document document = of(
+                image("a", 10, 10, 20, 20, true),
+                image("b", 500, 500, 10, 10, true));
+
+        assertEquals(new Layer.Bounds(10, 10, 20, 20),
+                document.boundsOf(List.of("a")).orElseThrow());
+    }
+
+    @Test
+    @DisplayName("a hidden layer still counts when it is the one selected")
+    void selectionIgnoresVisibility() {
+        // Different question from contentBounds. Something switched off is not part of
+        // what the canvas has to suit, but if you have selected it and asked to zoom
+        // to it, refusing because it is hidden would be answering a question nobody
+        // asked.
+        Document document = of(image("a", 5, 5, 30, 30, false));
+
+        assertEquals(new Layer.Bounds(5, 5, 30, 30),
+                document.boundsOf(List.of("a")).orElseThrow());
+    }
+
+    @Test
+    @DisplayName("ids that are no longer here are skipped rather than fatal")
+    void staleIdsAreSkipped() {
+        // A selection can outlive the layer it referred to.
+        Document document = of(image("a", 0, 0, 10, 10, true));
+
+        assertEquals(new Layer.Bounds(0, 0, 10, 10),
+                document.boundsOf(List.of("a", "deleted")).orElseThrow());
+        assertTrue(document.boundsOf(List.of("deleted")).isEmpty());
+    }
+
+    @Test
+    @DisplayName("an empty selection has no box")
+    void emptySelection() {
+        assertTrue(of(image("a", 0, 0, 10, 10, true)).boundsOf(List.of()).isEmpty());
+    }
 }
