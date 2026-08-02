@@ -80,6 +80,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     /** A tab asked for by name, selected on the next frame and then forgotten. */
     private String pendingTab;
 
+    /** Map names already made from the selected image, or empty. */
+    private List<String> placedAs = List.of();
+
     private static final int KEY_P = 'P';
 
     /** GLFW modifier bits, which the key event carries verbatim. */
@@ -606,6 +609,25 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             actionImage = image;
             grid = GridRecommender.best(image.width(), image.height());
             suggestions = GridRecommender.top(image.width(), image.height(), 3);
+
+            // Worked out when the selection changes rather than every frame. It reads
+            // a list the registry already holds, which is cheap, but doing it sixty
+            // times a second for an answer that changes when you click is waste.
+            placedAs = services.registry.byRepoPath(image.path()).stream()
+                    .map(MapEntry::imageFrameName)
+                    .toList();
+        }
+
+        // The registry has known this since the beginning and only Pull ever asked.
+        // Browsing eleven hundred signs without being told which are already on a
+        // wall is how the same one gets placed twice.
+        if (!placedAs.isEmpty()) {
+            String names = String.join(", ", placedAs);
+            ImGui.textDisabled("Already placed as " + ImGuiScreens.truncate(names, 48));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(names + "\n\nCreating it again refreshes that map "
+                        + "rather than making a second one.");
+            }
         }
 
         ImGui.text("Frame size " + grid + ", " + grid.frameCount() + " frames");
@@ -675,12 +697,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         String name = ImageFrameCommands.sanitiseName(image.name());
         String url = rawUrls.pinned(headSha, image.path());
 
-        services.commands.send(ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
+        // ImageFrame rejects create for a name it already knows, so placing the same
+        // image twice failed on the server with nothing here explaining why. Publishing
+        // has always handled this and said so in a comment; this path, which is the one
+        // most people use, sent create every time.
+        boolean exists = services.registry.byName(name).isPresent();
+        services.commands.send(exists
+                ? ImageFrameCommands.refresh(services.config.commandAlias, name, url)
+                : ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
+
         services.registry.put(new MapEntry(name, services.activeRepositoryId(), image.path(), grid, headSha,
                 System.currentTimeMillis()));
         saveRegistry();
 
-        status.good("Creating " + name + " at " + grid);
+        status.good((exists ? "Refreshing " : "Creating ") + name + " at " + grid);
     }
 
     private void copyCommand(RepoImage image) {
