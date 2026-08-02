@@ -3,7 +3,10 @@ package dev.kierandrewett.mcmarkings;
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
 import dev.kierandrewett.mcmarkings.command.CommandRegistry;
+import dev.kierandrewett.mcmarkings.core.GridSize;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
+import dev.kierandrewett.mcmarkings.doc.Document;
+import dev.kierandrewett.mcmarkings.doc.History;
 import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.imageframe.ClientCommandSink;
 import dev.kierandrewett.mcmarkings.imageframe.CommandSink;
@@ -63,6 +66,17 @@ public final class CompanionServices {
      * invoke the same thing rather than three copies that drift.
      */
     public final CommandRegistry actions = new CommandRegistry();
+
+    /**
+     * The document being edited, and its undo stack.
+     *
+     * <p>Session state rather than screen state. Minecraft discards a Screen on
+     * Escape, which in a game happens constantly, so a document owned by the editor
+     * panel would be lost every time someone glanced at the world. Only touched
+     * from the client thread.
+     */
+    public final History editing = new History(
+            Document.blank("untitled", new GridSize(2, 1), 256));
 
     private final ClientCommandSink commandSink;
 

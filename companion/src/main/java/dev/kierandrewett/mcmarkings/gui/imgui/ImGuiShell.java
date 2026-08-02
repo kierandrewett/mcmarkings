@@ -10,6 +10,7 @@ import dev.kierandrewett.mcmarkings.core.MapEntry;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
 import dev.kierandrewett.mcmarkings.gui.RepositoriesScreen;
 import dev.kierandrewett.mcmarkings.gui.SettingsScreen;
+import dev.kierandrewett.mcmarkings.gui.imgui.panel.EditorPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.ImageBrowserPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.Panel;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
@@ -42,9 +43,9 @@ import java.util.Map;
  * replaced the whole screen and left no way back.
  *
  * <p>Panels are held as {@link Panel}, so this class knows a title and a draw call
- * and nothing else about them. The Browse tab is an {@link ImageBrowserPanel}; the
- * remaining three are shortcuts to the screens that still do those jobs, until they
- * are ported in turn.
+ * and nothing else about them. Browse is an {@link ImageBrowserPanel} and Editor is
+ * an {@link EditorPanel}; the remaining three are shortcuts to the screens that
+ * still do those jobs, until they are ported in turn.
  */
 public class ImGuiShell extends Screen implements ImGuiRenderable {
 
@@ -63,7 +64,17 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     private final ImGuiScreens.Status status = new ImGuiScreens.Status();
 
     private final ImageBrowserPanel browser;
+    private final EditorPanel editor;
     private final List<Panel> panels;
+
+    /**
+     * Which tab was drawn last frame.
+     *
+     * <p>Only needed so a key press reaches the panel that is actually on screen.
+     * Routing Ctrl+Z to the editor while someone is browsing images would undo an
+     * edit they cannot see.
+     */
+    private Panel activePanel;
 
     /** Last message reported per panel, so a failing panel logs on change, not per frame. */
     private final Map<String, String> panelErrors = new HashMap<>();
@@ -94,11 +105,14 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         this.browser = new ImageBrowserPanel(services, "browse", "Browse")
                 .onDetail(this::drawImageActions);
 
+        this.editor = new EditorPanel(services);
+
         this.panels = List.of(
                 browser,
-                new ShortcutPanel("Editor",
-                        "Generating and laying out images still live in their own screens. "
-                                + "They move into this tab next.",
+                editor,
+                new ShortcutPanel("Generate",
+                        "Building an image from a script, and laying several out on one canvas, "
+                                + "still live in their own screens.",
                         List.of(
                                 new Shortcut("Generator", "Build an image from a generator script",
                                         () -> Minecraft.getInstance().setScreen(new GeneratorScreen(services))),
@@ -125,6 +139,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         });
     }
 
+    /** The editor holds a preview texture; without this one survives every open. */
+    @Override
+    public void removed() {
+        editor.close();
+        super.removed();
+    }
+
     /**
      * The wrapper chains GLFW callbacks rather than consuming them, so Minecraft
      * still sees keys typed into an ImGui text box. Escape is the one that hurts:
@@ -133,6 +154,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (io != null && io.getWantCaptureKeyboard()) {
+            return true;
+        }
+        // Only once ImGui has said it does not want the key, and only for the tab on
+        // screen. Otherwise typing into a text box fires editor shortcuts.
+        if (activePanel == editor && editor.handleKey(event.key(), event.modifiers())) {
             return true;
         }
         return super.keyPressed(event);
@@ -294,6 +320,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (!ImGui.beginTabItem(panel.title())) {
             return;
         }
+        activePanel = panel;
         try {
             // Reserves the status line, and gives the panel a child that scrolls
             // inside itself rather than scrolling the window and taking the tab bar
