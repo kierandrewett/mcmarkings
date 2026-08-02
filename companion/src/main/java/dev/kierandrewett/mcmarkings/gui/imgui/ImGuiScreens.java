@@ -388,8 +388,19 @@ public final class ImGuiScreens {
             BAD
         }
 
+        /**
+         * How long a message that reports success stays on screen.
+         *
+         * <p>Long enough to read twice, short enough that it is gone before it stops
+         * describing anything. In a long session the alternative is a line still
+         * announcing a save from twenty minutes ago, sitting where something current
+         * would be more use.
+         */
+        private static final long FADES_AFTER_MILLIS = 12_000;
+
         private String message = "";
         private Level level = Level.INFO;
+        private long setAtMillis;
 
         public void info(String text) {
             set(text, Level.INFO);
@@ -406,14 +417,35 @@ public final class ImGuiScreens {
         public void set(String text, Level newLevel) {
             this.message = text == null ? "" : text;
             this.level = newLevel;
+            this.setAtMillis = System.currentTimeMillis();
         }
 
         public String message() {
-            return message;
+            return expired() ? "" : message;
+        }
+
+        /**
+         * Whether this has stopped being worth showing.
+         *
+         * <p>Only a message reporting success, which is the one kind that goes stale:
+         * it describes something finished, and once it is read there is nothing left
+         * to do about it.
+         *
+         * <p>Not failures, because someone may not have been looking when it appeared
+         * and a message that removes itself is one they can never be told twice. And
+         * not the plain kind either: those are almost all "publishing", "pulling",
+         * "opening", so expiring them would take the only sign of progress off the
+         * screen partway through the slow thing it describes, which is exactly
+         * backwards.
+         */
+        private boolean expired() {
+            return level == Level.GOOD
+                    && !message.isEmpty()
+                    && System.currentTimeMillis() - setAtMillis > FADES_AFTER_MILLIS;
         }
 
         public void draw() {
-            if (message.isEmpty()) {
+            if (message.isEmpty() || expired()) {
                 return;
             }
             switch (level) {
