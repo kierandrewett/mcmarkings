@@ -40,6 +40,9 @@ public final class FontRegistry {
     /** Normalised name to font. Insertion-ordered so the first registered wins. */
     private final Map<String, Font> byName = new LinkedHashMap<>();
 
+    /** Where a font came from, for callers that need the file rather than the Font. */
+    private final Map<String, Path> fileByName = new LinkedHashMap<>();
+
     /** Display names, sorted, for showing the user what is available. */
     private final TreeSet<String> families = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 
@@ -104,6 +107,44 @@ public final class FontRegistry {
         return find(name).isPresent();
     }
 
+    /**
+     * The file a font was loaded from, when it came from a scanned directory.
+     *
+     * <p>Needed because some consumers cannot use a {@link Font}: ImGui rasterises
+     * its own atlas and wants a path on disk. Empty for fonts the platform resolved
+     * internally, which have no file this registry knows about.
+     */
+    public synchronized Optional<Path> fileFor(String name) {
+        ensureScanned();
+        if (name == null || name.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(fileByName.get(normalise(name)));
+    }
+
+    /**
+     * Any readable scalable font file, preferring a plain sans.
+     *
+     * <p>A last resort for callers that need some font file and do not care which.
+     */
+    public synchronized Optional<Path> anyReadableFontFile() {
+        ensureScanned();
+        for (String preferred : List.of("dejavusans", "liberationsans", "notosans", "arial",
+                "helvetica", "roboto", "segoeui", "cantarell", "ubuntu")) {
+            Optional<Path> match = fileByName.entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith(preferred))
+                    .map(Map.Entry::getValue)
+                    .filter(path -> path.toString().toLowerCase(Locale.ROOT).endsWith(".ttf"))
+                    .findFirst();
+            if (match.isPresent()) {
+                return match;
+            }
+        }
+        return fileByName.values().stream()
+                .filter(path -> path.toString().toLowerCase(Locale.ROOT).endsWith(".ttf"))
+                .findFirst();
+    }
+
     public synchronized List<String> warnings() {
         return List.copyOf(warnings);
     }
@@ -143,10 +184,13 @@ public final class FontRegistry {
         try {
             Font font = Font.createFont(Font.TRUETYPE_FONT, file.toFile());
 
-            register(stripExtension(file.getFileName().toString()), font);
-            register(font.getFamily(Locale.ROOT), font);
-            register(font.getFontName(Locale.ROOT), font);
-            register(font.getPSName(), font);
+            for (String name : List.of(stripExtension(file.getFileName().toString()),
+                    font.getFamily(Locale.ROOT), font.getFontName(Locale.ROOT), font.getPSName())) {
+                register(name, font);
+                if (name != null && !name.isBlank()) {
+                    fileByName.putIfAbsent(normalise(name), file);
+                }
+            }
 
             families.add(font.getFamily(Locale.ROOT));
         } catch (Exception exception) {

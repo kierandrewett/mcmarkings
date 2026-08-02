@@ -26,6 +26,18 @@ class GridRecommenderTest {
     }
 
     @Test
+    @DisplayName("a tall image takes two frames rather than six for a few percent")
+    void tallImagePrefersTheCheaperGrid() {
+        // Regression, from real use. A 601x1024 image was recommended at 2x3 because
+        // 1x2 is 17% off and the threshold was 15%. Six frames to save four percent
+        // of stretch is a bad trade when every frame is placed by hand.
+        GridSize best = GridRecommender.best(601, 1024);
+
+        assertEquals(new GridSize(1, 2), best);
+        assertEquals(2, best.frameCount());
+    }
+
+    @Test
     @DisplayName("a wide banner takes the smallest grid that is not obviously stretched")
     void wideBannerTakesSmallestReasonableGrid() {
         // 450x170 is 2.65:1. On one map it would be squashed beyond recognition, so

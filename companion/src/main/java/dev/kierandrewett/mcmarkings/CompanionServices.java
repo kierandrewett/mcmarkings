@@ -14,6 +14,7 @@ import dev.kierandrewett.mcmarkings.repo.ProcessGitService;
 import dev.kierandrewett.mcmarkings.repo.RepoScanner;
 import dev.kierandrewett.mcmarkings.texture.RuntimeTextureCache;
 import dev.kierandrewett.mcmarkings.texture.ThumbnailCache;
+import net.minecraft.client.Minecraft;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -57,11 +58,26 @@ public final class CompanionServices {
     /** Problems worth telling the user about once, on the first screen they open. */
     private final List<String> startupNotes = new ArrayList<>();
 
+    /** Run once opening finishes, so a screen already on display can refresh. */
+    private final List<Runnable> readyListeners = new ArrayList<>();
+
+    private volatile boolean loading;
+
+    /**
+     * Constructed on the client thread, so it does no work that can block one.
+     *
+     * <p>Opening repositories walks thousands of files, parses their metadata and
+     * compiles the generator scripts, and enumerating fonts is slow on its own.
+     * Doing any of that here froze the game for as long as it took, because this is
+     * reached straight from a keypress. It all happens on a background thread
+     * instead, and {@link #isLoading()} is true until it lands.
+     */
     public CompanionServices(CompanionConfig config, Consumer<String> onDroppedCommand) {
         this.config = config;
 
+        // FontRegistry only enumerates on first use, so constructing it is free.
+        // Nothing here may call into it.
         this.fonts = new FontRegistry(config.fontSearchPaths);
-        startupNotes.addAll(fonts.warnings());
 
         this.composer = new ImageComposer();
         this.commandSink = new ClientCommandSink(config.commandsPerSecond, onDroppedCommand);
@@ -77,11 +93,73 @@ public final class CompanionServices {
 
         this.thumbnails = new RuntimeTextureCache(this::thumbnailFor, MAX_RESIDENT_THUMBNAILS);
 
-        openConfiguredRepositories();
+        this.loading = !config.repositories.isEmpty();
+        Thread.ofVirtual().name("mcmarkings-open").start(this::openInBackground);
+    }
+
+    /**
+     * True while repositories are still being opened.
+     *
+     * <p>Distinct from having none configured: a screen should show progress in the
+     * first case and offer setup in the second, and it cannot tell them apart from
+     * an empty workspace list alone.
+     */
+    public boolean isLoading() {
+        return loading;
+    }
+
+    /** True when a repository is configured, whether or not it has finished opening. */
+    public boolean hasConfiguredRepositories() {
+        return !config.repositories.isEmpty();
+    }
+
+    /**
+     * Runs {@code listener} on the client thread once opening finishes, or straight
+     * away when it already has, so a screen opened at any moment sees the result.
+     */
+    public void whenReady(Runnable listener) {
+        synchronized (readyListeners) {
+            if (!loading) {
+                Minecraft.getInstance().execute(listener);
+                return;
+            }
+            readyListeners.add(listener);
+        }
+    }
+
+    private void openInBackground() {
+        List<String> notes = new ArrayList<>();
+        Map<String, Workspace> opened = new LinkedHashMap<>();
+
+        try {
+            // Touching the registry is what makes it enumerate, so it has to happen
+            // here rather than in the constructor.
+            notes.addAll(fonts.warnings());
+
+            for (RepositoryEntry entry : List.copyOf(config.repositories)) {
+                opened.put(entry.id(), open(entry));
+            }
+        } catch (RuntimeException exception) {
+            McMarkingsCompanion.LOGGER.error("[mcmarkings] failed while opening repositories", exception);
+            notes.add("Could not finish opening the repositories: " + exception.getMessage());
+        }
+
+        Minecraft.getInstance().execute(() -> {
+            workspaces.putAll(opened);
+            startupNotes.addAll(notes);
+            loading = false;
+
+            List<Runnable> pending;
+            synchronized (readyListeners) {
+                pending = List.copyOf(readyListeners);
+                readyListeners.clear();
+            }
+            pending.forEach(Runnable::run);
+        });
     }
 
     /** Drives the throttled command queue; call once per client tick. */
-    public void tick(net.minecraft.client.Minecraft client) {
+    public void tick(Minecraft client) {
         commandSink.tick(client);
     }
 
@@ -162,9 +240,38 @@ public final class CompanionServices {
     public Workspace addRepository(Path directory) {
         RepositoryEntry entry = config.addRepository(directory);
         config.save();
-        Workspace workspace = open(entry);
-        workspaces.put(entry.id(), workspace);
-        return workspace;
+        // Opening scans the folder, so it must not run on the client thread. The
+        // caller gets the entry immediately and the scan lands through whenReady.
+        Workspace blank = EmptyWorkspace.create();
+        Workspace placeholder = new Workspace(entry, blank.repo(), blank.git(), blank.generators(),
+                "Opening...");
+        workspaces.put(entry.id(), placeholder);
+        reloadAsync(entry.id());
+        return placeholder;
+    }
+
+    /** Re-opens one repository on a background thread, refreshing screens when done. */
+    public void reloadAsync(String id) {
+        Optional<RepositoryEntry> entry = config.byId(id);
+        if (entry.isEmpty()) {
+            return;
+        }
+        synchronized (readyListeners) {
+            loading = true;
+        }
+        Thread.ofVirtual().name("mcmarkings-reload").start(() -> {
+            Workspace reopened = open(entry.get());
+            Minecraft.getInstance().execute(() -> {
+                workspaces.put(id, reopened);
+                loading = false;
+                List<Runnable> pending;
+                synchronized (readyListeners) {
+                    pending = List.copyOf(readyListeners);
+                    readyListeners.clear();
+                }
+                pending.forEach(Runnable::run);
+            });
+        });
     }
 
     public void removeRepository(String id) {
@@ -184,11 +291,6 @@ public final class CompanionServices {
         return reopened;
     }
 
-    private void openConfiguredRepositories() {
-        for (RepositoryEntry entry : List.copyOf(config.repositories)) {
-            workspaces.put(entry.id(), open(entry));
-        }
-    }
 
     /**
      * Opens one repository, degrading rather than throwing.

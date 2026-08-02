@@ -28,11 +28,15 @@ public final class GridRecommender {
     public static final int DEFAULT_MAX_DIMENSION = 8;
 
     /**
-     * Stretch below this reads as "that is just what the sign looks like".
-     * Deliberately far looser than {@link GridSuggestion#COMFORTABLE}, which
-     * describes a near-exact fit rather than an acceptable one.
+     * Stretch below this reads as "that is just the shape of the image".
+     *
+     * <p>Deliberately loose, and far looser than {@link GridSuggestion#COMFORTABLE},
+     * which describes a near-exact fit rather than an acceptable one. At 0.15 a
+     * 601x1024 image was pushed off 1x2 at 17% onto 2x3, tripling the frames to buy
+     * 4% of accuracy that nobody looking at a wall would notice. Frames are placed
+     * by hand, so the trade runs heavily in favour of fewer of them.
      */
-    public static final double ACCEPTABLE = 0.15;
+    public static final double ACCEPTABLE = 0.20;
 
     /** Fallback ceiling when nothing reaches {@link #ACCEPTABLE}. */
     public static final int DEFAULT_MAX_FRAMES = 16;

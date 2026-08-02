@@ -67,7 +67,10 @@ public class McMarkingsCompanion implements ClientModInitializer {
         }
         resolved.clearStartupNotes();
 
-        client.setScreen(resolved.hasRepositories()
+        // Deliberately asks what is configured rather than what has finished
+        // opening. Opening runs in the background, and treating "not ready yet" as
+        // "nothing set up" would flash the first-run screen at an existing user.
+        client.setScreen(resolved.hasConfiguredRepositories()
                 ? new BrowserScreen(resolved)
                 : new WelcomeScreen(resolved));
     }

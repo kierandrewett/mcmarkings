@@ -93,14 +93,31 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return uploadOnRenderThread(key, image);
     }
 
+    /**
+     * Converts pixels off-thread and only hops to the render thread to upload.
+     *
+     * <p>The conversion is a per-pixel copy, which for a screenful of thumbnails is
+     * millions of calls. Doing that on the render thread stutters the game for no
+     * reason, since only the GPU upload and the texture manager actually require
+     * it.
+     */
     private CompletableFuture<TextureHandle> uploadOnRenderThread(String key, BufferedImage source) {
         CompletableFuture<TextureHandle> future = new CompletableFuture<>();
+
+        NativeImage image;
+        try {
+            image = toNativeImage(source);
+        } catch (RuntimeException exception) {
+            future.completeExceptionally(exception);
+            return future;
+        }
 
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             try {
-                future.complete(register(key, source));
+                future.complete(register(key, image));
             } catch (RuntimeException exception) {
+                image.close();
                 future.completeExceptionally(exception);
             }
         });
@@ -108,18 +125,25 @@ public class RuntimeTextureCache implements ThumbnailCache {
         return future;
     }
 
-    private synchronized Entry register(String key, BufferedImage source) {
+    /** Safe to call from any thread; allocates native memory but touches no GL. */
+    private static NativeImage toNativeImage(BufferedImage source) {
         int width = source.getWidth();
         int height = source.getHeight();
 
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, width, height, false);
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                // BufferedImage.getRGB and NativeImage.setPixel are both ARGB, so
-                // no channel swap. Getting this wrong silently swaps red and blue.
+                // BufferedImage.getRGB and NativeImage.setPixel are both ARGB, so no
+                // channel swap. Getting this wrong silently swaps red and blue.
                 image.setPixel(x, y, source.getRGB(x, y));
             }
         }
+        return image;
+    }
+
+    private synchronized Entry register(String key, NativeImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
 
         Identifier identifier = McMarkingsCompanion.id("thumb/" + sanitise(key));
         DynamicTexture texture = new DynamicTexture(() -> "mcmarkings " + key, image);
