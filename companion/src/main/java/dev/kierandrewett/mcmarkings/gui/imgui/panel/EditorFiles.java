@@ -115,6 +115,12 @@ public final class EditorFiles {
     /** What "now" is for this frame. Zero until the first draw. */
     private long drawnAtMillis;
 
+    /** Everything behind the last shortened status message. */
+    private List<String> statusDetail = List.of();
+
+    /** The status message the detail above belongs to. */
+    private String statusDetailFor = "";
+
     /** Which template is asking to be deleted, so the confirm is inline per row. */
     private String confirmingDelete = "";
 
@@ -168,6 +174,18 @@ public final class EditorFiles {
 
     public ImGuiScreens.Status status() {
         return status;
+    }
+
+    /**
+     * The full text behind a status line that had to be shortened, for a tooltip.
+     *
+     * <p>Tied to the message it belongs to rather than cleared by hand at every
+     * place that sets a new one. Detail outliving its message is worse than none: it
+     * would hang a list of missing layers off a later "Saved" and read as that save
+     * having gone wrong.
+     */
+    public List<String> statusDetail() {
+        return status.message().equals(statusDetailFor) ? statusDetail : List.of();
     }
 
     /** True when the document has changed since it was last written. */
@@ -721,7 +739,13 @@ public final class EditorFiles {
 
         String first = ImGuiScreens.truncate(warnings.getFirst(), 70);
         String more = warnings.size() > 1 ? " (+" + (warnings.size() - 1) + " more)" : "";
+
+        // Kept, not just counted. Which layers a document lost is the whole question,
+        // and a number is only enough to worry someone.
+        statusDetail = List.copyOf(warnings);
+
         status.bad(name + " did not open whole: " + first + more + ". Saving would make that permanent.");
+        statusDetailFor = status.message();
         return true;
     }
 

@@ -454,11 +454,21 @@ public final class EditorPanel implements Panel {
             String first = ImGuiScreens.truncate(renderProblems.getFirst(), 70);
             String extra = renderProblems.size() > 1 ? " (+" + (renderProblems.size() - 1) + " more)" : "";
             Notice.warning(first + extra);
+
+            // "(+4 more)" with no way to see the four is a count, not information.
+            // Each one names a layer, and which layers are broken is the whole
+            // question when a document opens looking wrong.
+            if (renderProblems.size() > 1 && ImGui.isItemHovered()) {
+                ImGui.setTooltip(String.join("\n", renderProblems));
+            }
             return;
         }
 
         if (!files.status().message().isEmpty()) {
             files.status().draw();
+            if (files.statusDetail().size() > 1 && ImGui.isItemHovered()) {
+                ImGui.setTooltip(String.join("\n", files.statusDetail()));
+            }
             ImGui.sameLine();
             ImGui.textDisabled("  |  ");
             ImGui.sameLine();
