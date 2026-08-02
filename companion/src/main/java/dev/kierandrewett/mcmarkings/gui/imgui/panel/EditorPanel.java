@@ -243,6 +243,8 @@ public final class EditorPanel implements Panel {
 
     private boolean pendingActualSize;
 
+    private boolean pendingMapResolution;
+
     private boolean snapEnabled = true;
 
     private Drag drag;
@@ -621,7 +623,11 @@ public final class EditorPanel implements Panel {
         }
         if (pendingActualSize) {
             pendingActualSize = false;
-            actualSize(width, height);
+            zoomAround(1.0, width, height);
+        }
+        if (pendingMapResolution) {
+            pendingMapResolution = false;
+            zoomAround(GridSize.MAP_PIXELS / (double) document.pixelsPerFrame(), width, height);
         }
         if (pendingCentre != null) {
             centreOn(pendingCentre, width, height);
@@ -648,20 +654,25 @@ public final class EditorPanel implements Panel {
     }
 
     /**
-     * One canvas pixel per screen pixel.
+     * Sets an exact zoom, keeping whatever is in the middle of the view in the middle.
      *
-     * <p>The only zoom that answers "what will this actually look like": every other
-     * one is resampling, so a hairline border or a font a size too small reads fine
-     * until it is on a wall. Keeps whatever is in the middle of the view in the
-     * middle, rather than jumping to a corner.
+     * <p>Two things want this and they are not the same. One canvas pixel per screen
+     * pixel shows the PNG that gets committed. Map resolution shows what ends up on a
+     * wall, which is {@link GridSize#MAP_PIXELS} per frame no matter what the document
+     * renders at: an item frame holds a map and a map is 128 pixels square, so
+     * exporting at 256 buys a better downsample and not a sharper sign.
+     *
+     * <p>That distinction is the one worth having in an editor. Text that is legible
+     * at actual size can be unreadable on the wall, and until now nothing here could
+     * show you that before you placed it.
      */
-    private void actualSize(float width, float height) {
+    private void zoomAround(double target, float width, float height) {
         double centreX = (width / 2.0 - panX) / zoom;
         double centreY = (height / 2.0 - panY) / zoom;
 
-        zoom = 1.0;
-        panX = (float) (width / 2.0 - centreX);
-        panY = (float) (height / 2.0 - centreY);
+        zoom = Math.clamp(target, MIN_ZOOM, MAX_ZOOM);
+        panX = (float) (width / 2.0 - centreX * zoom);
+        panY = (float) (height / 2.0 - centreY * zoom);
     }
 
     /**
@@ -2021,8 +2032,13 @@ public final class EditorPanel implements Panel {
                 .does(() -> pendingZoomTo = history.current().boundsOf(selection).orElse(null)))
         ;
         commands.register(Command.of("editor.zoom.actual", "Actual size").category("View")
-                .hint("One canvas pixel per screen pixel, which is how it will be published")
+                .hint("One canvas pixel per screen pixel, which is the PNG that gets committed")
                 .does(() -> pendingActualSize = true));
+
+        commands.register(Command.of("editor.zoom.map", "View at map resolution").category("View")
+                .hint(() -> "What the wall actually shows: " + GridSize.MAP_PIXELS + " pixels per frame, "
+                        + "not the " + history.current().pixelsPerFrame() + " this renders at")
+                .does(() -> pendingMapResolution = true));
 
         commands.register(Command.of("editor.snap", "Toggle snapping").category("View")
                 .hint("Hold Alt to suspend it for one drag")

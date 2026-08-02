@@ -158,7 +158,11 @@ taking `{slug}`, `{commit}`, `{path}` and `{host}`. Setting either reopens that
 repository so it takes effect at once. Most repositories never need them.
 
 **Frame grids.** Maps are 128px squares, so an image's shape decides how many
-frames it wants. The recommender scores every grid up to 8x8 by aspect error and
+frames it wants. That 128 is also the resolution a sign actually has on a wall,
+whatever `exportPixelsPerFrame` says: exporting at 256 buys a better downsample,
+not a sharper sign. The editor's **View at map resolution** shows it at the
+density it will really have, which is the only way to tell before placing it
+whether small text survives. The recommender scores every grid up to 8x8 by aspect error and
 prefers the smallest grid whose distortion is imperceptible, since a wall of
 frames is expensive to build. A 1x1 grid gets a plain map item; anything larger
 is requested with `combined` so it arrives as one placeable item.
