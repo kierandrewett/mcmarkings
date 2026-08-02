@@ -27,6 +27,7 @@ defineGenerator({
     ],
     size: (params) => ({ width: 1200, height: 900 }),   // required, computes the output size
     render: (ctx, params) => { /* draw */ },            // required
+    document: (params) => ({ /* layers */ }),           // optional, see below
 });
 ```
 
@@ -58,6 +59,56 @@ ctx.clip(x, y, w, h) / ctx.clearClip()
 `opts` is `{ font, size, colour, align, baseline, tracking, scaleY }`. `font` is the name of any font
 installed on the machine, matched loosely (see below). Colours are `#RGB`, `#RRGGBB`, `#RRGGBBAA` or
 `rgba(r, g, b, a)`.
+
+---
+
+## `document(params)`, which makes a generator a starting point
+
+`render` draws pixels. A generator that only draws is a dead end: if the result is nearly right,
+the only ways to fix it are editing the script or rebuilding the thing by hand.
+
+A generator that also defines `document(params)` returns the same sign described as **layers**, and
+the mod offers to open it in the editor, where it can be nudged, restyled, saved as a template and
+placed. It is optional and nothing else changes if you leave it out. Both generators here implement
+it, and `lib.js` does most of the work.
+
+It returns a plain object, no drawing calls:
+
+```js
+document: (params) => ({
+    name: "Plate",                  // what the document is called in the editor
+    grid: { columns: 1, rows: 2 },  // frames wide and tall
+    pixelsPerFrame: 256,            // render resolution per frame
+    background: "#00000000",        // document background, transparent here
+    layers: [ /* bottom first, exactly like render order */ ],
+})
+```
+
+Every layer has `kind`, `name` and `bounds` as `{ x, y, width, height }` in pixels, and may have
+`visible`, `locked`, `opacity` and `margins`. Beyond that:
+
+| `kind` | Fields |
+| --- | --- |
+| `image` | `repoPath`, `fit` (`contain`, `cover`, `stretch`) |
+| `text` | `text`, `font`, `size`, `colour`, `horizontalAlign`, `verticalAlign`, `tracking`, `verticalScale`, `lineGap` |
+| `shape` | `fill`, `cornerRadius`, `borderColour`, `borderWidth`, `padding` |
+| `group` | `children`, `padding` |
+
+`horizontalAlign` is `left`, `centre` or `right`, and `verticalAlign` is `top`, `middle` or
+`bottom`. Both are case-insensitive and `center` is accepted for `centre`. Colours are the same
+strings `render` takes. `padding` and `margins` are `{ top, right, bottom, left }`.
+
+**Layer order is bottom first**, matching the order you would draw them in, so a panel comes before
+the text on top of it.
+
+The two have to agree. `document` is what the editor opens and `render` is what gets published
+directly, so if they disagree the sign changes depending on which route it took, which is a
+confusing bug to chase. The generators here avoid it by computing the layout once and feeding both:
+`lib.textLayers` turns the same measured rows `render` draws into text layers, so there is one
+answer and two ways of expressing it.
+
+`document` runs the script exactly as `render` does, so the same rules apply. In particular the
+`const` trap below will bite here too.
 
 ---
 
