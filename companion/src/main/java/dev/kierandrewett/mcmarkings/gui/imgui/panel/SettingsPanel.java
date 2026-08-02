@@ -170,8 +170,17 @@ public final class SettingsPanel implements Panel {
         help("The plugin's own command. Change it only if your server renamed ImageFrame.");
         if (aliasDone) {
             String value = alias.get().trim();
-            if (value.isEmpty()) {
-                warn("The command name cannot be empty, so it has been left as it was.");
+            if (!CompanionConfig.isUsableCommandAlias(value)) {
+                // Was only a check for empty. Everything else went through, including
+                // a hundred and eighty characters of walking around that arrived here
+                // on their own, and the alias is the first word of every command this
+                // mod sends, so the next placement was a malformed packet and the
+                // server closed the connection.
+                warn(value.isEmpty()
+                        ? "The command name cannot be empty, so it has been left as it was."
+                        : "A command name is one word, letters and digits, so that has been "
+                                + "left as it was. Anything else is not a command the server "
+                                + "can read.");
                 alias.set(services.config.commandAlias);
             } else {
                 services.config.commandAlias = value;

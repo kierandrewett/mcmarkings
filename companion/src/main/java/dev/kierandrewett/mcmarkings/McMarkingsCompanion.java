@@ -43,10 +43,21 @@ public class McMarkingsCompanion implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (services != null) {
                 services.tick(client);
+                boolean showing = client.screen instanceof cn.enaium.fabric.imgui.ImGuiRenderable;
                 // Between frames, which is the only safe point to touch the atlas.
-                if (client.screen instanceof cn.enaium.fabric.imgui.ImGuiRenderable) {
+                if (showing) {
                     dev.kierandrewett.mcmarkings.gui.imgui.ImGuiFonts
                             .ensureMatchesGuiScale(services.fonts, services.config.textScale);
+                    // Said every tick rather than once on opening, so that a screen
+                    // reaching this state by any other route is never left deaf.
+                    dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens.acceptInput(true);
+                } else {
+                    // ImGui hears the keyboard whether or not it is on screen, and it
+                    // keeps what it hears until something draws. Everything played
+                    // between one opening and the next would arrive at the next one all
+                    // at once, typed into whatever field had the keyboard.
+                    dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens.acceptInput(false);
+                    dev.kierandrewett.mcmarkings.gui.imgui.ImGuiScreens.discardPendingInput();
                 }
             }
             while (openKey.consumeClick()) {

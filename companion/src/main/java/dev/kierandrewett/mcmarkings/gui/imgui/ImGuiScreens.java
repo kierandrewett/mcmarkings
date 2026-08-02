@@ -5,6 +5,7 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.ImGuiStyle;
 import imgui.ImGuiViewport;
@@ -89,6 +90,54 @@ public final class ImGuiScreens {
      * focus they step layers and nudge as before, and once navigation is sitting on a
      * control the editor's key handler declines them and they move around the form.
      */
+    /**
+     * Whether ImGui should take notice of input at all.
+     *
+     * <p>The backend installs its key callbacks on the window once and leaves them
+     * there, so ImGui hears every key in the game whether or not any of this is on
+     * screen. It queues them, and it drains that queue over several frames rather than
+     * in one, deliberately, so that a burst of typing is never lost. Nothing calls
+     * NewFrame while the window is closed, so nothing drains. An hour of playing goes
+     * into the queue and the moment the window opens it is all replayed into whatever
+     * has the keyboard, which in this mod is a settings field.
+     *
+     * <p>Somebody had their settings rewritten by their own movement keys this way.
+     *
+     * <p>Turning this off is ImGui's own answer: events are dropped as they arrive
+     * rather than stored, so there is no backlog to replay and no queue growing all
+     * session. Cleared as well as switched, for anything already waiting.
+     *
+     * <p>Guarded, because this is called from the client tick, which runs long before
+     * anything has built an ImGui context and would otherwise be asking a null one
+     * whether it accepts events.
+     */
+    public static void acceptInput(boolean accepting) {
+        try {
+            ImGui.getIO().setAppAcceptingEvents(accepting);
+        } catch (RuntimeException | LinkageError noContextYet) {
+            // Nothing has drawn, so nothing has queued either.
+        }
+    }
+
+    /**
+     * Throws away input ImGui is holding but has not shown anyone.
+     *
+     * <p>Separate from the switch above, and deliberately. The switch is set every
+     * tick, and a version of it that also cleared would be throwing away live typing
+     * twenty times a second the whole time the window was open. Clearing belongs to
+     * the two moments where what is waiting is known not to be meant for this window:
+     * closing it, and opening it.
+     */
+    public static void discardPendingInput() {
+        try {
+            ImGuiIO io = ImGui.getIO();
+            io.clearEventsQueue();
+            io.clearInputKeys();
+        } catch (RuntimeException | LinkageError noContextYet) {
+            // Nothing has drawn, so nothing has queued either.
+        }
+    }
+
     public static void enableKeyboardNavigation() {
         ImGui.getIO().addConfigFlags(
                 ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavNoCaptureKeyboard);

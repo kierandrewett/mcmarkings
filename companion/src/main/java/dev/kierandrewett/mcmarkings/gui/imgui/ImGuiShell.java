@@ -263,6 +263,13 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
     @Override
     protected void init() {
+        // Back on, and cleared first. Off is the resting state now: the tick turns it
+        // off whenever this is not the screen, so without this the window would open
+        // deaf. Clearing covers the key that opened it and anything that arrived in
+        // the same tick, none of which was meant for this.
+        ImGuiScreens.discardPendingInput();
+        ImGuiScreens.acceptInput(true);
+
         // Opening runs in the background, so the first frames may have no images at
         // all. whenReady fires straight away when there is nothing left to wait for,
         // which is also what makes this correct on a resize.

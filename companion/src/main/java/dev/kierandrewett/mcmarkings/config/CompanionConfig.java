@@ -3,6 +3,7 @@ package dev.kierandrewett.mcmarkings.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
+import dev.kierandrewett.mcmarkings.core.Summary;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * User settings, stored as JSON next to the other Fabric mod configs so they are
@@ -33,6 +35,32 @@ public class CompanionConfig {
 
     /** Command root without the slash; servers often rebind imageframe to frame. */
     public String commandAlias = "imageframe";
+
+    /** What a command root is allowed to look like. One word, as typed after a slash. */
+    private static final Pattern COMMAND_ALIAS =
+            Pattern.compile("[A-Za-z0-9_.:-]{1,32}");
+
+    public static final String DEFAULT_COMMAND_ALIAS = "imageframe";
+
+    /**
+     * Whether a command root could actually be a command.
+     *
+     * <p>Anything with a space in it is two arguments rather than a command name, and
+     * anything long is not a command anybody has. It exists because of what a bad one
+     * does: the alias is the first word of every command this mod sends, so rubbish
+     * there is not a mod that misbehaves, it is a malformed chat_command packet, and
+     * the server answers that by dropping the connection. Somebody was thrown out of
+     * their world by it.
+     *
+     * <p>They did not type it either. Input queued while the window was shut replayed
+     * into whichever field had the keyboard, and it was this one, so a hundred and
+     * eighty characters of walking around went into the alias and got saved. The
+     * replay is fixed where it happens, and this is here because the cost of it being
+     * wrong is so far out of proportion to the field it is.
+     */
+    public static boolean isUsableCommandAlias(String candidate) {
+        return candidate != null && COMMAND_ALIAS.matcher(candidate).matches();
+    }
 
     /** Directories searched for the Transport typeface, which is not in the repo. */
     public List<String> fontSearchPaths = new ArrayList<>(defaultFontSearchPaths());
@@ -248,6 +276,17 @@ public class CompanionConfig {
             }
             if (loaded.fontSearchPaths == null) {
                 loaded.fontSearchPaths = new ArrayList<>();
+            }
+            // Repaired on the way in rather than only being rejected at the field
+            // that sets it. A config already holding a bad one would otherwise go on
+            // disconnecting somebody every time they placed a map, and the only way
+            // back would be knowing to open Settings and retype a word.
+            if (!isUsableCommandAlias(loaded.commandAlias)) {
+                McMarkingsCompanion.LOGGER.warn(
+                        "[mcmarkings] the command name in the config is not a command, "
+                                + "using {} instead: {}",
+                        DEFAULT_COMMAND_ALIAS, Summary.truncate(String.valueOf(loaded.commandAlias), 60));
+                loaded.commandAlias = DEFAULT_COMMAND_ALIAS;
             }
             loaded.migrate();
             return loaded;
