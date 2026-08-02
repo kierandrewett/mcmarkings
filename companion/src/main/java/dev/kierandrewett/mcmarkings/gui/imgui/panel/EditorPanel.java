@@ -193,6 +193,15 @@ public final class EditorPanel implements Panel {
     private static final int KEY_DOWN = 264;
     private static final int KEY_UP = 265;
 
+    /**
+     * The keys navigation and the canvas both want.
+     *
+     * <p>Tab steps through layers here and moves between fields there; the arrows
+     * nudge here and move between controls there. Whoever has the keyboard gets them.
+     */
+    private static final java.util.Set<Integer> NAVIGATION_KEYS =
+            java.util.Set.of(KEY_TAB, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN);
+
     /** GLFW modifier bits, as a key callback reports them. */
     private static final int MOD_SHIFT = 0x0001;
     private static final int MOD_CONTROL = 0x0002;
@@ -334,6 +343,18 @@ public final class EditorPanel implements Panel {
     private final float[] rgba = new float[4];
     private final ImInt choice = new ImInt();
 
+    /**
+     * Whether keyboard navigation is sitting on a control, read once a frame.
+     *
+     * <p>Read during the frame and kept, because the key handler runs outside one.
+     * It decides who owns Tab and the arrows: the canvas while nothing is focused,
+     * the form once something is.
+     */
+    private boolean navOnAControl;
+
+    /** Set by the command, acted on by the first property field of the next frame. */
+    private boolean focusProperties;
+
     /** Measured once a frame rather than per row, since each measurement crosses JNI. */
     private float characterWidth = 7.0f;
 
@@ -412,6 +433,15 @@ public final class EditorPanel implements Panel {
         // Command on macOS is the conventional modifier for these and GLFW reports it
         // separately, so both count as control.
         boolean control = (modifiers & (MOD_CONTROL | MOD_SUPER)) != 0;
+
+        // Tab and the arrows belong to whatever has the keyboard. On the canvas they
+        // step through layers and nudge; in the properties panel they are how a form
+        // is moved around, and a nudge fired at the same time would edit the layer
+        // while somebody was only trying to reach a field. Only the unmodified keys:
+        // Ctrl and Alt combinations are the mod's own and navigation never wanted them.
+        if (navOnAControl && !control && NAVIGATION_KEYS.contains(keyCode)) {
+            return false;
+        }
         return commands.handleKey(keyCode, control, (modifiers & MOD_SHIFT) != 0, (modifiers & MOD_ALT) != 0);
     }
 
@@ -431,6 +461,7 @@ public final class EditorPanel implements Panel {
         try {
             noteForRecovery();
             drawEditor();
+            navOnAControl = ImGui.isAnyItemFocused();
         } catch (Exception failure) {
             // The shell catches this too, but handling it here keeps the failure to
             // the body and still submits the picker and palette below.
@@ -672,8 +703,13 @@ public final class EditorPanel implements Panel {
      * the zoom here and a scrolling child would eat it first.
      */
     private void drawCanvasRegion(float width, float height) {
+        // NoNavInputs, which is what makes navigation and the canvas able to coexist.
+        // Without it the first arrow press with nothing focused is spent by navigation
+        // picking a control, so the layer moves once and then stops moving, which is a
+        // far worse bug than the one being fixed.
         boolean visible = ImGui.beginChild("##editor-canvas", Math.max(unit() * 8.0f, width), height,
-                ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+                ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar
+                        | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoNavInputs);
         try {
             if (visible) {
                 drawCanvas();
@@ -2238,6 +2274,12 @@ public final class EditorPanel implements Panel {
     private boolean field(String label, BooleanSupplier control) {
         ImGui.textDisabled(label);
         ImGui.setNextItemWidth(-1.0f);
+        // The first field drawn after the command takes the focus, whichever it is
+        // for the layer that happens to be selected.
+        if (focusProperties) {
+            focusProperties = false;
+            ImGui.setKeyboardFocusHere();
+        }
         boolean changed = control.getAsBoolean();
         settle();
         return changed;
@@ -2492,6 +2534,22 @@ public final class EditorPanel implements Panel {
                 .hint(() -> "What the wall actually shows: " + GridSize.MAP_PIXELS + " pixels per frame, "
                         + "not the " + history.current().pixelsPerFrame() + " this renders at")
                 .does(() -> pendingMapResolution = true));
+
+        // A way into the form and a way back, because Tab cannot be the way in: it
+        // steps through layers on the canvas, and taking that away to make it a focus
+        // key would cost an editor idiom to buy a form one. Both are in the palette,
+        // which is the keyboard route to everything else here as well.
+        commands.register(Command.of("editor.focusProperties", "Edit the properties panel")
+                .category("View")
+                .hint("Put the keyboard in the fields, then Tab between them")
+                .enabledWhen(this::hasSelection)
+                .does(() -> focusProperties = true));
+        commands.register(Command.of("editor.focusCanvas", "Back to the canvas").category("View")
+                .hint("Give Tab and the arrows back to the layers")
+                // Focusing a child that refuses navigation is what drops the focus off
+                // whatever control had it, and there is no call in this binding that
+                // clears it directly.
+                .does(() -> ImGui.setWindowFocus("##editor-canvas")));
 
         commands.register(Command.of("editor.help", "Canvas controls").category("View")
                 .hint("What the mouse does on the canvas and in the layer list")

@@ -5,7 +5,6 @@ import dev.kierandrewett.mcmarkings.McMarkingsCompanion;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImDrawList;
 import imgui.ImGui;
-import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.ImGuiStyle;
 import imgui.ImGuiViewport;
@@ -76,19 +75,23 @@ public final class ImGuiScreens {
      * Ctrl+P, undo and the rest still arrive. Typing into a field still captures,
      * because that is an active item rather than navigation.
      *
-     * <p>Turned off for the editor. Navigation claims Tab and the arrow keys, which
-     * the editor already uses for stepping through layers and nudging by a pixel, and
-     * both firing at once is worse than either. The editor is also the one panel that
-     * can already be driven from the keyboard, so it loses nothing.
+     * <p>Was turned off for the editor, because navigation claims Tab and the arrow
+     * keys and the editor uses both. The reasoning went that the editor loses nothing
+     * by it, since it is the one panel that can already be driven from the keyboard.
+     * That was wrong, and wrong in the way that is easy to miss: every command has a
+     * shortcut, so the editor looked fully reachable, while the properties panel is
+     * not made of commands. Position, size, colour, font, the text itself. Without
+     * navigation there is no way to reach any of those without a mouse, which is the
+     * one part of this mod where the actual work happens.
+     *
+     * <p>On everywhere now. The editor gives Tab and the arrows to whichever has the
+     * keyboard: the canvas child is marked {@code NoNavInputs}, so while it holds the
+     * focus they step layers and nudge as before, and once navigation is sitting on a
+     * control the editor's key handler declines them and they move around the form.
      */
-    public static void setKeyboardNavigation(boolean enabled) {
-        ImGuiIO io = ImGui.getIO();
-        int flags = ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavNoCaptureKeyboard;
-        if (enabled) {
-            io.addConfigFlags(flags);
-        } else {
-            io.removeConfigFlags(flags);
-        }
+    public static void enableKeyboardNavigation() {
+        ImGui.getIO().addConfigFlags(
+                ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.NavNoCaptureKeyboard);
     }
 
     /**

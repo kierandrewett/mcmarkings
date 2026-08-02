@@ -352,7 +352,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Off for the editor, which already binds Tab and the arrows. Read from the
         // previous frame's tab, which is what there is at this point; the flags are
         // consumed at the start of the next frame anyway, so the lag cancels out.
-        ImGuiScreens.setKeyboardNavigation(activePanel != editor);
+        ImGuiScreens.enableKeyboardNavigation();
         this.io = frameIo;
         try {
             ImGuiScreens.fullViewportWindow(WINDOW_ID, this::drawBody);
