@@ -15,6 +15,7 @@ import dev.kierandrewett.mcmarkings.js.ParamDef;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.texture.TextureHandle;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
@@ -343,7 +344,7 @@ public final class GeneratorPanel implements Panel {
 
         ImGui.beginDisabled(busy || previewImage == null || grid == null);
         boolean publishPressed = ImGui.button("Save & publish");
-        if (ImGui.isItemHovered()) {
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
                     + "then creates the map.\nA push sends every local commit, not just this one.");
         }
@@ -397,7 +398,7 @@ public final class GeneratorPanel implements Panel {
         boolean pressed = ImGui.button("Open in editor");
         ImGui.endDisabled();
 
-        if (ImGui.isItemHovered()) {
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             ImGui.setTooltip("Puts this in the editor as layers you can move, restyle and save.");
         }
         if (pressed) {

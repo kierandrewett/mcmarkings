@@ -13,6 +13,7 @@ import dev.kierandrewett.mcmarkings.registry.MapRegistry;
 import dev.kierandrewett.mcmarkings.repo.GitException;
 import dev.kierandrewett.mcmarkings.repo.RawUrls;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.type.ImString;
 import net.minecraft.client.Minecraft;
 
@@ -176,7 +177,11 @@ public final class PlacedPanel implements Panel {
         ImGui.beginDisabled(refreshing || !known);
         boolean refresh = ImGui.button("Refresh");
         ImGui.endDisabled();
-        if (ImGui.isItemHovered()) {
+
+        // AllowWhenDisabled, or the second half of this tooltip can never be seen:
+        // the button is only disabled when the repository is unknown, which is
+        // precisely the case that message was written for.
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
             ImGui.setTooltip(known
                     ? "Re-read the image at its current commit, so the sign on the wall catches up."
                     : "The repository this came from is not set up here, so there is nothing to read.");
