@@ -232,6 +232,7 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
 
     @Override
     public BufferedImage render(String generatorId, Map<String, Object> params) throws GeneratorException {
+        NOTICES.get().clear();
         Snapshot current = snapshot;
         Loaded generator = current.byId().get(generatorId);
         if (generator == null) {
@@ -582,6 +583,46 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
                 modules.require(c, JsValues.stringArg(args, 0, "module name"))));
     }
 
+    /**
+     * What a generator said about the run in progress, on this thread.
+     *
+     * <p>console.warn went only to the log, which is where the mod's own diagnostics
+     * belong and exactly the wrong place for these. A generator's warnings are
+     * addressed to the person who typed the parameters: "legend measures 214px wider
+     * than the sign allows; shorten the text or lower the x-height" tells you what
+     * to do, and it was being said into a file nobody has open. The sign came back
+     * looking wrong with no explanation anywhere on screen.
+     *
+     * <p>Per thread because renders run on their own virtual thread and the scope is
+     * locked per generator, so this is the only bookkeeping that reliably belongs to
+     * one call. Drained by the caller immediately after, on the same thread.
+     */
+    private static final ThreadLocal<List<String>> NOTICES = ThreadLocal.withInitial(ArrayList::new);
+
+    /**
+     * Takes the warnings from the render or document call just made on this thread.
+     *
+     * <p>Clearing as it reads, so a later call cannot inherit an earlier one's.
+     */
+    public List<String> drainNotices() {
+        List<String> said = NOTICES.get();
+        List<String> copy = List.copyOf(said);
+        said.clear();
+        return copy;
+    }
+
+    private static void note(String message) {
+        List<String> said = NOTICES.get();
+        // Bounded: a generator looping over lines could otherwise say the same thing
+        // a thousand times, and the panel showing it has one corner to do it in.
+        if (said.size() < MAX_NOTICES) {
+            said.add(message);
+        }
+    }
+
+    /** Enough to describe what went wrong without becoming the interface. */
+    private static final int MAX_NOTICES = 6;
+
     private static void installConsole(Context cx, Scriptable scope, String tag) {
         Scriptable console = cx.newObject(scope);
         ScriptableObject.putProperty(console, "log", JsValues.fn(scope, "log", 1, (c, s, self, args) -> {
@@ -589,11 +630,15 @@ public final class RhinoGeneratorRuntime implements GeneratorRuntime {
             return Undefined.instance;
         }));
         ScriptableObject.putProperty(console, "warn", JsValues.fn(scope, "warn", 1, (c, s, self, args) -> {
-            LOGGER.warn("[generator:{}] {}", tag, join(args));
+            String message = join(args);
+            LOGGER.warn("[generator:{}] {}", tag, message);
+            note(message);
             return Undefined.instance;
         }));
         ScriptableObject.putProperty(console, "error", JsValues.fn(scope, "error", 1, (c, s, self, args) -> {
-            LOGGER.error("[generator:{}] {}", tag, join(args));
+            String message = join(args);
+            LOGGER.error("[generator:{}] {}", tag, message);
+            note(message);
             return Undefined.instance;
         }));
         ScriptableObject.putProperty(scope, "console", console);

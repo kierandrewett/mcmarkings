@@ -85,6 +85,16 @@ public final class GeneratorPanel implements Panel {
     private int previewSequence;
     private String generatorError;
 
+    /**
+     * What the generator said about the preview on screen.
+     *
+     * <p>Kept beside the error rather than folded into it, because these are not
+     * failures: the sign rendered, it is just not the sign that was asked for. A
+     * legend wider than the plate is the common one, and the generator names the
+     * overflow in pixels and says whether to shorten the text or drop the x-height.
+     */
+    private List<String> generatorNotices = List.of();
+
     /** Whether the generator list has been read yet. See {@link #draw()}. */
     private boolean loadedOnce;
 
@@ -473,7 +483,18 @@ public final class GeneratorPanel implements Panel {
         });
     }
 
+    private void drawNotices() {
+        if (generatorNotices.isEmpty()) {
+            return;
+        }
+        for (String notice : generatorNotices) {
+            Notice.warningWrapped(notice);
+        }
+        ImGui.separator();
+    }
+
     private void drawPreview() {
+        drawNotices();
         if (generatorError != null) {
             Notice.error("Generator failed");
             ImGui.separator();
@@ -528,6 +549,8 @@ public final class GeneratorPanel implements Panel {
         fields = buildFields(generator);
         gridPinned = false;
         generatorError = null;
+        // Belong to the generator being left, not the one being chosen.
+        generatorNotices = List.of();
 
         if (nameAutoFilled || name.get().isBlank()) {
             name.set(ImageFrameCommands.sanitiseName(generator.id()));
@@ -559,7 +582,10 @@ public final class GeneratorPanel implements Panel {
         Thread.ofVirtual().start(() -> {
             try {
                 BufferedImage image = services.generators().render(generatorId, params);
-                Minecraft.getInstance().execute(() -> onPreview(generatorId, image));
+                // Drained here, on the thread that rendered, before anything else can
+                // use the runtime. These belong to this call and nothing else.
+                List<String> notices = services.generators().drainNotices();
+                Minecraft.getInstance().execute(() -> onPreview(generatorId, image, notices));
             } catch (GeneratorException exception) {
                 Minecraft.getInstance().execute(() -> onPreviewFailed(generatorId, exception.getMessage()));
             } catch (RuntimeException exception) {
@@ -571,11 +597,12 @@ public final class GeneratorPanel implements Panel {
         });
     }
 
-    private void onPreview(String generatorId, BufferedImage image) {
+    private void onPreview(String generatorId, BufferedImage image, List<String> notices) {
         if (!isCurrent(generatorId) || image == null) {
             return;
         }
 
+        generatorNotices = notices;
         generatorError = null;
         previewImage = image;
         suggestions = GridRecommender.top(image.getWidth(), image.getHeight(), 3);
@@ -590,6 +617,7 @@ public final class GeneratorPanel implements Panel {
             return;
         }
         generatorError = message == null ? "Generator failed with no message" : message;
+        generatorNotices = List.of();
     }
 
     private boolean isCurrent(String generatorId) {

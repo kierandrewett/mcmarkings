@@ -33,6 +33,21 @@ public interface GeneratorRuntime {
     BufferedImage render(String generatorId, Map<String, Object> params) throws GeneratorException;
 
     /**
+     * What the generator said about the call just made on this thread.
+     *
+     * <p>These are addressed to whoever typed the parameters, not to whoever
+     * maintains the mod: a legend measured wider than the sign allows tells you to
+     * shorten the text or lower the x-height, and it is useless in a log file.
+     *
+     * <p>Drained rather than read, so a later call cannot show an earlier one's, and
+     * on the same thread as the call because that is the only thing tying them
+     * together. Empty is the normal answer.
+     */
+    default java.util.List<String> drainNotices() {
+        return java.util.List.of();
+    }
+
+    /**
      * The generator's output as editable layers, when it can describe itself that
      * way.
      *
