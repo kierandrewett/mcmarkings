@@ -51,6 +51,44 @@ class SearchRelevanceTest {
     }
 
     /**
+     * Every speed limit, because every one of them was broken.
+     *
+     * <p>The whole-word rule was written for "30" and tested on "30", and it worked.
+     * It did not generalise: 40, 50, 60 and 70 returned no speed limit anywhere in
+     * the first five, and "60" returned the sign for stop. British diagram numbers
+     * put stop at 601.1, give way at 602 and turn left at 606, and a reference that
+     * merely began with the query used to rank as highly as a name that began with
+     * it, so those three coincidences outranked "max speed 60 mph".
+     *
+     * <p>A number is the most likely thing anybody types at a set of road signs, and
+     * five of the six numbers they would type were wrong. Fixing the one I happened
+     * to test is what let that stand, so all six are here now.
+     */
+    @Test
+    @DisplayName("every speed limit comes back for its own number")
+    void everySpeedLimitIsFindable() {
+        assertWithin("20", 5, "max_speed_20_mph");
+        assertWithin("30", 5, "max_speed_30_mph");
+        assertWithin("40", 5, "max_speed_40_mph_wales");
+        assertWithin("50", 5, "max_speed_50_mph_wales");
+        assertWithin("60", 5, "maximum_speed_limit_of_60_miles_per_hour");
+        assertWithin("70", 5, "70mph_sign_sometimes_used_in_scotland_and_uk_special_roads");
+    }
+
+    /**
+     * And that a diagram number typed in full still wins outright.
+     *
+     * <p>The fix pushes a reference that merely starts with the query below the
+     * names. An exact one has to stay at the top, or somebody who knows the
+     * catalogue loses the fastest way to reach a sign.
+     */
+    @Test
+    @DisplayName("an exact diagram number still comes first")
+    void anExactReferenceStillWins() {
+        assertWithin("601.1", 1, "stop");
+    }
+
+    /**
      * The query that exposed all of this.
      *
      * <p>"30" is about the most likely thing anyone types at a set of British road

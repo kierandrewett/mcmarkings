@@ -659,16 +659,29 @@ public class RepoScanner implements RepoService {
         if (name.equals(query) || spaced.equals(query) || reference.equals(query)) {
             return 0;
         }
-        if (name.startsWith(query) || spaced.startsWith(query) || reference.startsWith(query)) {
+        if (name.startsWith(query) || spaced.startsWith(query)) {
             return 1;
         }
         if (containsWholeWord(spaced, query)) {
             return 2;
         }
-        if (name.contains(query) || spaced.contains(query)) {
+        // Below the name, deliberately. A catalogue reference that merely begins with
+        // the query is close to no evidence at all: British diagram numbers put stop
+        // at 601.1, give way at 602 and turn left at 606, so "60" prefixes a great
+        // many of them by coincidence. It used to rank here alongside a name starting
+        // with the query, and the effect on this repository was that typing 40, 50, 60
+        // or 70 returned no speed limit at all, while the sign for stop came back for
+        // 60. The one number a person is most likely to type at a set of road signs.
+        //
+        // An exact reference is a different thing and stays at the top: somebody
+        // typing 601.1 wants that sign and nothing else.
+        if (reference.startsWith(query)) {
             return 3;
         }
-        return 4;
+        if (name.contains(query) || spaced.contains(query)) {
+            return 4;
+        }
+        return 5;
     }
 
     /**
