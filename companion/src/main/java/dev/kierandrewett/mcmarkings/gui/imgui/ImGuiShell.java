@@ -411,6 +411,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             ImGui.sameLine();
             ImGui.textDisabled("Pulling...");
         }
+
+        // The sink has always known this and nothing ever asked. Commands go out at a
+        // few a second, so a pull that refreshes fifty maps is half a minute of the
+        // window looking finished while it is still working. Someone who cannot see
+        // that either presses the button again or walks away before it is done.
+        int queued = services.commands.pending();
+        if (queued > 0) {
+            ImGui.sameLine();
+            ImGui.textDisabled(queued + " command(s) queued");
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Sent a few a second so the server does not drop them. "
+                        + "Closing this window does not stop them.");
+            }
+        }
         if (renderError != null) {
             ImGui.sameLine();
             Notice.error(
