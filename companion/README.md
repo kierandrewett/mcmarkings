@@ -80,6 +80,8 @@ Everything else has a route through the interface, so nothing below is required.
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo, redo |
 | `Ctrl+D`, `Delete`, `Ctrl+G`, `Ctrl+A` | Duplicate, delete, group, select all |
 | `Tab` / `Shift+Tab` | Step the selection through the layer stack |
+| `Ctrl+Up` / `Ctrl+Down` | Move the selected layer one place through the stack |
+| `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Bring to front, send to back |
 | Arrow keys | Nudge the selection; hold `Shift` for a larger step |
 
 The palette is the honest answer to "what can this do". It lists everything,

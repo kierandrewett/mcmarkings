@@ -1739,6 +1739,31 @@ public final class EditorPanel implements Panel {
                 .enabledWhen(this::hasSelection)
                 .does(selection::clear));
 
+        // Adding a layer was the one thing only a button could do, which made the
+        // palette's promise untrue: it says it lists everything the tab can do, and
+        // the first thing anyone does in an empty editor was missing from it.
+        commands.register(Command.of("editor.add.image", "Add an image layer").category("Add")
+                .hint("Pick a repository image and drop it on the canvas")
+                .enabledWhen(services::hasRepositories)
+                .does(() -> picker.openPicker(this::addImageLayer)));
+        commands.register(Command.of("editor.add.text", "Add a text layer").category("Add")
+                .hint("A line of text in any installed font")
+                .does(this::addTextLayer));
+        commands.register(Command.of("editor.add.shape", "Add a shape layer").category("Add")
+                .hint("A rectangle, for panels, plates and borders")
+                .does(this::addShapeLayer));
+
+        commands.register(Command.of("editor.raise", "Move up one").category("Layer")
+                .hint("One step up the stack, rather than all the way to the front")
+                .shortcut(new Shortcut(KEY_UP, true, false, false))
+                .enabledWhen(() -> selection.size() == 1)
+                .does(() -> shuffle(1)));
+        commands.register(Command.of("editor.lower", "Move down one").category("Layer")
+                .hint("One step down the stack, rather than all the way to the back")
+                .shortcut(new Shortcut(KEY_DOWN, true, false, false))
+                .enabledWhen(() -> selection.size() == 1)
+                .does(() -> shuffle(-1)));
+
         commands.register(Command.of("editor.group", "Group").category("Layer")
                 .hint("Wrap the selection in a group that moves together")
                 .shortcut(Shortcut.control(KEY_G))
@@ -1912,6 +1937,27 @@ public final class EditorPanel implements Panel {
 
         // Otherwise stepping onto something off screen looks like nothing happened.
         pendingCentre = stepped.bounds();
+    }
+
+    /**
+     * Moves the selected layer one place through the stack.
+     *
+     * <p>Bring to front and send to back were the only ways to reorder without
+     * dragging in the list, and they are the two least often wanted: most of the time
+     * something needs to go just above the one thing it is behind. Dragging a row
+     * does that, and dragging is the thing this exists to not require.
+     */
+    private void shuffle(int delta) {
+        if (selection.size() != 1) {
+            return;
+        }
+        String id = selection.iterator().next();
+        Document document = history.current();
+        Document moved = document.reorder(id, delta);
+
+        if (moved != document) {
+            apply(moved, delta > 0 ? "Move up one" : "Move down one", null);
+        }
     }
 
     private void select(List<String> ids) {
