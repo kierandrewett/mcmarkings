@@ -1421,9 +1421,7 @@ public final class EditorPanel implements Panel {
         Document document = history.current();
 
         if (selection.size() > 1) {
-            ImGui.textDisabled(selection.size() + " layers selected");
-            ImGui.textWrapped("Alignment and the layer actions apply to all of them."
-                    + " Select one layer to edit its properties.");
+            drawSharedProperties(document);
         } else {
             singleSelection(document).ifPresentOrElse(
                     layer -> drawLayerProperties(document, layer),
@@ -1486,6 +1484,49 @@ public final class EditorPanel implements Panel {
                     Math.max(1, pair[0]), Math.max(1, pair[1]));
             apply(document.replace(layer.withBounds(resized)), "Resize layer", "bounds:" + layer.id());
         }
+    }
+
+    /**
+     * What can be edited across a selection.
+     *
+     * <p>Selecting several layers offered nothing but a sentence explaining that it
+     * offered nothing. Opacity is the one property people genuinely want to move
+     * together, for dimming a whole panel and its legend at once, and doing it one
+     * layer at a time is the sort of repetition that makes an editor tiring.
+     *
+     * <p>Everything else stays per layer on purpose. A shared font or colour box has
+     * to invent an answer for a selection that disagrees, and inventing one is how a
+     * control quietly changes something nobody asked it to.
+     */
+    private void drawSharedProperties(Document document) {
+        List<Layer> selected = document.layers().stream()
+                .filter(layer -> selection.contains(layer.id()))
+                .toList();
+        if (selected.isEmpty()) {
+            return;
+        }
+
+        ImGui.textDisabled(selected.size() + " layers selected");
+
+        double shared = selected.getFirst().opacity();
+        boolean agree = selected.stream().allMatch(layer -> layer.opacity() == shared);
+        scalar[0] = (float) shared;
+
+        // Coalesced on the selection rather than on a layer, so dragging the slider is
+        // one undo however many layers it touches.
+        if (field(agree ? "Opacity" : "Opacity (mixed)",
+                () -> ImGui.sliderFloat("##shared-opacity", scalar, 0.0f, 1.0f))) {
+            double value = Math.clamp(scalar[0], 0.0f, 1.0f);
+            Document updated = document;
+            for (Layer layer : selected) {
+                updated = updated.replace(rebuilt(layer, layer.name(), layer.visible(), layer.locked(),
+                        value, layer.margins()));
+            }
+            apply(updated, "Change opacity", "opacity:selection");
+        }
+
+        ImGui.textWrapped("Alignment and the layer actions apply to all of them."
+                + " Select one layer for its own properties.");
     }
 
     private void drawCommonFields(Document document, Layer layer) {
