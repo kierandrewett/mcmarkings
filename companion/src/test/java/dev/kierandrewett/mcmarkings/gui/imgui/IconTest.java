@@ -153,4 +153,24 @@ class IconTest {
             default -> "Distribute vertically";
         };
     }
+
+    /**
+     * The view that says whether a sign will be readable is reachable without
+     * knowing its name.
+     *
+     * <p>The canvas renders at whatever pixels-per-frame the document is set to and a
+     * wall only ever has 128, so this is the difference between what you are looking
+     * at and what you are making. It was registered and findable only by typing "map
+     * resolution" into the command palette.
+     */
+    @Test
+    @DisplayName("viewing at map resolution is on the toolbar")
+    void mapResolutionIsReachable() throws java.io.IOException {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/EditorPanel.java"));
+
+        assertTrue(source.contains("\"editor.zoom.map\", Icon."),
+                "the map resolution view is back to being palette-only, which is where "
+                        + "nobody looking at a sign would think to find it");
+    }
 }

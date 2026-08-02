@@ -248,7 +248,14 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("|", null),
             new ToolbarItem("-##zoom-out", "editor.zoom.out"),
             new ToolbarItem("+##zoom-in", "editor.zoom.in"),
-            new ToolbarItem("Fit", "editor.zoom.fit"));
+            new ToolbarItem("Fit", "editor.zoom.fit"),
+            // Registered and reachable only by typing "map resolution" into the
+            // palette, which is a poor place for the one view that answers whether
+            // the sign will be readable at all. The canvas renders at whatever
+            // pixels-per-frame the document is set to and a wall only ever has 128,
+            // so this is the difference between what you are looking at and what you
+            // are making.
+            new ToolbarItem("View at map resolution", "editor.zoom.map", Icon.MAP));
 
     private final CompanionServices services;
 
