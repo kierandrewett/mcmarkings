@@ -2611,13 +2611,24 @@ public final class EditorPanel implements Panel {
             return;
         }
 
+        // No waiting while the mouse is down. The debounce is there so that typing in
+        // a field does not start a render per keystroke, and during a drag it does the
+        // opposite of its job: the document changes every frame, so each change waits
+        // the full window before drawing and the sign crawls along behind the cursor
+        // at about six updates a second while the cursor moves at sixty.
+        //
+        // Nothing is needed in its place. One render runs at a time already, so a drag
+        // renders as fast as the renderer manages and no faster, which for a realistic
+        // document is a few milliseconds.
         long now = System.currentTimeMillis();
-        if (dirtyAtMillis == 0L) {
-            dirtyAtMillis = now;
-            return;
-        }
-        if (now - dirtyAtMillis < RENDER_DEBOUNCE_MILLIS) {
-            return;
+        if (drag == null) {
+            if (dirtyAtMillis == 0L) {
+                dirtyAtMillis = now;
+                return;
+            }
+            if (now - dirtyAtMillis < RENDER_DEBOUNCE_MILLIS) {
+                return;
+            }
         }
         if (!rendering.compareAndSet(false, true)) {
             return;
