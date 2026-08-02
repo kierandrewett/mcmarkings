@@ -640,7 +640,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // and coming back to an image that is still selected.
         if (!image.equals(actionImage) || placedGeneration != services.registry.generation()) {
             actionImage = image;
-            grid = GridRecommender.best(image.width(), image.height());
+            // Matching the shape, not the fewest frames. This path hands ImageFrame a
+            // URL and a grid and lets it fit the image, so a grid the image does not
+            // fill is a grid the server decides what to do with.
+            grid = GridRecommender.bestMatchingShape(image.width(), image.height());
             suggestions = GridRecommender.top(image.width(), image.height(), 3);
 
             refreshPlacedAs(image);

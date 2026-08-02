@@ -61,7 +61,42 @@ public final class GridRecommender {
     private GridRecommender() {
     }
 
-    /** Best grid for an image, never null. */
+    /**
+     * Best grid when the server will do the fitting, never null.
+     *
+     * <p>The difference from {@link #best} is who fits the image. Publishing squares
+     * the PNG up to the grid itself, keeping the shape and centring it, so any grid
+     * is safe there and the only cost of a small one is frames placed with nothing on
+     * them. Placing an image straight from a repository does not: the mod hands
+     * ImageFrame a URL and a grid, and what happens between the two is the server's
+     * business.
+     *
+     * <p>So this one goes back to matching the shape. It is the rule the recommender
+     * had before, and changing that rule everywhere was a mistake on this path: it
+     * could hand the server a 2x1 for a 4:1 image, and if the server stretches rather
+     * than pads then the sign on the wall is squashed to half its width with nothing
+     * here able to tell.
+     *
+     * <p>Which of the two ImageFrame does is not written down anywhere I can check
+     * from here, so this picks the grid where it does not matter.
+     */
+    public static GridSize bestMatchingShape(int imageWidth, int imageHeight) {
+        List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
+
+        for (GridSuggestion suggestion : frontier) {
+            if (suggestion.distortion() <= ACCEPTABLE) {
+                return suggestion.grid();
+            }
+        }
+
+        return frontier.stream()
+                .filter(suggestion -> suggestion.grid().frameCount() <= DEFAULT_MAX_FRAMES)
+                .min(Comparator.comparingDouble(GridSuggestion::distortion))
+                .map(GridSuggestion::grid)
+                .orElseGet(() -> frontier.getFirst().grid());
+    }
+
+    /** Best grid for an image the mod fits itself, never null. */
     public static GridSize best(int imageWidth, int imageHeight) {
         List<GridSuggestion> frontier = suggest(imageWidth, imageHeight, DEFAULT_MAX_DIMENSION);
 

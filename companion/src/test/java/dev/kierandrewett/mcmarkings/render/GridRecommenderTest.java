@@ -204,4 +204,70 @@ class GridRecommenderTest {
         assertThrows(IllegalArgumentException.class, () -> GridRecommender.best(100, 0));
         assertThrows(IllegalArgumentException.class, () -> GridRecommender.best(-1, -1));
     }
+
+    /**
+     * Two rules, because there are two situations and only one of them is the mod's.
+     *
+     * <p>Publishing squares the PNG up to the grid itself, so any grid is safe and
+     * the only cost of a small one is frames placed with nothing on them. Placing an
+     * image straight from a repository hands ImageFrame a URL and a grid and lets it
+     * fit the image, and what happens there is the server's business.
+     *
+     * <p>Changing the rule everywhere was a mistake on that second path. A 4:1 image
+     * on a 2x1 is fine when the mod pads it and half its width when the server
+     * stretches it, and which of those ImageFrame does is not something this can find
+     * out from here.
+     */
+    @Test
+    @DisplayName("where the server does the fitting, the grid matches the shape")
+    void theServerFittedPathMatchesTheShape() {
+        // The sign that prompted the change. Two frames when the mod pads it, three
+        // when something else decides: at 3.60:1 a 3x1 is 19.9% off, which slips under
+        // the twenty per cent this rule has always allowed. I guessed four writing
+        // this and the numbers say three.
+        assertEquals(new GridSize(2, 1), GridRecommender.best(1601, 445));
+        assertEquals(new GridSize(3, 1), GridRecommender.bestMatchingShape(1601, 445));
+
+        // An exact fit is taken outright, which is the whole point of this rule.
+        assertEquals(new GridSize(4, 1), GridRecommender.bestMatchingShape(2048, 512));
+        assertEquals(new GridSize(1, 1), GridRecommender.bestMatchingShape(1000, 1000));
+    }
+
+    /**
+     * And that it is still not extravagant. The old rule was already tuned to spend
+     * frames sparingly, since every one is placed by hand, and that has not changed.
+     */
+    @Test
+    @DisplayName("matching the shape does not mean spending frames without limit")
+    void shapeMatchingIsStillFrugal() {
+        assertTrue(GridRecommender.bestMatchingShape(1024, 733).frameCount() <= 6);
+        assertTrue(GridRecommender.bestMatchingShape(601, 1024).frameCount() <= 4);
+    }
+
+    /**
+     * That each path asks for the rule it needs.
+     *
+     * <p>The two rules above are facts about arithmetic and say nothing about which
+     * screen uses which. Swapping the browser back to the fewest-frames rule left
+     * every test green, and that swap is the regression this pair exists to prevent:
+     * it hands the server a grid the image does not fill and leaves the result to
+     * whatever the server does about it.
+     */
+    @Test
+    @DisplayName("the browser asks for the shape-matching rule, publishing asks for the other")
+    void eachPathAsksForItsOwnRule() throws java.io.IOException {
+        String shell = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/ImGuiShell.java"));
+
+        assertTrue(shell.contains("GridRecommender.bestMatchingShape("),
+                "the browser is choosing a grid without matching the image's shape, and it "
+                        + "cannot fit the image itself");
+
+        // The generator publishes through the mod, which squares the image up, so it
+        // is the one that may prefer fewer frames.
+        String generator = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/GeneratorPanel.java"));
+        assertTrue(generator.contains("GridRecommender.best("),
+                "the generator is no longer using the rule for images the mod fits itself");
+    }
 }
