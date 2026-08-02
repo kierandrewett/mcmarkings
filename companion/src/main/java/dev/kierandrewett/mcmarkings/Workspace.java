@@ -5,6 +5,7 @@ import dev.kierandrewett.mcmarkings.js.GeneratorRuntime;
 import dev.kierandrewett.mcmarkings.repo.GitException;
 import dev.kierandrewett.mcmarkings.repo.GitService;
 import dev.kierandrewett.mcmarkings.repo.RawUrls;
+import dev.kierandrewett.mcmarkings.doc.TemplateStore;
 import dev.kierandrewett.mcmarkings.repo.RepoService;
 
 /**
@@ -23,6 +24,14 @@ public final class Workspace {
     private final GitService git;
     private final GeneratorRuntime generators;
 
+    /**
+     * Templates for this repository.
+     *
+     * <p>Per workspace rather than global, because a template refers to images by
+     * repository-relative path and means nothing in a repository that lacks them.
+     */
+    private final TemplateStore templates;
+
     /** Non-fatal problems found while opening, shown in the repositories screen. */
     private final String warning;
 
@@ -32,6 +41,7 @@ public final class Workspace {
         this.repo = repo;
         this.git = git;
         this.generators = generators;
+        this.templates = new TemplateStore(repo.root());
         this.warning = warning;
     }
 
@@ -53,6 +63,10 @@ public final class Workspace {
 
     public GeneratorRuntime generators() {
         return generators;
+    }
+
+    public TemplateStore templates() {
+        return templates;
     }
 
     /**

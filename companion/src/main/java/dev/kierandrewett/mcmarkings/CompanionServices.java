@@ -2,7 +2,9 @@ package dev.kierandrewett.mcmarkings;
 
 import dev.kierandrewett.mcmarkings.config.CompanionConfig;
 import dev.kierandrewett.mcmarkings.config.RepositoryEntry;
+import dev.kierandrewett.mcmarkings.command.CommandRegistry;
 import dev.kierandrewett.mcmarkings.core.RepoImage;
+import dev.kierandrewett.mcmarkings.doc.RecoveryStore;
 import dev.kierandrewett.mcmarkings.imageframe.ClientCommandSink;
 import dev.kierandrewett.mcmarkings.imageframe.CommandSink;
 import dev.kierandrewett.mcmarkings.js.RhinoGeneratorRuntime;
@@ -14,6 +16,7 @@ import dev.kierandrewett.mcmarkings.repo.ProcessGitService;
 import dev.kierandrewett.mcmarkings.repo.RepoScanner;
 import dev.kierandrewett.mcmarkings.texture.RuntimeTextureCache;
 import dev.kierandrewett.mcmarkings.texture.ThumbnailCache;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 
 import java.awt.image.BufferedImage;
@@ -47,6 +50,20 @@ public final class CompanionServices {
     public final FontRegistry fonts;
     public final ImageComposer composer;
 
+    /**
+     * In-progress work, kept recoverable across a crash.
+     *
+     * <p>Client-wide rather than per repository: there is one document being edited
+     * at a time, and which repository it belongs to is recorded inside the snapshot.
+     */
+    public final RecoveryStore recovery;
+
+    /**
+     * Everything the user can do, so a button, a shortcut and the palette all
+     * invoke the same thing rather than three copies that drift.
+     */
+    public final CommandRegistry actions = new CommandRegistry();
+
     private final ClientCommandSink commandSink;
 
     /** Insertion-ordered so the GUI list matches the configured order. */
@@ -59,6 +76,8 @@ public final class CompanionServices {
     private final List<Runnable> readyListeners = new ArrayList<>();
 
     private volatile boolean loading;
+
+    private volatile boolean flushingRecovery;
 
     /**
      * Constructed on the client thread, so it does no work that can block one.
@@ -89,6 +108,8 @@ public final class CompanionServices {
         this.registry = loadedRegistry;
 
         this.thumbnails = new RuntimeTextureCache(this::thumbnailFor, MAX_RESIDENT_THUMBNAILS);
+        this.recovery = new RecoveryStore(
+                FabricLoader.getInstance().getConfigDir().resolve(McMarkingsCompanion.MOD_ID + "-recovery.json"));
 
         this.loading = !config.repositories.isEmpty();
         Thread.ofVirtual().name("mcmarkings-open").start(this::openInBackground);
@@ -155,9 +176,35 @@ public final class CompanionServices {
         });
     }
 
-    /** Drives the throttled command queue; call once per client tick. */
+    /** Drives the throttled command queue and the recovery snapshot, once per tick. */
     public void tick(Minecraft client) {
         commandSink.tick(client);
+        flushRecoveryIfDue();
+    }
+
+    /**
+     * Writes the recovery snapshot when it is due, on a background thread.
+     *
+     * <p>The tick itself must stay free of file IO, and the in-flight flag matters:
+     * without it a slow disk would have every tick starting another writer, which is
+     * twenty threads a second all writing the same file.
+     */
+    private void flushRecoveryIfDue() {
+        if (flushingRecovery || !recovery.hasUnsavedChanges()) {
+            return;
+        }
+        flushingRecovery = true;
+        Thread.ofVirtual().name("mcmarkings-recovery").start(() -> {
+            try {
+                recovery.flushIfDue(System.currentTimeMillis());
+            } catch (IOException exception) {
+                // Losing a snapshot is not worth interrupting anyone over; the work
+                // is still on screen, and the next flush will try again.
+                McMarkingsCompanion.LOGGER.debug("[mcmarkings] could not write the recovery snapshot", exception);
+            } finally {
+                flushingRecovery = false;
+            }
+        });
     }
 
     public List<String> startupNotes() {
