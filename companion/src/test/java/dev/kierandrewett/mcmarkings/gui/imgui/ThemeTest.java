@@ -439,11 +439,17 @@ class ThemeTest {
             found++;
 
             String body = source.substring(helpers.end(), source.indexOf("\n    }", helpers.end()));
-            // Draw calls, not lines mentioning a halo. Counting the latter failed on
-            // the helper that names the colour once and then uses it four times, which
-            // was this check being wrong rather than the drawing.
-            List<String> draws = body.lines().filter(line -> line.contains("drawList.add")).toList();
-            long haloDraws = draws.stream().filter(line -> line.contains("halo")).count();
+
+            // Statements, not lines. This check has now been wrong twice in the same
+            // way: first it counted lines mentioning a halo, which over-counted the
+            // helper that names the colour once and uses it four times, and then it
+            // counted per line, which missed a halo argument that had wrapped onto a
+            // continuation line. A draw call is a statement, so split on those.
+            List<String> draws = java.util.Arrays.stream(body.split(";"))
+                    .map(statement -> statement.replaceAll("\\s+", " "))
+                    .filter(statement -> statement.contains("drawList.add"))
+                    .toList();
+            long haloDraws = draws.stream().filter(statement -> statement.contains("halo")).count();
             long markDraws = draws.size() - haloDraws;
 
             assertTrue(haloDraws >= 1, helper + " draws no halo, so nothing carries it on a light cell");

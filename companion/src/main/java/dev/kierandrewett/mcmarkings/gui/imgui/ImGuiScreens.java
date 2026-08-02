@@ -203,6 +203,22 @@ public final class ImGuiScreens {
         drawList.addText(x, y, colour, text);
     }
 
+    /**
+     * A small solid marker, such as a resize handle. See {@link #overlayLine}.
+     *
+     * <p>Filled rather than outlined, so the halo goes round the outside as a larger
+     * square underneath. A handle is a thing you aim at with a mouse, and one that
+     * disappears against half the squares of a chequerboard is worse than a line
+     * doing the same: you cannot grab what you cannot find.
+     */
+    public static void overlayMarker(imgui.ImDrawList drawList, float centreX, float centreY,
+            float half, int colour) {
+        float grown = half + 1.0f;
+        drawList.addRectFilled(centreX - grown, centreY - grown, centreX + grown, centreY + grown,
+                haloColour());
+        drawList.addRectFilled(centreX - half, centreY - half, centreX + half, centreY + half, colour);
+    }
+
     /** The same, for a rectangle. See {@link #overlayLine}. */
     public static void overlayRect(imgui.ImDrawList drawList, float left, float top,
             float right, float bottom, int colour) {

@@ -84,6 +84,9 @@ public final class EditorPanel implements Panel {
      */
     private static final long RENDER_DEBOUNCE_MILLIS = 160L;
 
+    /** Faint enough to see the layers through the band being dragged over them. */
+    private static final float MARQUEE_WASH_ALPHA = 0.18f;
+
     /**
      * Longest edge of the preview texture.
      *
@@ -866,8 +869,12 @@ public final class EditorPanel implements Panel {
         float right = screenX(Math.max(drag.startDocX(), currentX), originX);
         float bottom = screenY(Math.max(drag.startDocY(), currentY), originY);
 
-        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(0.40f, 0.72f, 1.00f, 0.18f));
-        drawList.addRect(left, top, right, bottom, colour);
+        // The wash is the selection colour rather than a fifth copy of its channels
+        // written out by hand, which is what it was.
+        drawList.addRectFilled(left, top, right, bottom, ImGui.getColorU32(
+                Theme.red(Theme.SELECTION), Theme.green(Theme.SELECTION),
+                Theme.blue(Theme.SELECTION), MARQUEE_WASH_ALPHA));
+        ImGuiScreens.overlayRect(drawList, left, top, right, bottom, colour);
     }
 
     private void drawHandles(ImDrawList drawList, Layer.Bounds bounds, float originX, float originY, int colour) {
@@ -875,7 +882,7 @@ public final class EditorPanel implements Panel {
         for (Handle handle : Handle.RESIZE_HANDLES) {
             float x = screenX(handleDocX(bounds, handle), originX);
             float y = screenY(handleDocY(bounds, handle), originY);
-            drawList.addRectFilled(x - half, y - half, x + half, y + half, colour);
+            ImGuiScreens.overlayMarker(drawList, x, y, half, colour);
         }
     }
 
