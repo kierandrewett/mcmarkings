@@ -57,6 +57,9 @@ public final class PlacedPanel implements Panel {
     /** Which row is confirming a forget, so the confirm is inline rather than modal. */
     private String confirming = "";
 
+    /** Which row is confirming a server-side delete, kept apart from the local one. */
+    private String confirmingServerDelete = "";
+
     /** True while a refresh is resolving a commit, so the button cannot be spammed. */
     private volatile boolean refreshing;
 
@@ -188,6 +191,13 @@ public final class PlacedPanel implements Panel {
         }
 
         ImGui.sameLine();
+        boolean getMap = ImGui.button("Get map");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("Hands you the map item again, for when the original was "
+                    + "broken or lost. It is the same map, not a copy.");
+        }
+
+        ImGui.sameLine();
         boolean frames = ImGui.button("Get frames");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Another " + entry.grid().frameCount() + " invisible frames, for placing it again.");
@@ -219,12 +229,20 @@ public final class PlacedPanel implements Panel {
             ImGui.textDisabled("The map stays on the wall; this only stops tracking it here.");
         } else if (ImGui.button("Forget...")) {
             confirming = entry.imageFrameName();
+            confirmingServerDelete = "";
         }
+
+        drawServerDelete(entry);
 
         // Acted on after the disabled blocks close, so an action that threw cannot
         // leave ImGui's stack unbalanced for the next frame.
         if (refresh) {
             refresh(entry);
+        }
+        if (getMap) {
+            services.commands.send(ImageFrameCommands.get(
+                    services.config.commandAlias, entry.imageFrameName(), entry.grid()));
+            status.good("Asked for " + entry.imageFrameName() + " again.");
         }
         if (frames) {
             services.commands.send(ImageFrameCommands.giveInvisibleFrames(
@@ -238,6 +256,47 @@ public final class PlacedPanel implements Panel {
             Minecraft.getInstance().keyboardHandler.setClipboard(entry.imageFrameName());
             status.good("Copied " + entry.imageFrameName());
         }
+    }
+
+    /**
+     * Removing the map from the server, which is the other half of forgetting.
+     *
+     * <p>Deliberately separate from Forget and worded so the two cannot be confused.
+     * One drops a note this mod keeps; the other takes the sign off the wall for
+     * everybody. Having only the first meant a map could be created and never
+     * removed, so a server accumulated everything anyone had ever tried.
+     *
+     * <p>The confirm says it cannot be undone from here, because it cannot. The mod
+     * can create it again from the same image, but any copy already hanging in a
+     * frame goes blank in the meantime.
+     */
+    private void drawServerDelete(MapEntry entry) {
+        if (!confirmingServerDelete.equals(entry.imageFrameName())) {
+            ImGui.sameLine();
+            if (ImGui.button("Delete...")) {
+                confirmingServerDelete = entry.imageFrameName();
+                confirming = "";
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Remove the map from the server, not just from this list.");
+            }
+            return;
+        }
+
+        Notice.warning("Delete " + entry.imageFrameName() + " from the server?");
+        ImGui.sameLine();
+        if (ImGui.button("Delete##server")) {
+            confirmingServerDelete = "";
+            services.commands.send(ImageFrameCommands.delete(
+                    services.config.commandAlias, entry.imageFrameName()));
+            forget(entry);
+            status.info("Asked the server to delete " + entry.imageFrameName() + ".");
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Keep##server")) {
+            confirmingServerDelete = "";
+        }
+        ImGui.textDisabled("Any copy already in a frame goes blank. This cannot be undone from here.");
     }
 
     /**
