@@ -208,6 +208,18 @@ node --check generators/warning_plate.js
   may be strings or `{ text, colour, font, size }`, which is how a destination and its route number
   end up in one block with two colours.
 - `drawPanel(ctx, x, y, w, h, opts)` for a rounded background with an optional inset border.
+- `ctxMeasurer(ctx)` and `estimateMeasurer()`, both returning a `measure(text, opts)` that answers
+  `{ width, height }`. `textBlock` needs one and which you pass matters: inside `render` you have a
+  `ctx`, so use `ctxMeasurer` and get the real font metrics. Inside `document` there is no drawing
+  context at all, so `estimateMeasurer` is the only option, and it approximates from character
+  widths. Both generators here lay out with the estimate and feed the result to `render` and
+  `document` alike, which is what keeps the two agreeing about where the text sits.
+- `canvasFor(width, height)` returning `{ grid, pixelsPerFrame, width, height }`: the smallest
+  frame-aligned canvas covering a natural layout size, scored by wasted area rather than by shape.
+  This is what a `document` should use for its `grid` and `pixelsPerFrame`.
+- `textLayers(block, x, y, width)` turning a laid-out `textBlock` into text layers, so a generator
+  that already measured its legend for `render` can describe the same rows to `document` without
+  measuring twice.
 - `toLines`, `toNumber`, `parseDestination`, `warnOverflow`.
 
 ### Destination syntax
