@@ -118,4 +118,39 @@ class IconTest {
                     "the confirmation " + confirm + " is no longer a plain labelled button");
         }
     }
+
+    /**
+     * Every command the toolbar claims to offer has an icon to offer it with.
+     *
+     * <p>Distribute was registered when the editor was built and lived only in the
+     * command palette, which for a tool you reach for while arranging things means
+     * it may as well not exist. Checking the toolbar against the icons is the cheap
+     * half of noticing that.
+     */
+    @Test
+    @DisplayName("the alignment set on the toolbar is complete")
+    void theAlignmentSetIsComplete() throws java.io.IOException {
+        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
+                "src/main/java/dev/kierandrewett/mcmarkings/gui/imgui/panel/EditorPanel.java"));
+
+        for (String command : List.of("editor.align.left", "editor.align.centre", "editor.align.right",
+                "editor.align.top", "editor.align.middle", "editor.align.bottom",
+                "editor.distribute.horizontal", "editor.distribute.vertical")) {
+            assertTrue(source.contains("new ToolbarItem(\"" + toolbarLabel(command)),
+                    command + " is registered but not on the toolbar, so it is palette-only");
+        }
+    }
+
+    private static String toolbarLabel(String command) {
+        return switch (command) {
+            case "editor.align.left" -> "Align left";
+            case "editor.align.centre" -> "Align centre";
+            case "editor.align.right" -> "Align right";
+            case "editor.align.top" -> "Align top";
+            case "editor.align.middle" -> "Align middle";
+            case "editor.align.bottom" -> "Align bottom";
+            case "editor.distribute.horizontal" -> "Distribute horizontally";
+            default -> "Distribute vertically";
+        };
+    }
 }

@@ -234,9 +234,17 @@ public final class EditorPanel implements Panel {
             new ToolbarItem("Align left", "editor.align.left", Icon.ALIGN_LEFT),
             new ToolbarItem("Align centre", "editor.align.centre", Icon.ALIGN_CENTRE),
             new ToolbarItem("Align right", "editor.align.right", Icon.ALIGN_RIGHT),
-            new ToolbarItem("T##align-top", "editor.align.top"),
-            new ToolbarItem("M##align-middle", "editor.align.middle"),
-            new ToolbarItem("B##align-bottom", "editor.align.bottom"),
+            new ToolbarItem("Align top", "editor.align.top", Icon.ALIGN_TOP),
+            new ToolbarItem("Align middle", "editor.align.middle", Icon.ALIGN_MIDDLE),
+            new ToolbarItem("Align bottom", "editor.align.bottom", Icon.ALIGN_BOTTOM),
+            // Registered since the editor was built and reachable only by searching
+            // for it, which for a tool you use while arranging things means never.
+            // Spacing several layers evenly is the other half of aligning them, and
+            // the Alt measurement added this week is how you notice you need it.
+            new ToolbarItem("Distribute horizontally", "editor.distribute.horizontal",
+                    Icon.DISTRIBUTE_HORIZONTAL),
+            new ToolbarItem("Distribute vertically", "editor.distribute.vertical",
+                    Icon.DISTRIBUTE_VERTICAL),
             new ToolbarItem("|", null),
             new ToolbarItem("-##zoom-out", "editor.zoom.out"),
             new ToolbarItem("+##zoom-in", "editor.zoom.in"),

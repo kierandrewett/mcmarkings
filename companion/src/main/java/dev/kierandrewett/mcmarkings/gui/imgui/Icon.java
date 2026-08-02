@@ -177,6 +177,33 @@ public record Icon(List<float[]> strokes, List<float[]> boxes) {
                     line(0.66f, 0.24f, 0.76f, 0.34f), line(0.6f, 0.3f, 0.7f, 0.4f)),
             List.of());
 
+    /** Bars hanging from a top edge. */
+    public static final Icon ALIGN_TOP = of(
+            List.of(line(0.12f, 0.14f, 0.88f, 0.14f)),
+            List.of(box(0.24f, 0.24f, 0.16f, 0.6f, true), box(0.58f, 0.24f, 0.16f, 0.38f, true)));
+
+    /** Bars about a middle line. */
+    public static final Icon ALIGN_MIDDLE = of(
+            List.of(line(0.12f, 0.5f, 0.88f, 0.5f)),
+            List.of(box(0.24f, 0.2f, 0.16f, 0.6f, true), box(0.58f, 0.31f, 0.16f, 0.38f, true)));
+
+    /** Bars standing on a bottom edge. */
+    public static final Icon ALIGN_BOTTOM = of(
+            List.of(line(0.12f, 0.86f, 0.88f, 0.86f)),
+            List.of(box(0.24f, 0.16f, 0.16f, 0.6f, true), box(0.58f, 0.38f, 0.16f, 0.38f, true)));
+
+    /** Three bars with the gaps between them made equal, side to side. */
+    public static final Icon DISTRIBUTE_HORIZONTAL = of(
+            List.of(),
+            List.of(box(0.08f, 0.22f, 0.14f, 0.56f, true), box(0.43f, 0.22f, 0.14f, 0.56f, true),
+                    box(0.78f, 0.22f, 0.14f, 0.56f, true)));
+
+    /** The same, top to bottom. */
+    public static final Icon DISTRIBUTE_VERTICAL = of(
+            List.of(),
+            List.of(box(0.22f, 0.08f, 0.56f, 0.14f, true), box(0.22f, 0.43f, 0.56f, 0.14f, true),
+                    box(0.22f, 0.78f, 0.56f, 0.14f, true)));
+
     /** Bars against a left edge. */
     public static final Icon ALIGN_LEFT = of(
             List.of(line(0.14f, 0.12f, 0.14f, 0.88f)),
