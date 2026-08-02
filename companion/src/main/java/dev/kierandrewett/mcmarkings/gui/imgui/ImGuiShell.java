@@ -756,9 +756,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Not hypothetical. This repository holds give_way.png at its root and another
         // in signs/, and both come out of the sanitiser as give_way. Anything scanned
         // from more than one folder can do this.
-        String wanted = ImageFrameCommands.sanitiseName(mapName.get().trim());
-        services.registry.byName(wanted)
-                .filter(taken -> !taken.repoPath().equals(image.path()))
+        String wanted = chosenName(image);
+        Optional<MapEntry> known = services.registry.byName(wanted);
+        known.filter(taken -> !taken.repoPath().equals(image.path()))
                 .ifPresent(taken -> Notice.warningWrapped(
                         "The name " + wanted + " is already showing " + taken.repoPath()
                                 + ". Placing this replaces that image on the wall. Change the "
@@ -767,11 +767,39 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Presses are collected first and acted on below, so an action that threw
         // cannot leave ImGui's disabled stack unbalanced for the next frame.
         boolean pinnable = rawUrls != null && headSha != null;
+
+        // The label says which of the two it will do. This button read "Create map"
+        // and sent a refresh whenever the name was in the registry, which is a button
+        // lying about what it does, and the two are not close: refreshing a map the
+        // server does not have is silent and gives you nothing, so it looks exactly
+        // like the mod ignoring the click.
         ImGui.beginDisabled(!pinnable);
-        boolean create = ImGui.button("Create map", -1.0f, 0.0f);
+        boolean create = ImGui.button(known.isPresent() ? "Refresh map" : "Create map", -1.0f, 0.0f);
         ImGui.endDisabled();
         if (ImGuiScreens.explaining()) {
-            ImGui.setTooltip("Places this on the wall you are looking at." + pinnableReason());
+            ImGui.setTooltip(known.isPresent()
+                    ? "Updates the map called " + wanted + ", which this mod has already placed. "
+                            + "It does not give you a new one." + pinnableReason()
+                    : "Places this on the wall you are looking at." + pinnableReason());
+        }
+
+        // The way out when this list is wrong about the server.
+        //
+        // Nothing here can see what the server actually has. An entry is written when
+        // the command is sent rather than when it works, so a command the server threw
+        // away still leaves this convinced the map exists, and from then on every
+        // press refreshes something that was never created. That is precisely how
+        // somebody lost an afternoon to a no entry sign that would not appear.
+        boolean forceCreate = false;
+        if (known.isPresent()) {
+            ImGui.beginDisabled(!pinnable);
+            forceCreate = ImGui.button("Create it anyway", -1.0f, 0.0f);
+            ImGui.endDisabled();
+            if (ImGuiScreens.explaining()) {
+                ImGui.setTooltip("If refreshing does nothing, the map is not really on the "
+                        + "server and this list is wrong. This sends create instead."
+                        + pinnableReason());
+            }
         }
 
         boolean frames = ImGui.button("Get frames", -1.0f, 0.0f);
@@ -795,7 +823,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             status.good("Added " + image.displayName() + " to the editor");
         }
         if (create) {
-            createMap(image);
+            createMap(image, false);
+        }
+        if (forceCreate) {
+            createMap(image, true);
         }
         if (frames) {
             services.commands.send(ImageFrameCommands.giveInvisibleFrames(
@@ -823,7 +854,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         return ImageFrameCommands.sanitiseName(typed.isEmpty() ? image.name() : typed);
     }
 
-    private void createMap(RepoImage image) {
+    /**
+     * @param force send create even though this mod thinks the map already exists,
+     *              for when what it thinks is wrong
+     */
+    private void createMap(RepoImage image, boolean force) {
         String name = chosenName(image);
         String url = rawUrls.pinned(headSha, image.path());
 
@@ -832,7 +867,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // has always handled this and said so in a comment; this path, which is the one
         // most people use, sent create every time.
         Optional<MapEntry> existing = services.registry.byName(name);
-        boolean exists = existing.isPresent();
+        boolean exists = existing.isPresent() && !force;
         services.commands.send(exists
                 ? ImageFrameCommands.refresh(services.config.commandAlias, name, url)
                 : ImageFrameCommands.create(services.config.commandAlias, name, url, grid));
