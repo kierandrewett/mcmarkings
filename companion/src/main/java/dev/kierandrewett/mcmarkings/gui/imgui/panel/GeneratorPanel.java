@@ -298,30 +298,42 @@ public final class GeneratorPanel implements Panel {
         ImGui.newLine();
     }
 
+    /**
+     * The buttons under the preview.
+     *
+     * <p>Every press is collected first and acted on once the disabled blocks are
+     * closed. The window and the placed list already worked this way and this did
+     * not: an action that threw would skip its endDisabled, leave ImGui's stack
+     * unbalanced, and take out the next frame rather than just failing.
+     */
     private void drawActions() {
         boolean busy = publish.running();
+
         ImGui.beginDisabled(busy || previewImage == null || grid == null);
         boolean publishPressed = ImGui.button("Save & publish");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("Writes the PNG into the repository, commits it, pushes the branch, "
                     + "then creates the map.\nA push sends every local commit, not just this one.");
         }
-        if (publishPressed) {
-            publish.publish(new PublishFlow.Request(name.get(), previewImage, grid, null), null);
-        }
         ImGui.endDisabled();
 
         ImGui.sameLine();
         ImGui.beginDisabled(grid == null);
-        if (ImGui.button("Get frames")) {
+        boolean framesPressed = ImGui.button("Get frames");
+        ImGui.endDisabled();
+
+        ImGui.sameLine();
+        boolean copyPressed = ImGui.button("Copy command");
+
+        if (publishPressed) {
+            publish.publish(new PublishFlow.Request(name.get(), previewImage, grid, null), null);
+        }
+        if (framesPressed) {
             services.commands.send(ImageFrameCommands.giveInvisibleFrames(
                     services.config.commandAlias, services.config.glowingFrames, grid.frameCount()));
             status.good("Requested " + grid.frameCount() + " invisible frames");
         }
-        ImGui.endDisabled();
-
-        ImGui.sameLine();
-        if (ImGui.button("Copy command")) {
+        if (copyPressed) {
             copyCommand();
         }
 

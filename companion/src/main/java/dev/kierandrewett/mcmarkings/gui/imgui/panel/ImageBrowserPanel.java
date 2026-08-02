@@ -252,10 +252,11 @@ public final class ImageBrowserPanel implements Panel {
 
         ImGui.sameLine();
         ImGui.beginDisabled(search.get().isEmpty());
-        if (ImGui.button("Clear##" + id)) {
+        boolean clearPressed = ImGui.button("Clear##" + id);
+        ImGui.endDisabled();
+        if (clearPressed) {
             search.set("");
         }
-        ImGui.endDisabled();
 
         ImGui.sameLine();
         if (services.isLoading()) {

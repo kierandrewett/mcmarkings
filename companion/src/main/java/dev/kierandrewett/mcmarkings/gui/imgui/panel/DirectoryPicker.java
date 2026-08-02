@@ -165,6 +165,11 @@ public final class DirectoryPicker {
             navigateTo(home());
         }
         ImGui.sameLine();
+        // The action is guarded by the same condition as the disabling, so it cannot
+        // run inside the block even though it is written inside it. Left as it is
+        // rather than restructured: the shape reads oddly next to the collect-then-act
+        // pattern used elsewhere, and the reason it is safe is worth writing down once
+        // instead of being rediscovered by whoever checks next.
         boolean atTop = current == null || current.getParent() == null;
         if (atTop) {
             ImGui.beginDisabled();
