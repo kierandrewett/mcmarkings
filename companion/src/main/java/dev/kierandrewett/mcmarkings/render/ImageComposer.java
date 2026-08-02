@@ -3,7 +3,6 @@ package dev.kierandrewett.mcmarkings.render;
 import dev.kierandrewett.mcmarkings.core.GridSize;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
