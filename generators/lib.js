@@ -351,7 +351,14 @@ const textLayers = (block, originX, originY, width) => {
             font: row.opts.font,
             size: Math.round(row.opts.size),
             colour: row.opts.colour,
-            horizontalAlign: block.align === "centre" ? "centre" : "left",
+            // All three, not two. This folded right into left, which nothing noticed while
+            // every block here was centred or left: the roundabout sign is the first with a
+            // legend that hangs off the left of an arm, and its rows lined up along the wrong
+            // edge in the editor while the PNG had them right. The two halves of a generator
+            // disagreeing is the failure this whole arrangement exists to avoid.
+            horizontalAlign: block.align === "centre"
+                ? "centre"
+                : block.align === "right" ? "right" : "left",
             verticalAlign: "top",
             tracking: row.opts.tracking || 0,
             verticalScale: row.opts.scaleY || 1,

@@ -125,6 +125,36 @@ class RealGeneratorsIntegrationTest {
         writeGolden(image, "real-direction-sign-minimal.png");
     }
 
+    /**
+     * The roundabout sign, which is the one made almost entirely of geometry.
+     *
+     * <p>Its legend sits outside the diagram rather than inside a panel, so the canvas
+     * has to be sized from where the text ends up rather than from a block of rows,
+     * and that is the part most likely to be quietly wrong.
+     */
+    @Test
+    void roundaboutDrawsItsExits() throws Exception {
+        BufferedImage image = runtime.render("roundabout", Map.of(
+                "exits", List.of("left|Basingstoke;Alton|A339", "ahead|Newbury|A34",
+                        "right|Winchester|A31"),
+                "scheme", "primary",
+                "xHeight", 40));
+
+        assertUsable(image, "roundabout");
+        writeGolden(image, "real-roundabout.png");
+    }
+
+    /** One exit and no approach still has to be a sign rather than an empty plate. */
+    @Test
+    void roundaboutSurvivesASingleExit() throws Exception {
+        BufferedImage image = runtime.render("roundabout", Map.of(
+                "exits", List.of("ahead|Newbury"),
+                "approach", false));
+
+        assertUsable(image, "roundabout minimal");
+        writeGolden(image, "real-roundabout-minimal.png");
+    }
+
     /** Empty input must not blow up; the form starts empty. */
     @Test
     void generatorsTolerateEmptyInput() throws Exception {
@@ -361,6 +391,33 @@ class RealGeneratorsIntegrationTest {
 
         assertCoversWithoutOvershooting(runtime.render("direction_sign", params),
                 runtime.document("direction_sign", params).orElseThrow(), "direction sign");
+    }
+
+    /**
+     * The roundabout described as layers, drawn, and looked at.
+     *
+     * <p>This generator has the widest gap between its two halves of any here. The
+     * render draws the ring with ctx.ring; a document has no such layer, so the ring
+     * is a square shape with a corner radius of half its side and a thick border,
+     * which is a circle if the renderer agrees about what those two mean and a
+     * rounded box if it does not. Nothing about the code would say which.
+     */
+    @Test
+    void theRoundaboutDocumentDrawsTheSameSign() throws Exception {
+        Map<String, Object> params = Map.of(
+                "exits", List.of("left|Basingstoke;Alton|A339", "ahead|Newbury|A34",
+                        "right|Winchester|A31"),
+                "scheme", "primary",
+                "xHeight", 40);
+
+        Document document = runtime.document("roundabout", params).orElseThrow();
+        assertCoversWithoutOvershooting(runtime.render("roundabout", params), document, "roundabout");
+
+        BufferedImage rendered = new DocumentRenderer(fonts).render(document, path -> {
+            throw new IOException("this document should need no images: " + path);
+        });
+        assertFalse(isBlank(rendered), "the roundabout document rendered to nothing");
+        writeGolden(rendered, "real-roundabout-document.png");
     }
 
     private static void assertCoversWithoutOvershooting(BufferedImage drawn, Document described, String what) {

@@ -9,6 +9,7 @@ needs to be, then calls `render(ctx, params)` to draw it.
 | `generators/lib.js` | Shared TSRGD colours, metrics, text layout and panel drawing. Not a generator. |
 | `generators/plate.js` | Worded rectangular plate, for example the "30 mph speed limit 250 yards ahead" warning. |
 | `generators/direction_sign.js` | Junction direction sign with destinations, route numbers, diagram, roundel and distance panel. |
+| `generators/roundabout.js` | Map-type roundabout sign: a ring with an arm per exit, each labelled. |
 
 ---
 
@@ -302,6 +303,20 @@ It reproduces on Rhino 1.7.15 through 1.9.1, in both interpreted and compiled mo
 `RealGeneratorsIntegrationTest` guards against it by rendering a sign whose lines differ and one
 whose lines are identical, and failing if they come out the same. If you add a generator that stacks
 repeated elements, add a case there too.
+
+## A layer cannot be rotated, and that decides some layouts
+
+`roundabout.js` offers left, ahead and right, square to the sign, and no angled arms. That is not
+about the drawing: `render` could put an arm at any angle with two lines of trigonometry. It is
+about `document`. There is no rotation on a layer, so an angled arm can be drawn into the PNG and
+cannot be described as layers, and a generator whose two halves describe different signs is the one
+failure this arrangement exists to prevent.
+
+The choice, when the two cannot agree, is to narrow what the generator offers rather than to let
+them drift. A three-exit roundabout approached from the bottom is the common case and comes out
+exactly right; angled arms wait for layer rotation.
+
+---
 
 ## Anti-patterns
 
