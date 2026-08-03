@@ -35,8 +35,8 @@
       "id": "text-2",
       "name": "Text",
       "bounds": {
-        "x": 225,
-        "y": 68,
+        "x": 0,
+        "y": 111,
         "width": 256,
         "height": 64
       },
@@ -58,6 +58,87 @@
       "lineGap": 0.0,
       "tracking": 0.0,
       "verticalScale": 1.0
+    },
+    {
+      "kind": "image",
+      "id": "image-3",
+      "name": "Fire safety sign F005: Fire alarm call point",
+      "bounds": {
+        "x": 212,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "iso/fire_alarm_call_point.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "text",
+      "id": "text-4",
+      "name": "Text",
+      "bounds": {
+        "x": 247,
+        "y": 13,
+        "width": 256,
+        "height": 64
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "text": "LOL",
+      "font": "sans-serif",
+      "size": 38.4,
+      "colour": "#FFFFFF",
+      "horizontalAlign": "centre",
+      "verticalAlign": "middle",
+      "lineGap": 0.0,
+      "tracking": 0.0,
+      "verticalScale": 1.0
+    },
+    {
+      "kind": "shape",
+      "id": "shape-5",
+      "name": "Shape",
+      "bounds": {
+        "x": 334,
+        "y": 88,
+        "width": 165,
+        "height": 168
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "fill": "#FFFFFF",
+      "cornerRadius": 101,
+      "borderColour": "#000000",
+      "borderWidth": 53
     }
   ]
 }
