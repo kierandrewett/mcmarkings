@@ -98,6 +98,16 @@ public final class ImageFrameCommands {
         return grid.isSingle() ? base : base + " combined";
     }
 
+    /**
+     * Asks the plugin to describe a map.
+     *
+     * <p>The only command here whose reply matters more than its effect. It prints the map's real
+     * size, which is the thing this mod used to assume and get wrong.
+     */
+    public static String info(String alias, String name) {
+        return alias + " info " + sanitiseName(name);
+    }
+
     public static String delete(String alias, String name) {
         return alias + " delete " + sanitiseName(name);
     }

@@ -21,6 +21,7 @@ import dev.kierandrewett.mcmarkings.gui.imgui.panel.WelcomePanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.SettingsPanel;
 import dev.kierandrewett.mcmarkings.gui.imgui.panel.RepositoriesPanel;
 import dev.kierandrewett.mcmarkings.imageframe.ImageFrameCommands;
+import dev.kierandrewett.mcmarkings.imageframe.ImageFrameInfo;
 import dev.kierandrewett.mcmarkings.imageframe.ServerMapNames;
 import dev.kierandrewett.mcmarkings.render.GridRecommender;
 import dev.kierandrewett.mcmarkings.repo.GitException;
@@ -707,6 +708,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             suggestions = GridRecommender.topMatchingShape(image.width(), image.height(), 3);
 
             refreshPlacedAs(image);
+
+            // Ask the server what it actually has, for this sign and for every sized variant of
+            // it. Nine lines of reply each, all of which never reach the chat log.
+            askAbout(image);
         }
 
         // The registry has known this since the beginning and only Pull ever asked.
@@ -811,15 +816,15 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // Silence is not a no. A server that offers no completions there looks exactly
         // like one with no maps, so an empty answer falls back to the record rather
         // than claiming nothing exists.
-        Set<String> onServer = ServerMapNames.known(services.config.commandAlias);
+        Optional<ImageFrameInfo.Details> told = ImageFrameInfo.known(wanted);
         Optional<MapEntry> recorded = services.registry.byName(wanted);
-        Optional<MapEntry> known = onServer.isEmpty()
-                ? recorded
-                : onServer.contains(wanted.toLowerCase(java.util.Locale.ROOT))
-                        ? Optional.of(recorded.orElseGet(() ->
-                                new MapEntry(wanted, services.activeRepositoryId(), image.path(),
-                                        grid, "", 0L)))
-                        : Optional.empty();
+        Optional<MapEntry> known = told
+                .map(details -> new MapEntry(details.name(), services.activeRepositoryId(),
+                        image.path(), details.grid(),
+                        recorded.map(MapEntry::commitSha).orElse(""), 0L))
+                .or(() -> ServerMapNames.known(services.config.commandAlias).isEmpty()
+                        ? recorded
+                        : Optional.empty());
         known.filter(taken -> !taken.repoPath().equals(image.path()))
                 .ifPresent(taken -> Notice.warningWrapped(
                         "The name " + wanted + " is already showing " + taken.repoPath()
@@ -853,29 +858,60 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // had to know it lived on another tab. Refreshing does not give you an item,
         // so a map placed once and lost was unreachable from the screen you found it
         // on.
-        boolean getMap = false;
-        if (known.isPresent()) {
-            // The size it will actually hand you, in the label. A map is whatever size
-            // it was made at, and the picker above chooses the size of the next one,
-            // so a button reading "Get the map" while the fields said 2x2 gave people
-            // a 1x1 and looked like the mod ignoring them. It is not ignoring them: it
-            // cannot resize a map that already exists, and it was not saying so.
-            GridSize made = known.get().grid();
-            getMap = ImGui.button("Get the map, " + made + "##get-map", -1.0f, 0.0f);
-            if (ImGuiScreens.explaining()) {
-                ImGui.setTooltip("Asks the server for " + wanted + " as an item. It was made at "
-                        + made + " and that is the size it is; this does not make another.");
+        // One row per map of this sign the server actually has, each with the size it really is.
+        //
+        // A map is whatever size it was made at and nothing can resize one, so the sizes live
+        // alongside each other under names carrying their own size. The picker below makes the next
+        // one; it never changes this one, and a button that appeared to offer that was the whole
+        // complaint.
+        List<ImageFrameInfo.Details> variants = variantsOf(image);
+        ImageFrameInfo.Details getThis = null;
+        boolean getAll = false;
+        if (!variants.isEmpty()) {
+            ImGui.textDisabled(variants.size() == 1
+                    ? "On the server" : "On the server, " + variants.size() + " sizes");
+            for (int i = 0; i < variants.size(); i += 1) {
+                ImageFrameInfo.Details variant = variants.get(i);
+                if (ImGui.button(ImGuiScreens.fitToPane("Get " + variant.grid() + "  " + variant.name())
+                        + "##get-" + variant.name(), -1.0f, 0.0f)) {
+                    getThis = variant;
+                }
+                if (ImGuiScreens.explaining()) {
+                    ImGui.setTooltip("Asks the server for " + variant.name() + ", which it made at "
+                            + variant.grid() + ". That is the size it is and nothing can change it.");
+                }
             }
 
-            if (!made.equals(grid)) {
-                Notice.warningWrapped(wanted + " was made at " + made + ", so that is what you get. "
-                        + "For " + grid + ", give it another name above and create that, or delete "
-                        + wanted + " from the Placed tab first.");
+            // The whole family in one press, which is the reason the suffixes are regular.
+            if (variants.size() > 1) {
+                getAll = ImGui.button("Get all " + variants.size() + "##get-all", -1.0f, 0.0f);
+                if (ImGuiScreens.explaining()) {
+                    ImGui.setTooltip("Every size of this sign the server has, as items, in one go.");
+                }
             }
+        } else if (ImageFrameInfo.waitingFor(wanted, System.currentTimeMillis())) {
+            ImGui.textDisabled(ImGuiScreens.fitToPane("Asking the server about " + wanted + "..."));
+        }
+
+        // What this button will make, worked out from the size chosen rather than from the name
+        // field, and shown in the name field so it is not a surprise.
+        //
+        // Opting in is the whole rule here. Getting a map gives you the size it was made at and
+        // nothing else; wanting another size is a new sign, under a name that says which size it
+        // is, and the one already on the wall is never touched. Before this, asking for 2x2 either
+        // handed back the old 1x1 or refreshed the existing map into something else.
+        boolean sizedVariant = told.isPresent() && !told.get().grid().equals(grid);
+        String makes = sizedVariant ? variantName(ImageFrameCommands.sanitiseName(image.name()), grid) : wanted;
+        if (sizedVariant && !mapName.get().trim().equals(makes)) {
+            mapName.set(makes);
         }
 
         ImGui.beginDisabled(!pinnable);
-        boolean create = ImGui.button(known.isPresent() ? "Refresh map" : "Create map", -1.0f, 0.0f);
+        boolean create = ImGui.button(ImGuiScreens.fitToPane(
+                ImageFrameInfo.known(makes).isPresent()
+                        ? "Refresh " + makes
+                        : "Create " + makes + " at " + grid) + "##create-map",
+                -1.0f, 0.0f);
         ImGui.endDisabled();
         if (ImGuiScreens.explaining()) {
             ImGui.setTooltip(known.isPresent()
@@ -923,15 +959,20 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             pendingTab = "Editor";
             status.good("Added " + image.displayName() + " to the editor");
         }
-        if (getMap) {
-            // The grid the map was actually made with, not whatever is chosen above.
-            // ImageFrame needs "combined" to match how it was created, and the picker
-            // is about the next one rather than the one already on the server.
-            MapEntry entry = known.orElseThrow();
+        if (getThis != null) {
             services.commands.send(ImageFrameCommands.get(
-                    services.config.commandAlias, entry.imageFrameName(), entry.grid()));
-            status.good("Asked for " + entry.imageFrameName() + " at " + entry.grid()
+                    services.config.commandAlias, getThis.name(), getThis.grid()));
+            status.good("Asked for " + getThis.name() + " at " + getThis.grid()
                     + ". It arrives as one placeable item.");
+        }
+        if (getAll) {
+            List<String> all = new ArrayList<>();
+            for (int i = 0; i < variants.size(); i += 1) {
+                all.add(ImageFrameCommands.get(services.config.commandAlias,
+                        variants.get(i).name(), variants.get(i).grid()));
+            }
+            services.commands.sendAll(all);
+            status.good("Asked for all " + all.size() + " sizes of " + wanted + ".");
         }
         if (create) {
             createMap(image, false);
@@ -1021,6 +1062,58 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         }
         grid = chosen;
         status.info("Frame size " + grid + ", " + grid.frameCount() + " frames");
+    }
+
+    /**
+     * A sized variant's name: the sign, then the size it was made at.
+     *
+     * <p>Deliberately regular, because the suffix is what makes a family findable. Every map of
+     * this sign is either the plain name or the plain name and a size, so the set of them can be
+     * worked out from a name rather than remembered in a file that goes out of date.
+     */
+    private static String variantName(String base, GridSize size) {
+        return base + "_" + size.columns() + "x" + size.rows();
+    }
+
+    /** Whether a name is this sign at some size, rather than a different sign that starts the same. */
+    private static boolean isVariantOf(String name, String base) {
+        if (name.equals(base)) {
+            return true;
+        }
+        return name.startsWith(base + "_")
+                && name.substring(base.length() + 1).matches("\\d+x\\d+");
+    }
+
+    /**
+     * Every map of this sign the server has, base and sized variants alike.
+     *
+     * <p>Read from the command completions, which is the server's own list, and then each one asked
+     * about individually because a completion is a name and this needs the size.
+     */
+    private List<ImageFrameInfo.Details> variantsOf(RepoImage image) {
+        String base = ImageFrameCommands.sanitiseName(image.name());
+        List<ImageFrameInfo.Details> found = new ArrayList<>();
+        for (String name : ServerMapNames.known(services.config.commandAlias)) {
+            if (isVariantOf(name, base)) {
+                ImageFrameInfo.known(name).ifPresent(found::add);
+            }
+        }
+        if (found.isEmpty()) {
+            ImageFrameInfo.known(base).ifPresent(found::add);
+        }
+        return found;
+    }
+
+    /** Asks the server about this sign and every sized variant of it that it admits to having. */
+    private void askAbout(RepoImage image) {
+        String base = ImageFrameCommands.sanitiseName(image.name());
+        long now = System.currentTimeMillis();
+        ImageFrameInfo.request(services.commands, services.config.commandAlias, base, now);
+        for (String name : ServerMapNames.known(services.config.commandAlias)) {
+            if (isVariantOf(name, base) && ImageFrameInfo.known(name).isEmpty()) {
+                ImageFrameInfo.request(services.commands, services.config.commandAlias, name, now);
+            }
+        }
     }
 
     private String chosenName(RepoImage image) {

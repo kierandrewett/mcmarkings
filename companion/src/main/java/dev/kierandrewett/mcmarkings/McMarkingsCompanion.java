@@ -40,6 +40,14 @@ public class McMarkingsCompanion implements ClientModInitializer {
                 InputConstants.KEY_M,
                 category));
 
+        // Every line the server prints, offered to the info reader before the player sees it. It
+        // takes only what this mod asked for and only while it is waiting, and hands everything
+        // else straight back.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register(
+                (message, overlay) -> overlay
+                        || dev.kierandrewett.mcmarkings.imageframe.ImageFrameInfo.read(
+                                message.getString(), System.currentTimeMillis()));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (services != null) {
                 services.tick(client);
