@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "d",
+  "grid": {
+    "columns": 2,
+    "rows": 1
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-1",
+      "name": "Warning sign W002: Explosive substances",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 234
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "iso/explosive_substances.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "text",
+      "id": "text-2",
+      "name": "Text",
+      "bounds": {
+        "x": 225,
+        "y": 68,
+        "width": 256,
+        "height": 64
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "text": "simulated",
+      "font": "sans-serif",
+      "size": 38.4,
+      "colour": "#FFFFFF",
+      "horizontalAlign": "centre",
+      "verticalAlign": "middle",
+      "lineGap": 0.0,
+      "tracking": 0.0,
+      "verticalScale": 1.0
+    }
+  ]
+}
