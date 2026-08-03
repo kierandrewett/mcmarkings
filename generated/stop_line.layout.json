@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "name": "stop_line",
+  "grid": {
+    "columns": 1,
+    "rows": 1
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "shape",
+      "id": "shape-2",
+      "name": "Shape",
+      "bounds": {
+        "x": 0,
+        "y": 73,
+        "width": 256,
+        "height": 111
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "fill": "#FFFFFF",
+      "cornerRadius": 0,
+      "borderColour": "#00000000",
+      "borderWidth": 0
+    }
+  ]
+}
