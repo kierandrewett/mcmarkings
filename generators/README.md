@@ -304,6 +304,34 @@ It reproduces on Rhino 1.7.15 through 1.9.1, in both interpreted and compiled mo
 whose lines are identical, and failing if they come out the same. If you add a generator that stacks
 repeated elements, add a case there too.
 
+## Where the numbers come from
+
+`lib.js` says its ratios are "the Working Drawings relationships rounded to something a generator
+can use, not quoted clause values", and that is still true of the plate and the direction sign.
+`roundabout.js` is not: every dimension in it is out of the Traffic Signs Manual chapter 7, in
+stroke widths, with the clause beside it in the source.
+
+One stroke width is a quarter of the x-height. The drawings are made at an x-height of 100mm, where
+1 sw is 25mm.
+
+| Element | Figure | Where |
+| --- | --- | --- |
+| Roundabout band | 5 sw, whatever the status of the routes | 5.10.1 |
+| Roundabout radii | 12 sw outer, 7 sw inner | Figure 5-13 |
+| Exit arm | 12 sw minimum length | 5.10.1 |
+| Approach arm | 8.5 sw minimum length | 5.10.1 |
+| Route arm width | 6 sw primary and motorway, 4 sw numbered non-primary, 2.5 sw minor | 5.2.1 |
+| Twin connector | 5 sw, irrespective of route status | 5.10.4 |
+| Twin centres | 28 sw minimum, and the rings never touch | Figure 5-17 |
+| Legend to arm | 2.5 sw | Figure 5-2 |
+
+Two things in the clauses are **not** implemented, and neither is an oversight. The cut-out in the
+roundabout symbol that shows traffic travels clockwise (5.10.2) needs an arc, and the drawing API
+has circles and rings but no arcs, nor any layer that could describe one. The 30 degree arm angles
+in Figure 5-13 need rotation, which is the same blocker as everything else angled here.
+
+---
+
 ## A layer cannot be rotated, and that decides some layouts
 
 `roundabout.js` offers left, ahead and right, square to the sign, and no angled arms. That is not

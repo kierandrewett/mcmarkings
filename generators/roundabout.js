@@ -22,6 +22,15 @@ const EXITS = {
 
 const APPROACH = { dx: 0, dy: 1 };
 
+// 5.2.1. Route arm widths in stroke widths, by the status of the route the arm carries.
+const ARM_STROKE_WIDTHS = {
+    primary: 6,
+    motorway: 6,
+    "non-primary": 4,
+    nonprimary: 4,
+    minor: 2.5,
+};
+
 const trimmed = (value) => String(value === null || value === undefined ? "" : value).trim();
 
 // "left|Basingstoke;Alton|A339" -> the exit, its legend rows and its route.
@@ -61,19 +70,41 @@ const layout = (measure, params) => {
     const scheme = lib.resolveScheme(params.scheme);
     const size = lib.fontSizeFor(xHeight);
 
-    // Everything about the diagram is a multiple of the x-height, like the rest of the sign, so
-    // changing the legend size moves the ring and the arms with it rather than leaving a diagram
-    // that no longer belongs to the text beside it.
-    const ringOuter = Math.round(xHeight * 2.1);
-    const ringThickness = Math.max(2, Math.round(xHeight * 0.5));
-    const armWidth = ringThickness;
-    const armLength = Math.round(xHeight * 1.3);
-    const legendGap = Math.round(xHeight * 0.6);
+    // Every dimension below is out of the Traffic Signs Manual chapter 7, in stroke widths, which
+    // is the unit the Working Drawings use. One stroke width is a quarter of the x-height: the
+    // drawings are made at an x-height of 100mm where 1 sw is 25mm.
+    //
+    // The numbers here were mine before this and they were not close. The ring was 8.4 sw across
+    // its radius against a specified 12, and the arms 5.2 sw long against a minimum of 12, so the
+    // diagram read as a small ring with stubs rather than a road layout.
+    const sw = xHeight / 4;
+
+    // 5.10.1, and figure 5-13. The roundabout is 12 sw to its outer edge and 7 sw to its inner,
+    // which is the 5 sw band the clause fixes "whatever the status of the routes at the junction".
+    const ringOuter = Math.round(12 * sw);
+    const ringThickness = Math.max(2, Math.round(5 * sw));
+
+    // 5.2.1. The arm carries the status of its route: 6 sw for a primary route or a motorway,
+    // 4 sw for a numbered non-primary or another road of traffic importance, 2.5 sw for a minor
+    // one. This is the only part of the diagram that changes with the route class, and it is a
+    // real distinction on a real sign rather than decoration.
+    const armWidth = Math.max(2, Math.round(ARM_STROKE_WIDTHS[params.scheme] === undefined
+        ? 6 * sw
+        : ARM_STROKE_WIDTHS[params.scheme] * sw));
+
+    // 5.10.1 again: no exit arm shorter than 12 sw, no approach shorter than 8.5.
+    const armLength = Math.round(12 * sw);
+    const approachLength = Math.round(8.5 * sw);
+
+    // Figure 5-2, the gap from a legend to the arm it belongs to.
+    const legendGap = Math.round(2.5 * sw);
 
     // A pair sits side by side with a link between them, which is the shape of every dumbbell
     // interchange: two roundabouts either side of a dual carriageway, joined over or under it.
     const twin = String(params.roundabouts || "one").toLowerCase() === "two";
-    const linkLength = Math.round(xHeight * 2.2);
+    // 5.10.4. The connector between a pair is always 5 sw wide "irrespective of the status of the
+    // various routes at the junction", so it is the ring's band rather than an arm.
+    const connectorWidth = Math.max(2, Math.round(5 * sw));
     // Measured before anything is placed, because where the two rings go depends on how wide the
     // legends are. Building the block and its position in one pass is what put "Newbury" and
     // "Reading" almost touching over a pair: the separation was a fixed multiple of the x-height
@@ -130,7 +161,10 @@ const layout = (measure, params) => {
     // names are long. Measured per side, because a sign can be crowded above and clear below.
     let separation = 0;
     if (twin) {
-        separation = ringOuter * 2 + linkLength;
+        // Figure 5-17 dimensions the pair centre to centre with a minimum of 28 sw, which is four
+        // more than the two radii and is what keeps the rule in the clause beside it true: "the two
+        // roundabout symbols never touch each other".
+        separation = Math.round(28 * sw);
         let vertical = ["ahead", "back"];
         for (let v = 0; v < vertical.length; v += 1) {
             let onA = 0;
@@ -158,8 +192,9 @@ const layout = (measure, params) => {
         let vector = exit.vector;
         let block = exit.block;
         let originX = twin ? ringX[exit.ring] : 0;
-        let tipX = originX + vector.dx * (ringOuter + armLength);
-        let tipY = vector.dy * (ringOuter + armLength);
+        let reach = ringOuter + (exit.direction === "back" ? approachLength : armLength);
+        let tipX = originX + vector.dx * reach;
+        let tipY = vector.dy * reach;
 
         exit.originX = originX;
         exit.tipX = tipX;
@@ -185,25 +220,25 @@ const layout = (measure, params) => {
     // read as one shape once both are filled, rather than a ring with four bars butted against it.
     const bars = [];
     const inner = ringOuter - ringThickness;
-    const addBar = (originX, vector) => {
+    const addBar = (originX, vector, length) => {
         if (vector.dx !== 0) {
             bars.push({
-                x: originX + (vector.dx > 0 ? inner : -(ringOuter + armLength)),
+                x: originX + (vector.dx > 0 ? inner : -(ringOuter + length)),
                 y: -armWidth / 2,
-                width: ringOuter + armLength - inner,
+                width: ringOuter + length - inner,
                 height: armWidth,
             });
             return;
         }
         bars.push({
             x: originX - armWidth / 2,
-            y: vector.dy > 0 ? inner : -(ringOuter + armLength),
+            y: vector.dy > 0 ? inner : -(ringOuter + length),
             width: armWidth,
-            height: ringOuter + armLength - inner,
+            height: ringOuter + length - inner,
         });
     };
     for (let i = 0; i < exits.length; i += 1) {
-        addBar(exits[i].originX, exits[i].vector);
+        addBar(exits[i].originX, exits[i].vector, armLength);
     }
 
     // The link, drawn between the two ring bands rather than between their centres, so it reads as
@@ -211,9 +246,9 @@ const layout = (measure, params) => {
     if (twin) {
         bars.push({
             x: ringX.a + inner,
-            y: -armWidth / 2,
+            y: -connectorWidth / 2,
             width: (ringX.b - inner) - (ringX.a + inner),
-            height: armWidth,
+            height: connectorWidth,
         });
     }
 
@@ -221,7 +256,7 @@ const layout = (measure, params) => {
     // standing on, which is the left by default and is what "approach" names.
     const approach = params.approach !== false;
     if (approach) {
-        addBar(twin ? ringX.a : 0, APPROACH);
+        addBar(twin ? ringX.a : 0, APPROACH, approachLength);
     }
 
     // What the drawing actually occupies, before any margin. The ring is always in it; everything

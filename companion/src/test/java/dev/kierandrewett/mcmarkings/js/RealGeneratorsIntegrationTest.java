@@ -170,6 +170,48 @@ class RealGeneratorsIntegrationTest {
         }), "real-roundabout-twin-document.png");
     }
 
+    /**
+     * The arm carries the status of its route, which is the one thing on this diagram
+     * that changes with the route class.
+     *
+     * <p>Chapter 7, 5.2.1: six stroke widths for a primary route or a motorway, four
+     * for a numbered non-primary. A stroke width is a quarter of the x-height, so at
+     * an x-height of forty that is sixty pixels against forty exactly. Everything else
+     * about the diagram is fixed "whatever the status of the routes at the junction",
+     * so this is the only place the class shows.
+     *
+     * <p>Read off the document rather than counted in pixels. My first attempt scanned
+     * a row for pale pixels and reported the non-primary arm as a hundred and fifty two
+     * wide, having found the white background of a non-primary sign, whose arms are
+     * black. The layers carry the number outright.
+     */
+    @Test
+    void armWidthFollowsTheRouteClass() throws Exception {
+        assertEquals(60, verticalArmWidth("primary"),
+                "a primary route arm is 6 sw, and 6 sw at an x-height of 40 is 60 pixels");
+        assertEquals(40, verticalArmWidth("non-primary"),
+                "a numbered non-primary arm is 4 sw, which is 40 pixels here");
+        assertEquals(60, verticalArmWidth("motorway"),
+                "a motorway arm is 6 sw, the same as a primary route");
+    }
+
+    /** The width of the one vertical arm in a single-exit roundabout, from its layer. */
+    private static int verticalArmWidth(String scheme) throws Exception {
+        Document document = runtime.document("roundabout", Map.of(
+                "exits", List.of("ahead|Newbury"),
+                "scheme", scheme,
+                "xHeight", 40,
+                "approach", false)).orElseThrow();
+
+        return document.layers().stream()
+                .filter(Layer.Shape.class::isInstance)
+                .map(Layer.Shape.class::cast)
+                .filter(shape -> shape.name().startsWith("Arm"))
+                .mapToInt(shape -> shape.bounds().width())
+                .max()
+                .orElseThrow(() -> new AssertionError("no arm layer in the " + scheme + " document"));
+    }
+
     /** One exit and no approach still has to be a sign rather than an empty plate. */
     @Test
     void roundaboutSurvivesASingleExit() throws Exception {
