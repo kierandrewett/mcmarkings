@@ -590,14 +590,14 @@ public final class EditorPanel implements Panel {
         // whether there is unsaved work, was the part that went. Wrapping costs a
         // second row only when there is no room for one.
         ImGui.pushTextWrapPos(ImGui.getContentRegionMaxX());
-        ImGui.textDisabled(document.grid()
+        ImGui.textDisabled(ImGuiScreens.literal(document.grid()
                 + "  " + document.width() + "x" + document.height() + "px"
                 + (document.pixelsPerFrame() == GridSize.MAP_PIXELS
                         ? "" : " (" + wallWidth + "x" + wallHeight + " wall)")
                 + "  " + Math.round(zoom * 100.0) + "%"
                 + "  " + document.layers().size() + " layers"
                 + (selection.isEmpty() ? "" : ", " + selection.size() + " sel")
-                + (files.hasUnsavedChanges() ? "  unsaved" : ""));
+                + (files.hasUnsavedChanges() ? "  unsaved" : "")));
         ImGui.popTextWrapPos();
     }
 
@@ -2227,12 +2227,12 @@ public final class EditorPanel implements Panel {
             if (ImGuiScreens.explaining()) {
                 // Disabled means this is the size already in use, and saying so is
                 // better than describing a change it will not make.
-                ImGui.setTooltip(current
+                ImGui.setTooltip(ImGuiScreens.literal(current
                         ? "This is the frame size the document is already set to."
                         : "Your layers keep their size and position. The canvas becomes "
                                 + grid.pixelWidth() + "x" + grid.pixelHeight()
                                 + (covers < 100 ? ", which is a different shape from what is on it, so "
-                                        + (100 - covers) + "% of it would be empty." : "."));
+                                        + (100 - covers) + "% of it would be empty." : ".")));
             }
             if (pressed) {
                 apply(document.withGrid(grid, document.pixelsPerFrame()), "Frame grid " + grid, null);

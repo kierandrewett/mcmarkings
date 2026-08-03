@@ -295,6 +295,21 @@ public final class ImGuiScreens {
      * ImGui's own "fill what is left". This is the same idea for the places that want
      * a particular width rather than all of it.
      */
+    /**
+     * A string ImGui will print exactly as written.
+     *
+     * <p>Dear ImGui's text calls are printf, so a per cent sign in a sentence is a format
+     * specifier. "Covers 79% of those frames" came out as "Covers 790f those frames", because the
+     * per cent and the space and the o were read as an instruction rather than as three
+     * characters. Nothing warns; the sentence simply arrives mangled, and only where a number
+     * happens to be followed by the wrong letter.
+     *
+     * <p>Doubling is how printf is told to print one. Everything else is left alone.
+     */
+    public static String literal(String text) {
+        return text == null ? "" : text.replace("%", "%%");
+    }
+
     public static float fieldWidth(float characters) {
         return Math.min(ImGui.getFontSize() * characters, ImGui.getContentRegionAvailX());
     }

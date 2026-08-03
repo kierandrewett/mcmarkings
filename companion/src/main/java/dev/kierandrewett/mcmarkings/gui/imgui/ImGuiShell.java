@@ -88,6 +88,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     /** A tab asked for by name, selected on the next frame and then forgotten. */
     /** What the map will be called, and which image that was seeded from. */
     private final imgui.type.ImString mapName = new imgui.type.ImString("", 128);
+    /** The image whose size has already been taken from the server, so it is taken once. */
+    private String sizedFromServerFor = "";
+
 
     private String namedFor = "";
 
@@ -714,6 +717,21 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             askAbout(image);
         }
 
+        // The size the server reports, the moment it arrives, replacing the guess.
+        //
+        // The recommender picks a size for an image that has never been placed, and that is all it
+        // was ever for. Once the server has said what the map actually is, a suggestion is not a
+        // second opinion, it is a wrong number: the log would read "give_way is 3x4 on the server"
+        // while the panel beside it said 1x1, and the panel is the part anybody reads.
+        //
+        // Adopted once per image so it does not fight somebody who then picks a size by hand.
+        String base = ImageFrameCommands.sanitiseName(image.name());
+        Optional<ImageFrameInfo.Details> onServer = ImageFrameInfo.known(base);
+        if (onServer.isPresent() && !image.path().equals(sizedFromServerFor)) {
+            sizedFromServerFor = image.path();
+            grid = onServer.get().grid();
+        }
+
         // The registry has known this since the beginning and only Pull ever asked.
         // Browsing eleven hundred signs without being told which are already on a
         // wall is how the same one gets placed twice.
@@ -726,7 +744,11 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             }
         }
 
-        ImGui.text("Frame size " + grid + ", " + grid.frameCount() + " frames");
+        // Where the number came from, said outright. One of these is a fact about the world and the
+        // other is a guess about an image, and they were being printed identically.
+        ImGui.text(onServer.isPresent()
+                ? "Frame size " + grid + ", " + grid.frameCount() + " frames, on the server"
+                : "Frame size " + grid + ", " + grid.frameCount() + " frames, suggested");
 
         // What it becomes, not what it is. A tall sign on a short grid loses most of
         // its detail, and the source dimensions above give no hint of that: 128 pixels
@@ -743,7 +765,10 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // pads the rest, so nothing they place can be squashed. This hands the server
         // a URL and a grid and lets it decide, which is why the grid is chosen to
         // match the image's shape and why the number beside a mismatched one matters.
-        for (GridSuggestion suggestion : suggestions) {
+        // Only while the sign has no map. Once the server has one, its size is settled and a row of
+        // alternatives beside it reads as a choice that is still open, which is exactly the
+        // confusion this whole change is about. Another size is made further down, deliberately.
+        for (GridSuggestion suggestion : onServer.isPresent() ? List.<GridSuggestion>of() : suggestions) {
             String label = suggestion.grid() + "  " + suggestion.grid().frameCount() + " frames"
                     + (suggestion.isComfortable() ? "" : "  " + suggestion.distortionPercent() + "% stretch");
             if (ImGui.button(label + "##grid-" + suggestion.grid(), -1.0f, 0.0f)) {
@@ -1045,8 +1070,8 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         double imageAspect = image.height() <= 0 ? 0.0 : (double) image.width() / image.height();
         int covers = GridSuggestion.coveragePercent(grid, imageAspect);
         if (imageAspect > 0.0 && covers < 100) {
-            ImGui.textDisabled(ImGuiScreens.fitToPane(
-                    "Covers " + covers + "% of those frames, the rest left empty"));
+            ImGui.textDisabled(ImGuiScreens.literal(ImGuiScreens.fitToPane(
+                    "Covers " + covers + "% of those frames, the rest left empty")));
             if (ImGuiScreens.explaining()) {
                 ImGui.setTooltip("This grid is not the image's shape, so the server fits the "
                         + "image inside it and the frames around the edge show nothing. Bigger "

@@ -62,13 +62,14 @@ public final class Notice {
     }
 
     private static void coloured(int argb, String text) {
-        ImGui.textColored(Theme.red(argb), Theme.green(argb), Theme.blue(argb), Theme.alpha(argb), text);
+        ImGui.textColored(Theme.red(argb), Theme.green(argb), Theme.blue(argb), Theme.alpha(argb),
+                ImGuiScreens.literal(text));
     }
 
     private static void wrapped(int argb, String text) {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, Theme.red(argb), Theme.green(argb),
                 Theme.blue(argb), Theme.alpha(argb));
-        ImGui.textWrapped(text);
+        ImGui.textWrapped(ImGuiScreens.literal(text));
         ImGui.popStyleColor();
     }
 }

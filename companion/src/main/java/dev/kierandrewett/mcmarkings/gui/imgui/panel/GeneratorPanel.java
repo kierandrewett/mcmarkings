@@ -385,10 +385,10 @@ public final class GeneratorPanel implements Panel {
                 status.info("Frame size " + grid);
             }
             if (ImGuiScreens.explaining() && previewImage != null) {
-                ImGui.setTooltip("The sign keeps its shape and sits in the middle of "
-                        + suggestion.grid().frameCount() + " item frames, covering "
+                ImGui.setTooltip(ImGuiScreens.literal("The sign keeps its shape and sits in the "
+                        + "middle of " + suggestion.grid().frameCount() + " item frames, covering "
                         + coverage + "% of them.\nThe rest is transparent, so on a wall "
-                        + "it is not there at all.");
+                        + "it is not there at all."));
             }
             ImGuiScreens.flowTo(label);
         }
