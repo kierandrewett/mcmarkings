@@ -88,8 +88,18 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
     /** A tab asked for by name, selected on the next frame and then forgotten. */
     /** What the map will be called, and which image that was seeded from. */
     private final imgui.type.ImString mapName = new imgui.type.ImString("", 128);
-    /** The image whose size has already been taken from the server, so it is taken once. */
-    private String sizedFromServerFor = "";
+    /**
+     * Whether the size showing was chosen by hand rather than reported by the server.
+     *
+     * <p>This was a note of which image the server's size had already been adopted for, which
+     * latched and never cleared: selecting another sign and coming back reset the size to the
+     * recommender's guess and then declined to adopt the real one, because it had already adopted
+     * it once. The bug it was written to fix, reachable again in three clicks.
+     *
+     * <p>The question is not whether the server has been listened to before. It is whether
+     * somebody has since said what they want, which is the only thing that should outrank it.
+     */
+    private boolean gridChosenByHand;
 
 
     private String namedFor = "";
@@ -709,6 +719,7 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             // fill is a grid the server decides what to do with.
             grid = GridRecommender.bestMatchingShape(image.width(), image.height());
             suggestions = GridRecommender.topMatchingShape(image.width(), image.height(), 3);
+            gridChosenByHand = false;
 
             refreshPlacedAs(image);
 
@@ -724,11 +735,12 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         // second opinion, it is a wrong number: the log would read "give_way is 3x4 on the server"
         // while the panel beside it said 1x1, and the panel is the part anybody reads.
         //
-        // Adopted once per image so it does not fight somebody who then picks a size by hand.
+        // Every frame, and only yielding to somebody who has picked a size themselves. Asking
+        // instead whether it had been adopted before was what let the guess come back: the answer
+        // was yes, from three clicks ago, for a sign that had since been reselected.
         String base = ImageFrameCommands.sanitiseName(image.name());
         Optional<ImageFrameInfo.Details> onServer = ImageFrameInfo.known(base);
-        if (onServer.isPresent() && !image.path().equals(sizedFromServerFor)) {
-            sizedFromServerFor = image.path();
+        if (onServer.isPresent() && !gridChosenByHand) {
             grid = onServer.get().grid();
         }
 
@@ -1085,6 +1097,9 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
         if (chosen.equals(grid)) {
             return;
         }
+        // Said by hand, so the server's size stops being applied over the top of it. Until the
+        // selection changes, at which point this is a different sign and a fresh question.
+        gridChosenByHand = true;
         grid = chosen;
         status.info("Frame size " + grid + ", " + grid.frameCount() + " frames");
     }
