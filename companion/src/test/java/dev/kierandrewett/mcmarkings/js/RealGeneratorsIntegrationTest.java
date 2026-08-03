@@ -144,6 +144,32 @@ class RealGeneratorsIntegrationTest {
         writeGolden(image, "real-roundabout.png");
     }
 
+    /**
+     * A dumbbell: two roundabouts either side of a dual carriageway, joined by a link.
+     *
+     * <p>The shape a motorway junction actually is, and the one worth drawing, since a
+     * sign for it has to say which of the two rings an exit leaves from.
+     */
+    @Test
+    void twinRoundaboutsDrawADumbbell() throws Exception {
+        Map<String, Object> params = Map.of(
+                "roundabouts", "two",
+                "exits", List.of("a|left|Basingstoke|A339", "a|ahead|Newbury|A34",
+                        "b|ahead|Reading|A33", "b|right|Winchester|A31"),
+                "scheme", "primary",
+                "xHeight", 40);
+
+        BufferedImage image = runtime.render("roundabout", params);
+        assertUsable(image, "twin roundabout");
+        writeGolden(image, "real-roundabout-twin.png");
+
+        Document document = runtime.document("roundabout", params).orElseThrow();
+        assertCoversWithoutOvershooting(image, document, "twin roundabout");
+        writeGolden(new DocumentRenderer(fonts).render(document, path -> {
+            throw new IOException("this document should need no images: " + path);
+        }), "real-roundabout-twin-document.png");
+    }
+
     /** One exit and no approach still has to be a sign rather than an empty plate. */
     @Test
     void roundaboutSurvivesASingleExit() throws Exception {

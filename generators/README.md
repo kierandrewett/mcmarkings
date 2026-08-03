@@ -9,7 +9,7 @@ needs to be, then calls `render(ctx, params)` to draw it.
 | `generators/lib.js` | Shared TSRGD colours, metrics, text layout and panel drawing. Not a generator. |
 | `generators/plate.js` | Worded rectangular plate, for example the "30 mph speed limit 250 yards ahead" warning. |
 | `generators/direction_sign.js` | Junction direction sign with destinations, route numbers, diagram, roundel and distance panel. |
-| `generators/roundabout.js` | Map-type roundabout sign: a ring with an arm per exit, each labelled. |
+| `generators/roundabout.js` | Map-type roundabout sign, one ring or a dumbbell pair, with an arm per exit. |
 
 ---
 

@@ -30,15 +30,28 @@ const trimmed = (value) => String(value === null || value === undefined ? "" : v
 // the fields for the same reason lib.parseDestination uses one: place names are full of commas.
 const parseExit = (line) => {
     const parts = String(line === null || line === undefined ? "" : line).split("|");
-    const direction = trimmed(parts[0]).toLowerCase();
-    const names = trimmed(parts[1])
+
+    // An optional ring in front, so one format serves both shapes. A single roundabout has one
+    // ring and nobody should have to name it; a pair needs to know which one an arm leaves from,
+    // and "a|left|Newbury" says that without a second syntax to learn.
+    let fields = parts;
+    let ring = "a";
+    let head = trimmed(parts[0]).toLowerCase();
+    if (head === "a" || head === "b") {
+        ring = head;
+        fields = parts.slice(1);
+    }
+
+    const direction = trimmed(fields[0]).toLowerCase();
+    const names = trimmed(fields[1])
         .split(";")
         .map(trimmed)
         .filter((name) => name.length > 0);
     return {
+        ring: ring,
         direction: Object.prototype.hasOwnProperty.call(EXITS, direction) ? direction : "",
         names: names,
-        route: trimmed(parts.slice(2).join("|")),
+        route: trimmed(fields.slice(2).join("|")),
     };
 };
 
@@ -57,6 +70,14 @@ const layout = (measure, params) => {
     const armLength = Math.round(xHeight * 1.3);
     const legendGap = Math.round(xHeight * 0.6);
 
+    // A pair sits side by side with a link between them, which is the shape of every dumbbell
+    // interchange: two roundabouts either side of a dual carriageway, joined over or under it.
+    const twin = String(params.roundabouts || "one").toLowerCase() === "two";
+    const linkLength = Math.round(xHeight * 2.2);
+    // Measured before anything is placed, because where the two rings go depends on how wide the
+    // legends are. Building the block and its position in one pass is what put "Newbury" and
+    // "Reading" almost touching over a pair: the separation was a fixed multiple of the x-height
+    // and knew nothing about the two names that would end up centred either side of it.
     const wanted = lib.toLines(params.exits);
     const exits = [];
     for (let i = 0; i < wanted.length; i += 1) {
@@ -64,6 +85,13 @@ const layout = (measure, params) => {
         // exit after the first would be the first one again.
         let parsed = parseExit(wanted[i]);
         if (parsed.direction === "" || parsed.names.length === 0) {
+            continue;
+        }
+
+        // The sides facing each other are the link, not exits. Drawing an arm there would put a
+        // second bar down the middle of the link and a legend on top of the other roundabout.
+        if (twin && ((parsed.ring === "a" && parsed.direction === "right")
+                || (parsed.ring === "b" && parsed.direction === "left"))) {
             continue;
         }
 
@@ -83,50 +111,84 @@ const layout = (measure, params) => {
             align = "right";
         }
 
-        let block = lib.textBlock(measure, rows, {
-            font: params.font,
-            size: size,
-            colour: scheme.text,
-            lineGap: m.lineGap,
-            align: align,
-        });
-
-        // The tip of the arm, then the legend beyond it. Sideways arms put the legend alongside and
-        // vertically centred on the arm; the one going up puts it above and centred on the arm.
-        let tipX = vector.dx * (ringOuter + armLength);
-        let tipY = vector.dy * (ringOuter + armLength);
-        let legendX = 0;
-        let legendY = 0;
-        if (vector.dx > 0) {
-            legendX = tipX + legendGap;
-            legendY = tipY - block.height / 2;
-        } else if (vector.dx < 0) {
-            legendX = tipX - legendGap - block.width;
-            legendY = tipY - block.height / 2;
-        } else {
-            legendX = tipX - block.width / 2;
-            legendY = tipY - legendGap - block.height;
-        }
-
         exits.push({
+            ring: parsed.ring,
             direction: parsed.direction,
             vector: vector,
-            block: block,
-            legendX: legendX,
-            legendY: legendY,
-            tipX: tipX,
-            tipY: tipY,
+            block: lib.textBlock(measure, rows, {
+                font: params.font,
+                size: size,
+                colour: scheme.text,
+                lineGap: m.lineGap,
+                align: align,
+            }),
         });
+    }
+
+    // How far apart the rings have to be. Far enough for the link, and far enough that the legends
+    // above one do not run into the legends above the other, which is a wider gap whenever the
+    // names are long. Measured per side, because a sign can be crowded above and clear below.
+    let separation = 0;
+    if (twin) {
+        separation = ringOuter * 2 + linkLength;
+        let vertical = ["ahead", "back"];
+        for (let v = 0; v < vertical.length; v += 1) {
+            let onA = 0;
+            let onB = 0;
+            for (let i = 0; i < exits.length; i += 1) {
+                if (exits[i].direction !== vertical[v]) {
+                    continue;
+                }
+                if (exits[i].ring === "a") {
+                    onA = Math.max(onA, exits[i].block.width);
+                } else {
+                    onB = Math.max(onB, exits[i].block.width);
+                }
+            }
+            if (onA > 0 && onB > 0) {
+                separation = Math.max(separation, onA / 2 + onB / 2 + m.margin);
+            }
+        }
+    }
+    const ringX = { a: -separation / 2, b: separation / 2 };
+
+    // Placed now that the rings have somewhere to be.
+    for (let i = 0; i < exits.length; i += 1) {
+        let exit = exits[i];
+        let vector = exit.vector;
+        let block = exit.block;
+        let originX = twin ? ringX[exit.ring] : 0;
+        let tipX = originX + vector.dx * (ringOuter + armLength);
+        let tipY = vector.dy * (ringOuter + armLength);
+
+        exit.originX = originX;
+        exit.tipX = tipX;
+        exit.tipY = tipY;
+        // Sideways arms put the legend alongside and vertically centred on the arm; the ones going
+        // up and down put it beyond the tip and centred on the arm.
+        if (vector.dx > 0) {
+            exit.legendX = tipX + legendGap;
+            exit.legendY = tipY - block.height / 2;
+        } else if (vector.dx < 0) {
+            exit.legendX = tipX - legendGap - block.width;
+            exit.legendY = tipY - block.height / 2;
+        } else if (vector.dy < 0) {
+            exit.legendX = tipX - block.width / 2;
+            exit.legendY = tipY - legendGap - block.height;
+        } else {
+            exit.legendX = tipX - block.width / 2;
+            exit.legendY = tipY + legendGap;
+        }
     }
 
     // The bars, as rectangles in the same centred space. They start inside the ring band so the two
     // read as one shape once both are filled, rather than a ring with four bars butted against it.
     const bars = [];
     const inner = ringOuter - ringThickness;
-    const addBar = (vector) => {
+    const addBar = (originX, vector) => {
         if (vector.dx !== 0) {
             bars.push({
-                x: vector.dx > 0 ? inner : -(ringOuter + armLength),
+                x: originX + (vector.dx > 0 ? inner : -(ringOuter + armLength)),
                 y: -armWidth / 2,
                 width: ringOuter + armLength - inner,
                 height: armWidth,
@@ -134,24 +196,38 @@ const layout = (measure, params) => {
             return;
         }
         bars.push({
-            x: -armWidth / 2,
+            x: originX - armWidth / 2,
             y: vector.dy > 0 ? inner : -(ringOuter + armLength),
             width: armWidth,
             height: ringOuter + armLength - inner,
         });
     };
     for (let i = 0; i < exits.length; i += 1) {
-        addBar(exits[i].vector);
+        addBar(exits[i].originX, exits[i].vector);
     }
+
+    // The link, drawn between the two ring bands rather than between their centres, so it reads as
+    // a road joining them instead of a bar passing behind both.
+    if (twin) {
+        bars.push({
+            x: ringX.a + inner,
+            y: -armWidth / 2,
+            width: (ringX.b - inner) - (ringX.a + inner),
+            height: armWidth,
+        });
+    }
+
+    // The approach hangs off whichever ring you arrive at. On a pair that is the one you are
+    // standing on, which is the left by default and is what "approach" names.
     const approach = params.approach !== false;
     if (approach) {
-        addBar(APPROACH);
+        addBar(twin ? ringX.a : 0, APPROACH);
     }
 
     // What the drawing actually occupies, before any margin. The ring is always in it; everything
     // else depends on which exits were asked for, so an empty sign is still a valid one.
-    let left = -ringOuter;
-    let right = ringOuter;
+    let left = (twin ? ringX.a : 0) - ringOuter;
+    let right = (twin ? ringX.b : 0) + ringOuter;
     let top = -ringOuter;
     let bottom = ringOuter;
     const include = (x, y, w, h) => {
@@ -182,6 +258,7 @@ const layout = (measure, params) => {
         centreY: Math.round(m.margin - top),
         ringOuter: ringOuter,
         ringThickness: ringThickness,
+        ringOffsets: twin ? [ringX.a, ringX.b] : [0],
         bars: bars,
         exits: exits,
     };
@@ -200,7 +277,8 @@ defineGenerator({
             type: "lines",
             default: DEFAULT_EXITS,
             help: "One exit per line: left|Basingstoke|A339. Directions are left, ahead and right. "
-                + "Stack two destinations on one arm with a semicolon: left|Basingstoke;Alton|A339",
+                + "Stack two destinations on one arm with a semicolon: left|Basingstoke;Alton|A339. "
+                + "With two roundabouts, name one first: b|right|Winchester|A31",
         },
         {
             key: "scheme",
@@ -217,6 +295,16 @@ defineGenerator({
             type: "number",
             default: 40,
             help: "Drives the legend size and, through it, the ring, the arms and the border.",
+        },
+        {
+            key: "roundabouts",
+            label: "Roundabouts",
+            type: "select",
+            options: ["one", "two"],
+            default: "one",
+            help: "Two draws a dumbbell: a pair side by side with a link between them, which is "
+                + "what a dual carriageway junction looks like. Put a| or b| in front of an exit "
+                + "to say which roundabout it leaves from.",
         },
         {
             key: "approach",
@@ -250,20 +338,22 @@ defineGenerator({
         // layer kinds are rectangle, text, image and group, and this is a rectangle being honest
         // about it rather than a new kind nobody else needs.
         const diameter = l.ringOuter * 2;
-        layers.push({
-            kind: "shape",
-            name: "Roundabout",
-            bounds: {
-                x: l.centreX - l.ringOuter,
-                y: l.centreY - l.ringOuter,
-                width: diameter,
-                height: diameter,
-            },
-            fill: "#00000000",
-            cornerRadius: Math.round(l.ringOuter),
-            borderColour: l.scheme.border,
-            borderWidth: l.ringThickness,
-        });
+        for (let i = 0; i < l.ringOffsets.length; i += 1) {
+            layers.push({
+                kind: "shape",
+                name: l.ringOffsets.length > 1 ? "Roundabout " + (i + 1) : "Roundabout",
+                bounds: {
+                    x: Math.round(l.centreX + l.ringOffsets[i] - l.ringOuter),
+                    y: l.centreY - l.ringOuter,
+                    width: diameter,
+                    height: diameter,
+                },
+                fill: "#00000000",
+                cornerRadius: Math.round(l.ringOuter),
+                borderColour: l.scheme.border,
+                borderWidth: l.ringThickness,
+            });
+        }
 
         for (let i = 0; i < l.bars.length; i += 1) {
             let bar = l.bars[i];
@@ -328,7 +418,10 @@ defineGenerator({
                 l.scheme.border,
             );
         }
-        ctx.ring(l.centreX, l.centreY, l.ringOuter, l.ringThickness, l.scheme.border);
+        for (let i = 0; i < l.ringOffsets.length; i += 1) {
+            ctx.ring(l.centreX + l.ringOffsets[i], l.centreY, l.ringOuter, l.ringThickness,
+                l.scheme.border);
+        }
 
         for (let i = 0; i < l.exits.length; i += 1) {
             let exit = l.exits[i];
