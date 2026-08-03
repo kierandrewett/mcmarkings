@@ -60,6 +60,16 @@ public final class ImageFrameInfo {
     /** The reply being read, field by field, until its URL line closes it. */
     private static final Map<String, String> building = new LinkedHashMap<>();
 
+    /**
+     * Names already asked about, answered or not.
+     *
+     * <p>Separate from what is outstanding, and that is the point. A name the plugin never answers
+     * about, because there is no such map, stops being outstanding when the wait runs out, and a
+     * caller that asks whenever it notices something new would then ask again, and again, for as
+     * long as the window stayed open. Remembering the asking rather than the waiting makes it once.
+     */
+    private static final java.util.Set<String> asked = new java.util.LinkedHashSet<>();
+
     private ImageFrameInfo() {
     }
 
@@ -67,7 +77,7 @@ public final class ImageFrameInfo {
     public static synchronized void request(CommandSink commands, String alias, String name,
             long nowMillis) {
         String wanted = ImageFrameCommands.sanitiseName(name);
-        if (wanted.isEmpty() || pending.containsKey(wanted)) {
+        if (wanted.isEmpty() || !asked.add(wanted)) {
             return;
         }
         pending.put(wanted, nowMillis + TIMEOUT_MILLIS);
@@ -145,12 +155,14 @@ public final class ImageFrameInfo {
         String wanted = ImageFrameCommands.sanitiseName(name);
         known.remove(wanted);
         pending.remove(wanted);
+        asked.remove(wanted);
     }
 
     public static synchronized void reset() {
         known.clear();
         pending.clear();
         building.clear();
+        asked.clear();
     }
 
     private static void expire(long nowMillis) {

@@ -170,6 +170,43 @@ class ImageFrameInfoTest {
         assertEquals(REPLY, feed(REPLY, 100_000L), "and nothing should still be being taken");
     }
 
+    /**
+     * A name is asked about once, however often the caller asks.
+     *
+     * <p>The browser asks every frame, because the list of names the server has arrives seconds
+     * after a sign is clicked and asking only on selection missed every sized variant. That is only
+     * safe if asking twice costs nothing.
+     *
+     * <p>The case that matters is the one with no answer. A name the plugin never replies about,
+     * because there is no such map, stops being outstanding when the wait runs out; a guard built
+     * on what is outstanding would then let the next frame ask again, sixty times a second, for as
+     * long as the window stayed open.
+     */
+    @Test
+    @DisplayName("asking repeatedly sends one command, even with no reply")
+    void repeatedAskingSendsOneCommand() {
+        for (int frame = 0; frame < 200; frame += 1) {
+            // Well past the timeout, so anything keyed on the wait has long since given up.
+            ImageFrameInfo.request(commands, "imageframe", "no_such_sign", 1_000L + frame * 1_000L);
+        }
+
+        assertEquals(List.of("imageframe info no_such_sign"), commands.sent,
+                "a sign the server has never heard of would otherwise be asked about on every "
+                        + "frame for as long as somebody left the window open");
+    }
+
+    /** And a name deliberately forgotten can be asked about again, or nothing could refresh. */
+    @Test
+    @DisplayName("forgetting a name allows asking again")
+    void forgettingAllowsAnotherAsk() {
+        ImageFrameInfo.request(commands, "imageframe", "give_way", 1_000L);
+        ImageFrameInfo.forget("give_way");
+        ImageFrameInfo.request(commands, "imageframe", "give_way", 2_000L);
+
+        assertEquals(2, commands.sent.size(),
+                "placing or deleting a map has to be able to make this ask again");
+    }
+
     /** A size the parser cannot read must not become a confident wrong answer. */
     @Test
     @DisplayName("an unreadable size records nothing")

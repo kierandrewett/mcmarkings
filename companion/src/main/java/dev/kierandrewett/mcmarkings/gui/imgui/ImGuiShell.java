@@ -723,10 +723,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
 
             refreshPlacedAs(image);
 
-            // Ask the server what it actually has, for this sign and for every sized variant of
-            // it. Nine lines of reply each, all of which never reach the chat log.
-            askAbout(image);
         }
+
+        // Asked every frame, not only when the selection changes.
+        //
+        // The list of names the server has arrives on its own schedule, seconds after a sign is
+        // clicked, so asking once on selection asked about the base and nothing else: a sign with a
+        // give_way_2x2 beside it showed one size until it was clicked away from and back. Asking
+        // repeatedly is free because each name is asked about once and remembered as asked, whether
+        // or not it was ever answered.
+        askAbout(image);
 
         // The size the server reports, the moment it arrives, replacing the guess.
         //
@@ -756,11 +762,16 @@ public class ImGuiShell extends Screen implements ImGuiRenderable {
             }
         }
 
-        // Where the number came from, said outright. One of these is a fact about the world and the
-        // other is a guess about an image, and they were being printed identically.
-        ImGui.text(onServer.isPresent()
-                ? "Frame size " + grid + ", " + grid.frameCount() + " frames, on the server"
-                : "Frame size " + grid + ", " + grid.frameCount() + " frames, suggested");
+        // Where this number came from, and it is a claim about the size being shown rather than
+        // about the sign existing. Those are not the same: asking for 2x2 on a sign the server
+        // holds at 3x4 leaves a size nothing on the server has, and this said "on the server"
+        // anyway, because it was reporting whether the map existed and calling that provenance.
+        //
+        // Three states, because there are three. Reported, chosen, and guessed.
+        boolean reported = onServer.isPresent() && onServer.get().grid().equals(grid);
+        ImGui.text("Frame size " + grid + ", " + grid.frameCount() + " frames, "
+                + (reported ? "on the server"
+                        : onServer.isPresent() ? "for a new sign" : "suggested"));
 
         // What it becomes, not what it is. A tall sign on a short grid loses most of
         // its detail, and the source dimensions above give no hint of that: 128 pixels
