@@ -14,7 +14,7 @@
       "name": "All vehicles prohibited except non-mechanically propelled vehicles being pushed by pedestrians.",
       "bounds": {
         "x": 16,
-        "y": 28,
+        "y": 25,
         "width": 224,
         "height": 231
       },
@@ -88,6 +88,28 @@
       "lineGap": 4.0,
       "tracking": 0.0,
       "verticalScale": 1.0
+    },
+    {
+      "kind": "image",
+      "id": "image-7",
+      "name": "UK traffic sign: Motor vehicles prohibited (TSRGDNO 619)",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/motor_vehicles_prohibited.png",
+      "fit": "contain"
     }
   ]
 }
