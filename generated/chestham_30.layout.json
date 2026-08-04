@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "name": "chestham_30",
+  "grid": {
+    "columns": 3,
+    "rows": 2
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-2",
+      "name": "UK traffic sign: Start of a 30 miles per hour speed limit at the boundary of a town or village (TSRGDNO 2402.1)",
+      "bounds": {
+        "x": 33,
+        "y": 0,
+        "width": 703,
+        "height": 512
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/start_of_a_30_miles_per_hour_speed_limit.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "shape",
+      "id": "shape-4",
+      "name": "Shape",
+      "bounds": {
+        "x": 128,
+        "y": 363,
+        "width": 503,
+        "height": 77
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "fill": "#FFFFFF",
+      "cornerRadius": 0,
+      "borderColour": "#00000000",
+      "borderWidth": 0
+    },
+    {
+      "kind": "text",
+      "id": "text-3",
+      "name": "Text",
+      "bounds": {
+        "x": 192,
+        "y": 350,
+        "width": 384,
+        "height": 128
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "text": "CHESTHAM",
+      "font": "Transport Heavy",
+      "size": 76.8,
+      "colour": "#000000",
+      "horizontalAlign": "centre",
+      "verticalAlign": "middle",
+      "lineGap": 0.0,
+      "tracking": 0.0,
+      "verticalScale": 1.0
+    }
+  ]
+}
