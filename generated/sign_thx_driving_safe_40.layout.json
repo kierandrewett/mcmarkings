@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "sign_thx_driving_safe_40",
+  "grid": {
+    "columns": 2,
+    "rows": 2
+  },
+  "pixelsPerFrame": 207,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-6",
+      "name": "sign thx driving sensible",
+      "bounds": {
+        "x": 0,
+        "y": 207,
+        "width": 414,
+        "height": 207
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "generated/sign_thx_driving_sensible.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "image",
+      "id": "image-7",
+      "name": "UK traffic sign: Maximum speed limit of 40 miles per hour (TSRGDNO 670)",
+      "bounds": {
+        "x": 104,
+        "y": 0,
+        "width": 207,
+        "height": 207
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/maximum_speed_limit_of_40_miles_per_hour.png",
+      "fit": "contain"
+    }
+  ]
+}
