@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "name": "no_left_turn_exp_police",
+  "grid": {
+    "columns": 1,
+    "rows": 2
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-4",
+      "name": "All vehicles prohibited except non-mechanically propelled vehicles being pushed by pedestrians.",
+      "bounds": {
+        "x": 16,
+        "y": 25,
+        "width": 224,
+        "height": 231
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/all_vehicles_prohibited_except_non_mechanically_propelled_vehicles.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "shape",
+      "id": "shape-5",
+      "name": "Shape",
+      "bounds": {
+        "x": 0,
+        "y": 272,
+        "width": 256,
+        "height": 210
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "padding": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "fill": "#FFFFFF",
+      "cornerRadius": 29,
+      "borderColour": "#000000",
+      "borderWidth": 9
+    },
+    {
+      "kind": "text",
+      "id": "text-6",
+      "name": "Text",
+      "bounds": {
+        "x": 64,
+        "y": 314,
+        "width": 128,
+        "height": 128
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "text": "Except\npolice\ntraffic",
+      "font": "Transport Heavy",
+      "size": 48.29999923706055,
+      "colour": "#000000",
+      "horizontalAlign": "centre",
+      "verticalAlign": "middle",
+      "lineGap": 4.0,
+      "tracking": 0.0,
+      "verticalScale": 1.0
+    },
+    {
+      "kind": "image",
+      "id": "image-7",
+      "name": "UK traffic sign: Motor vehicles prohibited (TSRGDNO 619)",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/motor_vehicles_prohibited.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "image",
+      "id": "image-8",
+      "name": "No right turn.",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/no_right_turn.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "image",
+      "id": "image-9",
+      "name": "No left turn.",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 256
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/no_left_turn.png",
+      "fit": "contain"
+    }
+  ]
+}
