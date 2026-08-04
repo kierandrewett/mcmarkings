@@ -277,7 +277,8 @@ public final class DocumentRenderer {
 
         double radius = Math.max(0, layer.cornerRadius());
         graphics.setColor(new Color(layer.fill(), true));
-        graphics.fill(rounded(bounds.x(), bounds.y(), bounds.width(), bounds.height(), radius));
+        graphics.fill(outline(layer.form(), bounds.x(), bounds.y(),
+                bounds.width(), bounds.height(), radius));
 
         if (layer.borderWidth() <= 0) {
             return;
@@ -289,8 +290,48 @@ public final class DocumentRenderer {
         double half = width / 2.0;
         graphics.setColor(new Color(layer.borderColour(), true));
         graphics.setStroke(new BasicStroke((float) width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
-        graphics.draw(rounded(bounds.x() + half, bounds.y() + half,
+        graphics.draw(outline(layer.form(), bounds.x() + half, bounds.y() + half,
                 bounds.width() - width, bounds.height() - width, Math.max(0, radius - half)));
+    }
+
+    /**
+     * The path a shape layer draws, for whichever form it is.
+     *
+     * <p>Every one is built from the box it was given, so a shape is dragged, resized and snapped
+     * as a rectangle whatever it looks like. That is deliberate: an editor where a triangle has
+     * different handles from a plate is a second thing to learn for no gain, and the bounds are
+     * what every other part of this already speaks in.
+     *
+     * <p>The inset border is the same trick as the rectangle's, applied to a smaller box. For a
+     * polygon that is not a true parallel offset, so a very thick border on a very sharp corner
+     * sits slightly inside where a draughtsman would put it. It stays within the bounds, which is
+     * the property that matters, and the alternative is offsetting each edge and rejoining them.
+     */
+    private static java.awt.Shape outline(Layer.Form form, double x, double y,
+            double width, double height, double radius) {
+        return switch (form) {
+            case RECTANGLE -> rounded(x, y, width, height, radius);
+            case ELLIPSE -> new java.awt.geom.Ellipse2D.Double(x, y, width, height);
+            case TRIANGLE -> polygon(
+                    new double[] {x + width / 2.0, x + width, x},
+                    new double[] {y, y + height, y + height});
+            case TRIANGLE_DOWN -> polygon(
+                    new double[] {x, x + width, x + width / 2.0},
+                    new double[] {y, y, y + height});
+            case DIAMOND -> polygon(
+                    new double[] {x + width / 2.0, x + width, x + width / 2.0, x},
+                    new double[] {y, y + height / 2.0, y + height, y + height / 2.0});
+        };
+    }
+
+    private static java.awt.Shape polygon(double[] xs, double[] ys) {
+        java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
+        path.moveTo(xs[0], ys[0]);
+        for (int at = 1; at < xs.length; at += 1) {
+            path.lineTo(xs[at], ys[at]);
+        }
+        path.closePath();
+        return path;
     }
 
     /**

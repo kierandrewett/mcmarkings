@@ -341,6 +341,10 @@ public final class EditorPanel implements Panel {
     private final int[] single = new int[1];
     private final float[] scalar = new float[1];
     private final float[] rgba = new float[4];
+    /** In Form's own order, since the combo works in ordinals. */
+    private static final String[] FORM_LABELS =
+            {"Rectangle", "Ellipse", "Triangle", "Triangle, point down", "Diamond"};
+
     private final ImInt choice = new ImInt();
 
     /**
@@ -2101,10 +2105,36 @@ public final class EditorPanel implements Panel {
                     shape.borderWidth(), shape.padding())), "Change fill", "fill:" + shape.id());
         }
 
+        // First of the shape properties, because it decides what the rest of them mean. A corner
+        // radius on a triangle is a setting that does nothing, and finding that out by trying it is
+        // worse than being told.
+        choice.set(shape.form().ordinal());
+        if (field("Shape", () -> ImGui.combo("##shape-form", choice, FORM_LABELS))) {
+            Layer.Form picked = Layer.Form.values()[
+                    Math.clamp(choice.get(), 0, Layer.Form.values().length - 1)];
+            apply(document.replace(reshaped(shape, shape.fill(), shape.cornerRadius(),
+                    shape.borderColour(), shape.borderWidth(), shape.padding(), picked)),
+                    "Change shape", "form:" + shape.id());
+        }
+        if (ImGuiScreens.explaining()) {
+            ImGui.setTooltip("What this layer is the shape of. It keeps its box either way, so it "
+                    + "drags, resizes and snaps the same whichever you pick.");
+        }
+
+        // Only the rectangle has corners to round. Shown greyed rather than hidden, so the property
+        // list does not change height as you step through layers.
+        boolean roundable = shape.form() == Layer.Form.RECTANGLE;
+        ImGui.beginDisabled(!roundable);
         single[0] = shape.cornerRadius();
         if (field("Corner radius", () -> ImGui.dragInt("##corner-radius", single, 1.0f, 0, 4096))) {
             apply(document.replace(reshaped(shape, shape.fill(), Math.max(0, single[0]), shape.borderColour(),
                     shape.borderWidth(), shape.padding())), "Change corner radius", "radius:" + shape.id());
+        }
+        ImGui.endDisabled();
+        if (ImGuiScreens.explaining()) {
+            ImGui.setTooltip(roundable
+                    ? "How far the corners are rounded off."
+                    : "Only a rectangle has corners to round.");
         }
 
         toRgba(shape.borderColour(), rgba);
@@ -3023,7 +3053,7 @@ public final class EditorPanel implements Panel {
                     text.verticalAlign(), text.lineGap(), text.tracking(), text.verticalScale());
             case Layer.Shape shape -> new Layer.Shape(shape.id(), name, shape.bounds(), visible, locked,
                     opacity, margins, shape.padding(), shape.fill(), shape.cornerRadius(),
-                    shape.borderColour(), shape.borderWidth());
+                    shape.borderColour(), shape.borderWidth(), shape.form());
             case Layer.Group group -> new Layer.Group(group.id(), name, group.bounds(), visible, locked,
                     opacity, margins, group.padding(), group.children());
         };
@@ -3039,8 +3069,14 @@ public final class EditorPanel implements Panel {
 
     private static Layer.Shape reshaped(Layer.Shape from, int fill, int cornerRadius, int borderColour,
             int borderWidth, Insets padding) {
+        return reshaped(from, fill, cornerRadius, borderColour, borderWidth, padding, from.form());
+    }
+
+    private static Layer.Shape reshaped(Layer.Shape from, int fill, int cornerRadius, int borderColour,
+            int borderWidth, Insets padding, Layer.Form form) {
         return new Layer.Shape(from.id(), from.name(), from.bounds(), from.visible(), from.locked(),
-                from.opacity(), from.margins(), padding, fill, cornerRadius, borderColour, borderWidth);
+                from.opacity(), from.margins(), padding, fill, cornerRadius, borderColour,
+                borderWidth, form);
     }
 
     static void toRgba(int argb, float[] target) {

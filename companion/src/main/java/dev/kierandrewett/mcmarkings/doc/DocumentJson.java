@@ -366,6 +366,7 @@ public final class DocumentJson {
                     object.addProperty("cornerRadius", shape.cornerRadius());
                     object.addProperty("borderColour", colourText(shape.borderColour()));
                     object.addProperty("borderWidth", shape.borderWidth());
+                    object.addProperty("form", shape.form().name().toLowerCase(java.util.Locale.ROOT));
                 }
                 case Layer.Group group -> {
                     object.add("padding", insetsTree(group.padding()));
@@ -456,7 +457,10 @@ public final class DocumentJson {
                         colourValue(object, "fill", DEFAULT_SHAPE_FILL),
                         integer(object, "cornerRadius", 0),
                         colourValue(object, "borderColour", DEFAULT_BORDER_COLOUR),
-                        integer(object, "borderWidth", 0));
+                        integer(object, "borderWidth", 0),
+                        // Absent means rectangle, which is every shape saved before there was a
+                        // choice. A template written last week has to open as what it was.
+                        enumValue(object, "form", Layer.Form.RECTANGLE, id));
                 case KIND_GROUP -> new Layer.Group(id, name, bounds, visible, locked, opacity, margins,
                         readInsets(object, "padding"),
                         readChildren(object, context));

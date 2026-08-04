@@ -151,6 +151,26 @@ public sealed interface Layer permits Layer.Image, Layer.Text, Layer.Shape, Laye
      * legend laid inside that padding, which is why padding lives here rather than
      * on every layer.
      */
+    /**
+     * What a shape layer is the shape of.
+     *
+     * <p>Five, and not chosen for variety. A rectangle is a plate, an ellipse is a roundel, a
+     * triangle is a warning sign, an inverted triangle is give way and a diamond is a priority
+     * road. That is most of the vocabulary of British signing, and anything past it is better drawn
+     * as an image than approximated with a polygon.
+     *
+     * <p>The corner radius belongs to the rectangle and is ignored by the rest. Rounding the corners
+     * of a triangle properly means offsetting three lines and joining them with arcs, which is real
+     * work for something no sign in this repository needs.
+     */
+    enum Form {
+        RECTANGLE,
+        ELLIPSE,
+        TRIANGLE,
+        TRIANGLE_DOWN,
+        DIAMOND,
+    }
+
     record Shape(
             String id,
             String name,
@@ -163,12 +183,32 @@ public sealed interface Layer permits Layer.Image, Layer.Text, Layer.Shape, Laye
             int fill,
             int cornerRadius,
             int borderColour,
-            int borderWidth) implements Layer {
+            int borderWidth,
+            Form form) implements Layer {
+
+        /**
+         * A rectangle, which is what every shape was before there was a choice.
+         *
+         * <p>Here so that the twenty-odd places that build a plain rectangle did not all have to
+         * grow an argument saying so. The places that copy an existing shape do not use it: they
+         * pass the form through, because a triangle that turned back into a rectangle on being
+         * renamed would be a strange thing to explain.
+         */
+        public Shape(String id, String name, Bounds bounds, boolean visible, boolean locked,
+                double opacity, Insets margins, Insets padding, int fill, int cornerRadius,
+                int borderColour, int borderWidth) {
+            this(id, name, bounds, visible, locked, opacity, margins, padding, fill, cornerRadius,
+                    borderColour, borderWidth, Form.RECTANGLE);
+        }
+
+        public Shape {
+            form = form == null ? Form.RECTANGLE : form;
+        }
 
         @Override
         public Layer withBounds(Bounds newBounds) {
             return new Shape(id, name, newBounds, visible, locked, opacity, margins, padding, fill,
-                    cornerRadius, borderColour, borderWidth);
+                    cornerRadius, borderColour, borderWidth, form);
         }
     }
 

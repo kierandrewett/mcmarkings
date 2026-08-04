@@ -92,10 +92,12 @@ Every layer has `kind`, `name` and `bounds` as `{ x, y, width, height }` in pixe
 | --- | --- |
 | `image` | `repoPath`, `fit` (`contain`, `cover`, `stretch`) |
 | `text` | `text`, `font`, `size`, `colour`, `horizontalAlign`, `verticalAlign`, `tracking`, `verticalScale`, `lineGap` |
-| `shape` | `fill`, `cornerRadius`, `borderColour`, `borderWidth`, `padding` |
+| `shape` | `fill`, `form`, `cornerRadius`, `borderColour`, `borderWidth`, `padding` |
 | `group` | `children`, `padding` |
 
-`horizontalAlign` is `left`, `centre` or `right`, and `verticalAlign` is `top`, `middle` or
+`form` is `rectangle` (the default), `ellipse`, `triangle`, `triangle_down` or `diamond`, which
+covers a plate, a roundel, a warning sign, a give way and a priority road. `cornerRadius` applies
+to a rectangle only. `horizontalAlign` is `left`, `centre` or `right`, and `verticalAlign` is `top`, `middle` or
 `bottom`. Both are case-insensitive and `center` is accepted for `centre`. Colours are the same
 strings `render` takes. `padding` and `margins` are `{ top, right, bottom, left }`.
 

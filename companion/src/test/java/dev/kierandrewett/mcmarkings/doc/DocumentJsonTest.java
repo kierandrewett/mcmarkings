@@ -482,7 +482,8 @@ class DocumentJsonTest {
                       "fill": "#D32F2F",
                       "cornerRadius": 12,
                       "borderColour": "#FFFFFF",
-                      "borderWidth": 4
+                      "borderWidth": 4,
+                      "form": "rectangle"
                     }
                   ]
                 }

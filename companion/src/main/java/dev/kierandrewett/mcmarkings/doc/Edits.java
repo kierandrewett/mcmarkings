@@ -301,7 +301,7 @@ public final class Edits {
                     text.tracking(), text.verticalScale());
             case Layer.Shape shape -> new Layer.Shape(newId("shape"), name, shape.bounds(), shape.visible(),
                     shape.locked(), shape.opacity(), shape.margins(), shape.padding(), shape.fill(),
-                    shape.cornerRadius(), shape.borderColour(), shape.borderWidth());
+                    shape.cornerRadius(), shape.borderColour(), shape.borderWidth(), shape.form());
             case Layer.Group group -> new Layer.Group(newId("group"), name, group.bounds(), group.visible(),
                     group.locked(), group.opacity(), group.margins(), group.padding(),
                     group.children().stream().map(child -> withNewIdentity(child, child.name())).toList());
