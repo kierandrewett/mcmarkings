@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "give_way_50_yds",
+  "grid": {
+    "columns": 1,
+    "rows": 2
+  },
+  "pixelsPerFrame": 256,
+  "background": "#00000000",
+  "layers": [
+    {
+      "kind": "image",
+      "id": "image-1",
+      "name": "Junction ahead controlled by a STOP or GIVE WAY sign.",
+      "bounds": {
+        "x": 0,
+        "y": 52,
+        "width": 256,
+        "height": 237
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/junction_ahead_controlled_by_a_stop_or_give_way_sign.png",
+      "fit": "contain"
+    },
+    {
+      "kind": "image",
+      "id": "image-2",
+      "name": "Give way in 50 yards.",
+      "bounds": {
+        "x": 0,
+        "y": 308,
+        "width": 256,
+        "height": 131
+      },
+      "visible": true,
+      "locked": false,
+      "opacity": 1.0,
+      "margins": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "repoPath": "signs/give_way_in_50_yards.png",
+      "fit": "contain"
+    }
+  ]
+}
